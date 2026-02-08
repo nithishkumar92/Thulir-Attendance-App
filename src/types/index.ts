@@ -20,6 +20,7 @@ export interface Team {
     name: string;
     repId?: string; // User ID of the representative
     definedRoles?: TeamRole[];
+    permittedSiteIds?: string[]; // Array of Site IDs
 }
 
 export interface Worker {
@@ -70,4 +71,5 @@ export interface AdvancePayment {
     amount: number;
     date: string;
     notes?: string;
+    siteId?: string; // Optional for backward compatibility, but should be populated going forward
 }

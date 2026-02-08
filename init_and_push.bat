@@ -1,5 +1,6 @@
 @echo off
 setlocal
+cd /d "%~dp0"
 
 echo Checking Git configuration...
 git config user.email >nul 2>&1

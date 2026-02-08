@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 export const TeamManagement: React.FC = () => {
-    const { teams, addTeam, updateTeam } = useApp();
+    // Site Management State
+    const [siteModalOpen, setSiteModalOpen] = useState(false);
+    const [selectedTeamSites, setSelectedTeamSites] = useState<string[]>([]);
+
+    const { teams, addTeam, updateTeam, sites } = useApp();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [teamName, setTeamName] = useState('');
 
@@ -73,6 +77,34 @@ export const TeamManagement: React.FC = () => {
         setEditingRoleIndex(null);
     };
 
+    const openSiteModal = (team: any) => {
+        setSelectedTeam(team);
+        setSelectedTeamSites(team.permittedSiteIds || []);
+        setSiteModalOpen(true);
+    };
+
+    const handleSaveSites = () => {
+        if (!selectedTeam) return;
+
+        const updatedTeam = {
+            ...selectedTeam,
+            permittedSiteIds: selectedTeamSites
+        };
+
+        updateTeam(updatedTeam);
+        setSiteModalOpen(false);
+        setSelectedTeam(null);
+        setSelectedTeamSites([]);
+    };
+
+    const toggleSiteSelection = (siteId: string) => {
+        setSelectedTeamSites(prev =>
+            prev.includes(siteId)
+                ? prev.filter(id => id !== siteId)
+                : [...prev, siteId]
+        );
+    };
+
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
@@ -111,7 +143,25 @@ export const TeamManagement: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex items-center gap-3 pt-4 border-t border-gray-50">
+                        {/* Permitted Sites Summary */}
+                        <div className="mt-4">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Permitted Sites</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {team.permittedSiteIds?.map(siteId => {
+                                    const site = sites.find(s => s.id === siteId);
+                                    return site ? (
+                                        <span key={siteId} className="inline-flex items-center px-2 py-1 rounded bg-green-50 text-green-700 text-xs border border-green-100">
+                                            {site.name}
+                                        </span>
+                                    ) : null;
+                                })}
+                                {(!team.permittedSiteIds || team.permittedSiteIds.length === 0) && (
+                                    <span className="text-xs text-gray-400 italic">No sites assigned</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex items-center gap-3 pt-4 border-t border-gray-50 justify-between">
                             <button
                                 onClick={() => openRoleModal(team)}
                                 className="text-sm font-medium text-blue-600 hover:text-blue-700"
@@ -119,7 +169,12 @@ export const TeamManagement: React.FC = () => {
                                 Manage Roles
                             </button>
                             <span className="text-gray-300">|</span>
-                            <button className="text-sm font-medium text-gray-500 hover:text-gray-700">Manage Members</button>
+                            <button
+                                onClick={() => openSiteModal(team)}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                            >
+                                Manage Sites
+                            </button>
                         </div>
                     </div>
                 ))}
@@ -223,6 +278,55 @@ export const TeamManagement: React.FC = () => {
 
                         <div className="flex justify-end mt-4 pt-4 border-t">
                             <button onClick={() => setRoleModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Manage Sites Modal */}
+            {siteModalOpen && selectedTeam && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-lg font-bold mb-2">Manage Permitted Sites</h3>
+                        <p className="text-sm text-gray-500 mb-6">Select sites that {selectedTeam.name} can access for reports & advances.</p>
+
+                        <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto">
+                            {sites.map(site => (
+                                <div
+                                    key={site.id}
+                                    onClick={() => toggleSiteSelection(site.id)}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedTeamSites.includes(site.id)
+                                            ? 'bg-blue-50 border-blue-200'
+                                            : 'bg-white border-gray-100 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedTeamSites.includes(site.id)
+                                            ? 'bg-blue-600 border-blue-600'
+                                            : 'border-gray-300'
+                                        }`}>
+                                        {selectedTeamSites.includes(site.id) && <Plus size={14} className="text-white transform rotate-45" strokeWidth={4} />}
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-gray-900">{site.name}</div>
+                                        <div className="text-xs text-gray-500">Radius: {site.radius}m</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                            <button
+                                onClick={() => setSiteModalOpen(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSites}
+                                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+                            >
+                                Save Changes
+                            </button>
                         </div>
                     </div>
                 </div>

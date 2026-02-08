@@ -33,6 +33,31 @@ export const TeamInterface: React.FC = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
 
+    // Multi-Site State
+    const [reportSiteId, setReportSiteId] = useState<string>('');
+    const [advanceSiteId, setAdvanceSiteId] = useState<string>('');
+
+    // Derived Permitted Sites
+    const permittedSites = React.useMemo(() => {
+        if (!currentUser?.teamId) return [];
+        const team = teams.find(t => t.id === currentUser.teamId);
+        // If no specifically permitted sites, maybe show all? Or none? 
+        // For now, if empty, maybe they can't see specific site reports? 
+        // Or assume they can see all if not restricted?
+        // Let's assume if array is empty/undefined, they only see what they punch into? 
+        // Actually, requirement says "permitted by owner". 
+        if (!team?.permittedSiteIds || team.permittedSiteIds.length === 0) return [];
+        return sites.filter(s => team.permittedSiteIds?.includes(s.id));
+    }, [currentUser, teams, sites]);
+
+    // Initialize logic
+    useEffect(() => {
+        if (permittedSites.length > 0) {
+            if (!reportSiteId) setReportSiteId(permittedSites[0].id);
+            if (!advanceSiteId) setAdvanceSiteId(permittedSites[0].id);
+        }
+    }, [permittedSites]);
+
     // Add Worker Modal State
     const [isAddWorkerModalOpen, setIsAddWorkerModalOpen] = useState(false);
     const [newWorkerName, setNewWorkerName] = useState('');
@@ -570,6 +595,22 @@ export const TeamInterface: React.FC = () => {
 
                 {activeTab === 'ADVANCE' && (
                     <div className="space-y-6">
+                        {/* Site Selector for Advances */}
+                        {permittedSites.length > 0 && (
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Select Site</label>
+                                <select
+                                    value={advanceSiteId}
+                                    onChange={(e) => setAdvanceSiteId(e.target.value)}
+                                    className="w-full p-2 border rounded-md bg-white"
+                                >
+                                    {permittedSites.map(site => (
+                                        <option key={site.id} value={site.id}>{site.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                             <h3 className="text-lg font-bold text-gray-800 mb-4">Team Advances</h3>
 
@@ -601,7 +642,8 @@ export const TeamInterface: React.FC = () => {
                                                 const d = parseISO(a.date);
                                                 return a.teamId === currentUser?.teamId &&
                                                     !a.notes?.includes('[SETTLEMENT]') &&
-                                                    d >= advanceWeekStart && d <= advanceWeekEnd;
+                                                    d >= advanceWeekStart && d <= advanceWeekEnd &&
+                                                    (!advanceSiteId || a.siteId === advanceSiteId);
                                             })
                                             .reduce((sum, a) => sum + a.amount, 0)
                                             .toLocaleString()}
@@ -615,7 +657,8 @@ export const TeamInterface: React.FC = () => {
                                                 const d = parseISO(a.date);
                                                 return a.teamId === currentUser?.teamId &&
                                                     a.notes?.includes('[SETTLEMENT]') &&
-                                                    d >= advanceWeekStart && d <= advanceWeekEnd;
+                                                    d >= advanceWeekStart && d <= advanceWeekEnd &&
+                                                    (!advanceSiteId || a.siteId === advanceSiteId);
                                             })
                                             .reduce((sum, a) => sum + a.amount, 0)
                                             .toLocaleString()}
@@ -670,7 +713,8 @@ export const TeamInterface: React.FC = () => {
                                                 teamId: currentUser?.teamId || '',
                                                 amount: parseFloat(amountInput.value),
                                                 date: dateInput.value,
-                                                notes: notesInput.value
+                                                notes: notesInput.value,
+                                                siteId: advanceSiteId // Include siteId
                                             });
 
                                             amountInput.value = '';
@@ -691,7 +735,8 @@ export const TeamInterface: React.FC = () => {
                                         .filter(a => {
                                             const d = parseISO(a.date);
                                             return a.teamId === currentUser?.teamId &&
-                                                d >= advanceWeekStart && d <= advanceWeekEnd;
+                                                d >= advanceWeekStart && d <= advanceWeekEnd &&
+                                                (!advanceSiteId || a.siteId === advanceSiteId);
                                         })
                                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                                         .map(adv => (
@@ -709,7 +754,8 @@ export const TeamInterface: React.FC = () => {
                                     {advances.filter(a => {
                                         const d = parseISO(a.date);
                                         return a.teamId === currentUser?.teamId &&
-                                            d >= advanceWeekStart && d <= advanceWeekEnd;
+                                            d >= advanceWeekStart && d <= advanceWeekEnd &&
+                                            (!advanceSiteId || a.siteId === advanceSiteId);
                                     }).length === 0 && (
                                             <div className="text-center text-xs text-gray-400 py-2">No transaction history for this week</div>
                                         )}
@@ -719,7 +765,23 @@ export const TeamInterface: React.FC = () => {
                     </div>
                 )}
                 {activeTab === 'REPORT' && (
-                    <WeeklyReport />
+                    <div className="space-y-4">
+                        {permittedSites.length > 0 && (
+                            <div className="bg-white p-4 rounded-lg shadow-sm mx-4 mt-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
+                                <select
+                                    value={reportSiteId}
+                                    onChange={(e) => setReportSiteId(e.target.value)}
+                                    className="w-full p-2 border rounded-md bg-white"
+                                >
+                                    {permittedSites.map(site => (
+                                        <option key={site.id} value={site.id}>{site.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <WeeklyReport teamId={currentUser?.teamId} siteId={reportSiteId} />
+                    </div>
                 )}
 
                 {/* Location Persistence Modal */}

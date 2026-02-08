@@ -8,10 +8,20 @@ import { calculateDutyPoints } from '../../utils/wageUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export const WeeklyReport: React.FC = () => {
+interface WeeklyReportProps {
+    teamId?: string; // Optional: If provided, confines report to this team (used by Team Rep)
+    siteId?: string; // Optional: If provided, filters attendance and advances by this site
+}
+
+export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) => {
     const { attendance, workers, teams, currentUser, advances } = useApp();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedTeamId, setSelectedTeamId] = useState<string>('ALL');
+    const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'ALL');
+
+    // Update selectedTeamId if prop changes
+    React.useEffect(() => {
+        if (teamId) setSelectedTeamId(teamId);
+    }, [teamId]);
 
     const start = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
     const end = endOfWeek(currentDate, { weekStartsOn: 0 });
@@ -33,6 +43,7 @@ export const WeeklyReport: React.FC = () => {
         }
 
         // 2. Dropdown Filter (mostly for Owner)
+        // If prop teamId is passed, selectedTeamId will be forced to it anyway
         if (selectedTeamId !== 'ALL') {
             filtered = filtered.filter(w => w.teamId === selectedTeamId);
         }
@@ -81,7 +92,13 @@ export const WeeklyReport: React.FC = () => {
     // 1. Attendance Data (Worker Rows)
     const reportData = useMemo(() => {
         return visibleWorkers.map(worker => {
-            const workerAttendance = attendance.filter(a => a.workerId === worker.id);
+            // Filter attendance by worker AND siteId (if provided)
+            const workerAttendance = attendance.filter(a => {
+                const isWorkerMatch = a.workerId === worker.id;
+                const isSiteMatch = !siteId || a.siteId === siteId;
+                return isWorkerMatch && isSiteMatch;
+            });
+
             const daysData = days.map(day => {
                 const record = workerAttendance.find(a => isSameDay(parseISO(a.date), day));
                 const shiftCount = record ? calculateShifts(record) : 0;
@@ -96,7 +113,7 @@ export const WeeklyReport: React.FC = () => {
             const totalPresent = daysData.reduce((sum, d) => sum + d.shiftCount, 0);
             return { worker, daysData, totalPresent };
         });
-    }, [visibleWorkers, attendance, days]);
+    }, [visibleWorkers, attendance, days, siteId]); // Added siteId dependency
 
     // 2. Financial Data (Date Rows, Role Columns)
     const uniqueRoles = useMemo(() => Array.from(new Set(visibleWorkers.map(w => w.role))).sort(), [visibleWorkers]);
@@ -110,7 +127,11 @@ export const WeeklyReport: React.FC = () => {
             uniqueRoles.forEach(role => roleStats[role] = { count: 0, cost: 0 });
 
             visibleWorkers.forEach(worker => {
-                const record = attendance.find(a => a.workerId === worker.id && a.date === dateStr);
+                const record = attendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId) // Filter by siteId
+                );
                 const shiftCount = record ? calculateShifts(record) : 0;
 
                 if (uniqueRoles.includes(worker.role)) {
@@ -126,7 +147,8 @@ export const WeeklyReport: React.FC = () => {
                     const isDateMatch = adv.date === dateStr;
                     const isTypeMatch = !adv.notes?.includes('[SETTLEMENT]');
                     const isTeamMatch = selectedTeamId === 'ALL' || adv.teamId === selectedTeamId;
-                    return isDateMatch && isTypeMatch && isTeamMatch;
+                    const isSiteMatch = !siteId || adv.siteId === siteId; // Filter by siteId
+                    return isDateMatch && isTypeMatch && isTeamMatch && isSiteMatch;
                 })
                 .reduce((sum, adv) => sum + adv.amount, 0);
 
@@ -135,7 +157,8 @@ export const WeeklyReport: React.FC = () => {
                     const isDateMatch = adv.date === dateStr;
                     const isTypeMatch = adv.notes?.includes('[SETTLEMENT]');
                     const isTeamMatch = selectedTeamId === 'ALL' || adv.teamId === selectedTeamId;
-                    return isDateMatch && isTypeMatch && isTeamMatch;
+                    const isSiteMatch = !siteId || adv.siteId === siteId; // Filter by siteId
+                    return isDateMatch && isTypeMatch && isTeamMatch && isSiteMatch;
                 })
                 .reduce((sum, adv) => sum + adv.amount, 0);
 
@@ -146,7 +169,7 @@ export const WeeklyReport: React.FC = () => {
                 settlement: daySettlements
             };
         });
-    }, [days, visibleWorkers, attendance, advances, uniqueRoles]);
+    }, [days, visibleWorkers, attendance, advances, uniqueRoles, selectedTeamId, siteId]); // Added siteId
 
     // Totals for Footer
     const roleTotals: Record<string, { count: number, cost: number }> = {};

@@ -32,7 +32,8 @@ export const fetchTeams = async (): Promise<Team[]> => {
         id: t.id,
         name: t.name,
         repId: t.rep_id,
-        definedRoles: t.defined_roles
+        definedRoles: t.defined_roles,
+        permittedSiteIds: t.permitted_site_ids
     }));
 };
 
@@ -41,7 +42,8 @@ export const createTeam = async (team: Partial<Team>) => {
         .from('teams')
         .insert([{
             name: team.name,
-            defined_roles: team.definedRoles || []
+            defined_roles: team.definedRoles || [],
+            permitted_site_ids: team.permittedSiteIds || []
         }])
         .select()
         .single();
@@ -55,6 +57,7 @@ export const updateTeam = async (teamId: string, updates: Partial<Team>) => {
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.repId !== undefined) dbUpdates.rep_id = updates.repId;
     if (updates.definedRoles) dbUpdates.defined_roles = updates.definedRoles;
+    if (updates.permittedSiteIds) dbUpdates.permitted_site_ids = updates.permittedSiteIds;
 
     const { error } = await supabase
         .from('teams')
@@ -304,7 +307,8 @@ export const fetchAdvances = async (): Promise<AdvancePayment[]> => {
         teamId: a.team_id, // Changed from worker_id
         amount: a.amount,
         date: a.date,
-        notes: a.notes
+        notes: a.notes,
+        siteId: a.site_id
     }));
 };
 
@@ -315,7 +319,8 @@ export const createAdvance = async (advance: AdvancePayment) => {
             team_id: advance.teamId, // Changed from worker_id
             amount: advance.amount,
             date: advance.date,
-            notes: advance.notes
+            notes: advance.notes,
+            site_id: advance.siteId
         }])
         .select()
         .single();
@@ -330,6 +335,7 @@ export const updateAdvance = async (id: string, advance: Partial<AdvancePayment>
     if (advance.amount) dbUpdates.amount = advance.amount;
     if (advance.date) dbUpdates.date = advance.date;
     if (advance.notes) dbUpdates.notes = advance.notes;
+    if (advance.siteId) dbUpdates.site_id = advance.siteId;
 
     const { error } = await supabase
         .from('advances')
