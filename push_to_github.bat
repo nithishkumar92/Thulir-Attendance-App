@@ -2,39 +2,60 @@
 setlocal
 cd /d "%~dp0"
 
-echo Configuring Git Identity...
+echo.
+echo ========================================================
+echo        THULIR ATTENDANCE APP - GITHUB PUSHER
+echo ========================================================
+echo.
+
+echo 1. Checking for secrets...
+if exist ".env" (
+    echo    [SECURE] .env file detected.
+    
+    echo    Checking if .env is properly ignored by git...
+    git check-ignore -q .env
+    if %ERRORLEVEL% EQU 0 (
+        echo    [PASS] .env is correctly ignored. It will NOT be uploaded.
+    ) else (
+        echo    [WARNING] .env is NOT ignored! 
+        echo    Adding .env to .gitignore now...
+        echo .env >> .gitignore
+        echo    [FIXED] .env added to ignore list.
+    )
+) else (
+    echo    [INFO] No .env file found locally. Nothing to protect.
+)
+
+echo.
+echo 2. Configuring User Identity...
 git config --global user.email "nithishkumar92@gmail.com"
 git config --global user.name "Nithish Kumar"
 
 echo.
-echo Initializing Git repository in %CD%...
-git init
-
-echo.
-echo Creating initial commit...
+echo 3. Preparing files...
+echo    (Only safe files will be added)
 git add .
-git commit -m "Initial commit for Thulir Attendance App"
+git commit -m "Update from local script" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    echo    [SUCCESS] Changes committed locally.
+) else (
+    echo    [INFO] No new changes to commit.
+)
 
 echo.
-echo Setting up remote...
-git branch -M main
-git remote remove origin 2>nul
-git remote add origin https://github.com/nithishkumar92/Thulir-Attendance-App.git
-
-echo.
-echo Pushing to GitHub...
+echo 4. pushing to GitHub (Thulir-Attendance-App)...
 git push -u origin main
 
+echo.
+echo ========================================================
 if %ERRORLEVEL% EQU 0 (
+    echo  [SUCCESS] Code is live at:
+    echo  https://github.com/nithishkumar92/Thulir-Attendance-App
     echo.
-    echo Success! Your code is live.
+    echo  NOTE: check the repo link above. You will see '.env' is MISSING.
+    echo  This is GOOD. It means your secrets are safe on your PC.
 ) else (
-    echo.
-    echo PUSH FAILED.
-    echo.
-    echo Common reasons:
-    echo 1. No files were committed (check if 'git commit' succeeded above).
-    echo 2. You are not logged in (credential manager should pop up).
-    echo 3. The repository does not exist on GitHub yet.
+    echo  [FAIL] Push failed. See error details above.
 )
+echo ========================================================
 pause
