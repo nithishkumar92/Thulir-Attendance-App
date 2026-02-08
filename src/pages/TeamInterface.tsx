@@ -1,0 +1,945 @@
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
+import { getCurrentLocation, calculateDistance } from '../utils/geo'; // Assuming this utility exists or is imported correctly
+import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Site, Worker } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { WeeklyReport } from './dashboard/WeeklyReport';
+import clsx from 'clsx';
+import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO } from 'date-fns';
+
+type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
+
+export const TeamInterface: React.FC = () => {
+    const { currentUser, workers, sites, recordAttendance, attendance, addAdvance, advances, logout, refreshData, teams, addWorker } = useApp();
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<Tab>('PUNCH_IN');
+    const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [locationError, setLocationError] = useState('');
+    const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+    const [isLocationVerified, setIsLocationVerified] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false); // Added state
+
+    // Advances Tab State
+    const [selectedAdvanceWeek, setSelectedAdvanceWeek] = useState(new Date());
+
+    const handlePrevAdvanceWeek = () => setSelectedAdvanceWeek(prev => subWeeks(prev, 1));
+    const handleNextAdvanceWeek = () => setSelectedAdvanceWeek(prev => addWeeks(prev, 1));
+
+    const advanceWeekStart = startOfWeek(selectedAdvanceWeek, { weekStartsOn: 0 });
+    const advanceWeekEnd = endOfWeek(selectedAdvanceWeek, { weekStartsOn: 0 });
+
+    const [photo, setPhoto] = useState<string | null>(null); // Placeholder for photo logic
+    const [successMessage, setSuccessMessage] = useState('');
+    const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+
+    // Add Worker Modal State
+    const [isAddWorkerModalOpen, setIsAddWorkerModalOpen] = useState(false);
+    const [newWorkerName, setNewWorkerName] = useState('');
+    const [newWorkerPhone, setNewWorkerPhone] = useState('');
+    const [newWorkerRole, setNewWorkerRole] = useState('');
+    const [newWorkerPhoto, setNewWorkerPhoto] = useState<string>('');
+    const [newWorkerAadhaar, setNewWorkerAadhaar] = useState<string>('');
+
+    const handleAddWorker = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser?.teamId) return;
+
+        const currentTeam = teams.find(t => t.id === currentUser?.teamId);
+        const roleDef = currentTeam?.definedRoles?.find(r => r.name === newWorkerRole);
+        const defaultWage = roleDef?.defaultWage || 0;
+
+        await addWorker({
+            id: Date.now().toString(),
+            name: newWorkerName,
+            teamId: currentUser.teamId,
+            role: newWorkerRole,
+            dailyWage: defaultWage,
+            wageType: 'DAILY',
+            phoneNumber: newWorkerPhone,
+            photoUrl: newWorkerPhoto,
+            aadhaarPhotoUrl: newWorkerAadhaar,
+            isActive: true,
+            approved: false,
+            isLocked: false
+        });
+
+        setIsAddWorkerModalOpen(false);
+        setNewWorkerName('');
+        setNewWorkerPhone('');
+        setNewWorkerRole('');
+        setNewWorkerPhoto('');
+        setNewWorkerAadhaar('');
+        alert("Worker added! Waiting for admin approval.");
+    };
+
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => setNewWorkerPhoto(reader.result as string);
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Pull to Refresh State
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [pullStartY, setPullStartY] = useState<number | null>(null);
+    const [pullDistance, setPullDistance] = useState(0);
+    const CONTENT_REF = React.useRef<HTMLDivElement>(null);
+    const MIN_PULL_DISTANCE = 80;
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (CONTENT_REF.current && CONTENT_REF.current.scrollTop === 0) {
+            setPullStartY(e.touches[0].clientY);
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!pullStartY) return;
+
+        const currentY = e.touches[0].clientY;
+        const diff = currentY - pullStartY;
+
+        if (diff > 0 && CONTENT_REF.current?.scrollTop === 0) {
+            // Resistance effect
+            setPullDistance(Math.min(diff * 0.5, 150));
+            // Prevent default only if we are pulling down at the top? 
+            // Browsers might handle this differently, but let's try to let it flow naturally or prevent if needed.
+            // e.preventDefault(); // Verify if this blocks scrolling too much
+        } else {
+            setPullDistance(0);
+        }
+    };
+
+    const handleTouchEnd = async () => {
+        if (pullDistance > MIN_PULL_DISTANCE) {
+            setIsRefreshing(true);
+            setPullDistance(MIN_PULL_DISTANCE); // Snap to loading position
+            try {
+                await refreshData();
+            } finally {
+                setIsRefreshing(false);
+                setPullDistance(0);
+                setPullStartY(null);
+            }
+        } else {
+            setPullDistance(0);
+            setPullStartY(null);
+        }
+    };
+
+    const toggleWorkerSelection = (workerId: string) => {
+        setSelectedWorkerIds(prev =>
+            prev.includes(workerId)
+                ? prev.filter(id => id !== workerId)
+                : [...prev, workerId]
+        );
+    };
+
+    const handleBulkPunchOut = async () => {
+        if (!selectedSite || selectedWorkerIds.length === 0) return;
+
+        const today = new Date().toISOString().split('T')[0];
+        const now = new Date().toISOString();
+
+        // Process all selected workers
+        for (const workerId of selectedWorkerIds) {
+            const existingRecord = attendance.find(r => r.workerId === workerId && r.date === today);
+
+            if (existingRecord) {
+                await recordAttendance({
+                    ...existingRecord,
+                    punchOutTime: now,
+                    punchOutLocation: currentLocation!,
+                    status: existingRecord.status // Keep existing status (PRESENT)
+                });
+            }
+        }
+
+        setSuccessMessage(`Successfully punched out ${selectedWorkerIds.length} workers.`);
+        setSelectedWorkerIds([]); // Reset selection
+        setTimeout(() => setSuccessMessage(''), 3000);
+    };
+
+    // Filter workers for this team
+    // Filter workers:
+    // - If OWNER, show all (or could restrict, but usually owner sees all)
+    // - If TEAM_REP, strictly show only workers with matching teamId
+    const teamWorkers = currentUser?.role === 'OWNER'
+        ? workers.filter(w => !w.isLocked)
+        : workers.filter(w => w.teamId === currentUser?.teamId && !w.isLocked);
+
+    useEffect(() => {
+        // Attempt to get location on mount or tab change to 'PUNCH_IN'/'PUNCH_OUT'
+        if (activeTab === 'PUNCH_IN' || activeTab === 'PUNCH_OUT') {
+            verifyLocation();
+        }
+        setSelectedWorkerIds([]); // Clear selection on tab change
+        setPhoto(null);
+    }, [activeTab]);
+
+    const verifyLocation = async () => {
+        setIsVerifying(true);
+        setLocationError('');
+        setIsLocationVerified(false);
+        setSelectedSite(null);
+        try {
+            const location = await getCurrentLocation();
+            setCurrentLocation(location);
+
+            // Find nearest site within radius
+            const validSite = sites.find(site => {
+                const distance = calculateDistance(location.lat, location.lng, site.location.lat, site.location.lng);
+                return distance <= site.radius;
+            });
+
+            if (validSite) {
+                setSelectedSite(validSite);
+                setIsLocationVerified(true);
+            } else {
+                setLocationError('You are far from the site.');
+            }
+        } catch (err: any) {
+            console.error(err);
+            if (err.code === 1) {
+                setLocationError('BLOCKED: Browser blocked location. Click lock icon in url bar.');
+            } else if (err.code === 2) {
+                setLocationError('GPS signal lost. Please move outside.');
+            } else if (err.code === 3) {
+                setLocationError('Location timed out. Please try again.');
+            } else {
+                setLocationError('GPS failed. Ensure it is turned on.');
+            }
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleBulkPunchIn = async () => {
+        if (!selectedSite || selectedWorkerIds.length === 0) return;
+
+        const today = new Date().toISOString().split('T')[0];
+        const now = new Date().toISOString();
+
+        for (const workerId of selectedWorkerIds) {
+            // Double check if already punched in
+            const existing = attendance.find(r => r.workerId === workerId && r.date === today);
+            if (existing) continue;
+
+            await recordAttendance({
+                id: Date.now().toString() + Math.random(),
+                workerId,
+                siteId: selectedSite.id,
+                date: today,
+                punchInTime: now,
+                punchInLocation: currentLocation!,
+                status: 'PRESENT',
+                verified: true,
+                punchInPhoto: photo || undefined
+            });
+        }
+
+        setSuccessMessage(`Successfully punched in ${selectedWorkerIds.length} workers.`);
+        setSelectedWorkerIds([]);
+        setPhoto(null);
+        setTimeout(() => setSuccessMessage(''), 3000);
+    };
+
+    // ... (rest of code) ...
+    // Note: Skipping handlePunchOut as it is further down, focusing on replace boundaries.
+    // Need to match lines for content replacement.
+    // The previous block ended at 110, so I will replace from 68 to 138 (handlePunchIn end).
+
+    // Let's refine the replacement content to match the target block exactly.
+    // The target covers lines 68 to 138.
+
+
+
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    return (
+        <div className="h-[100dvh] bg-gray-50 flex flex-col font-sans overflow-hidden">
+            {/* Header */}
+            <div className="bg-white shadow p-4 flex justify-between items-center z-20 shrink-0">
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <h1 className="text-lg font-bold text-gray-800 truncate">Team: {currentUser?.username}</h1>
+                    <button
+                        onClick={() => setIsAddWorkerModalOpen(true)}
+                        className="bg-blue-600 text-white px-3 py-1.5 rounded-full hover:bg-blue-700 flex items-center gap-1.5 text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0 whitespace-nowrap"
+                    >
+                        <Plus size={14} strokeWidth={3} />
+                        Add
+                    </button>
+                </div>
+                <button onClick={handleLogout} className="text-gray-600 hover:text-red-600">
+                    <LogOut size={20} />
+                </button>
+            </div>
+
+
+            {/* Content */}
+            <div
+                ref={CONTENT_REF}
+                className="flex-1 p-4 overflow-y-auto overscroll-y-contain pb-24 relative"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            >
+                {/* Pull Indicator */}
+                <div
+                    style={{
+                        height: pullDistance,
+                        opacity: pullDistance > 0 ? 1 : 0,
+                        transition: isRefreshing ? 'height 0.2s ease-out' : 'none'
+                    }}
+                    className="w-full flex items-end justify-center overflow-hidden -mt-4 mb-4"
+                >
+                    <div className={`transition-transform duration-200 ${pullDistance > MIN_PULL_DISTANCE ? 'rotate-180' : ''}`}>
+                        {isRefreshing ? (
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                        ) : (
+                            <LogOut size={24} className="text-gray-400 rotate-90 mb-2" /> // Using generic icon downward
+                        )}
+                    </div>
+                </div>
+
+                {successMessage && (
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                        {successMessage}
+                    </div>
+                )}
+
+                {activeTab === 'PUNCH_IN' && (
+                    <div className="space-y-6">
+                        {/* Location Header */}
+                        <div className={`p-4 rounded-xl flex items-center justify-center gap-3 shadow-sm ${isLocationVerified ? 'bg-green-600 text-white' : 'bg-red-50 border border-red-100'}`}>
+                            {isLocationVerified ? (
+                                <>
+                                    <MapPin className="text-white" size={24} />
+                                    <span className="font-bold text-lg">Location Verified: {selectedSite?.name}</span>
+                                    <div className="bg-white/20 p-1 rounded-full">
+                                        <CheckCircle className="text-white" size={20} />
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <MapPin className="text-red-600" size={24} />
+                                    <div className="text-center">
+                                        <p className="font-bold text-red-800">Location Not Verified</p>
+                                        <p className="text-xs text-red-600 cursor-pointer underline" onClick={verifyLocation}>Tap to Retry</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {isLocationVerified && (
+                            <div className="space-y-6">
+                                <div className="text-center">
+                                    <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wide">WHO ARE YOU?</h2>
+                                    <p className="text-xs text-gray-500 font-medium">(Select your profile)</p>
+                                </div>
+
+                                {/* Worker Carousel */}
+                                <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
+                                    {teamWorkers.map(worker => {
+                                        const today = new Date().toISOString().split('T')[0];
+                                        const isAlreadyPunchedIn = attendance.some(r => r.workerId === worker.id && r.date === today);
+                                        const isSelected = selectedWorkerIds.includes(worker.id);
+
+                                        return (
+                                            <div
+                                                key={worker.id}
+                                                onClick={() => !isAlreadyPunchedIn && worker.approved && toggleWorkerSelection(worker.id)}
+                                                className={`flex-shrink-0 w-32 snap-center flex flex-col items-center gap-2 transition-all duration-200 cursor-pointer ${isAlreadyPunchedIn || !worker.approved
+                                                    ? 'opacity-60 grayscale cursor-not-allowed'
+                                                    : isSelected
+                                                        ? 'scale-110'
+                                                        : 'opacity-100 scale-95'
+                                                    }`}
+                                            >
+                                                <div className={`relative w-24 h-24 rounded-full border-4 shadow-md overflow-hidden ${isAlreadyPunchedIn
+                                                    ? 'border-gray-300 bg-gray-100'
+                                                    : isSelected
+                                                        ? 'border-green-500 ring-4 ring-green-100'
+                                                        : 'border-gray-200'
+                                                    }`}>
+                                                    <img
+                                                        src={worker.photoUrl || `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=128`}
+                                                        alt={worker.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    {isSelected && !isAlreadyPunchedIn && (
+                                                        <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                                                            <div className="bg-green-500 rounded-full p-1">
+                                                                <CheckCircle className="text-white w-6 h-6" />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {isAlreadyPunchedIn && (
+                                                        <div className="absolute inset-0 bg-gray-500/10 flex items-center justify-center">
+                                                            <span className="bg-gray-100/80 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-300">PUNCHED IN</span>
+                                                        </div>
+                                                    )}
+                                                    {!worker.approved && (
+                                                        <div className="absolute inset-0 bg-yellow-500/20 flex items-center justify-center">
+                                                            <span className="bg-yellow-100/90 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-bold border border-yellow-300">PENDING</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className={`font-bold text-sm leading-tight ${isSelected || isAlreadyPunchedIn ? 'text-gray-900' : 'text-gray-500'}`}>{worker.name}</p>
+                                                    <p className="text-[10px] text-gray-400 uppercase font-medium">{worker.role}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Photo & Action */}
+                                <div className="space-y-4 px-2">
+                                    {!photo ? (
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                capture="environment"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => setPhoto(reader.result as string);
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                                className="hidden"
+                                                id="photo-upload"
+                                            />
+                                            <label
+                                                htmlFor="photo-upload"
+                                                className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                                            >
+                                                <Camera className="text-gray-400" size={32} />
+                                                <span className="text-sm font-medium text-gray-500">Take Daily Photo (Optional)</span>
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <div className="relative rounded-xl overflow-hidden shadow-sm aspect-video bg-black">
+                                            <img src={photo} alt="Preview" className="w-full h-full object-contain" />
+                                            <button
+                                                onClick={() => setPhoto(null)}
+                                                className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                                            >
+                                                <XCircle size={20} />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        disabled={selectedWorkerIds.length === 0}
+                                        onClick={handleBulkPunchIn}
+                                        className="w-full group bg-gradient-to-r from-green-600 to-green-500 text-white py-4 rounded-full font-bold shadow-lg shadow-green-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-3"
+                                    >
+                                        <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                                            <LogOut className="rotate-180" size={24} />
+                                        </div>
+                                        <div className="flex flex-col items-start">
+                                            <span className="text-lg leading-none">PUNCH IN {selectedWorkerIds.length > 0 ? `(${selectedWorkerIds.length})` : ''}</span>
+                                            <span className="text-[10px] opacity-80 font-medium uppercase tracking-wider">Start Work Day + Selfie</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'PUNCH_OUT' && (
+                    <div className="space-y-6">
+                        {/* Location Header */}
+                        <div className={`p-4 rounded-xl flex items-center justify-center gap-3 shadow-sm ${isLocationVerified ? 'bg-green-600 text-white' : 'bg-red-50 border border-red-100'}`}>
+                            {isLocationVerified ? (
+                                <>
+                                    <MapPin className="text-white" size={24} />
+                                    <span className="font-bold text-lg">Location Verified: {selectedSite?.name}</span>
+                                    <div className="bg-white/20 p-1 rounded-full">
+                                        <CheckCircle className="text-white" size={20} />
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <MapPin className="text-red-600" size={24} />
+                                    <div className="text-center">
+                                        <p className="font-bold text-red-800">Location Not Verified</p>
+                                        <p className="text-xs text-red-600 cursor-pointer underline" onClick={verifyLocation}>Tap to Retry</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {isLocationVerified && (
+                            <div className="space-y-6">
+                                <div className="text-center">
+                                    <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wide">Finished Work?</h2>
+                                    <p className="text-xs text-gray-500 font-medium text-red-600">(Select who is leaving)</p>
+                                </div>
+
+                                {(() => {
+                                    const today = new Date().toISOString().split('T')[0];
+                                    const activeRecords = attendance.filter(r =>
+                                        r.date === today &&
+                                        !r.punchOutTime &&
+                                        teamWorkers.some(w => w.id === r.workerId)
+                                    );
+
+                                    if (activeRecords.length === 0) {
+                                        return (
+                                            <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
+                                                <CheckCircle className="text-green-500 mb-2" size={48} />
+                                                <p className="text-gray-500 font-medium">All workers have punched out!</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <>
+                                            {/* Worker Carousel (Multi-Select Support Logic but Single UI for now) */}
+                                            {/* Keeping single select for simplicity unless bulk is needed. Reference showed single selection style. */}
+                                            <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
+                                                {teamWorkers.filter(w => activeRecords.some(r => r.workerId === w.id)).map(worker => {
+                                                    // Reuse selection logic, maybe toggle for bulk?
+                                                    // Defaulting to single select logic via selectedWorkerIds array for now
+                                                    const isSelected = selectedWorkerIds.includes(worker.id);
+                                                    return (
+                                                        <div
+                                                            key={worker.id}
+                                                            onClick={() => toggleWorkerSelection(worker.id)}
+                                                            className={`flex-shrink-0 w-32 snap-center flex flex-col items-center gap-2 transition-all duration-200 cursor-pointer ${isSelected ? 'scale-110' : 'opacity-70 scale-95'}`}
+                                                        >
+                                                            <div className={`relative w-24 h-24 rounded-full border-4 shadow-md overflow-hidden ${isSelected ? 'border-red-500 ring-4 ring-red-100' : 'border-gray-200'}`}>
+                                                                <img
+                                                                    src={worker.photoUrl || `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=128`}
+                                                                    alt={worker.name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                                {isSelected && (
+                                                                    <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                                                                        <div className="bg-red-500 rounded-full p-1">
+                                                                            <CheckCircle className="text-white w-6 h-6" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-center">
+                                                                <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{worker.name}</p>
+                                                                <p className="text-[10px] text-gray-400 uppercase font-medium">{worker.role}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="px-2">
+                                                <button
+                                                    disabled={selectedWorkerIds.length === 0}
+                                                    onClick={handleBulkPunchOut}
+                                                    className="w-full group bg-gradient-to-r from-red-600 to-red-500 text-white py-4 rounded-full font-bold shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-3"
+                                                >
+                                                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                                                        <LogOut size={24} />
+                                                    </div>
+                                                    <div className="flex flex-col items-start">
+                                                        <span className="text-lg leading-none">PUNCH OUT {selectedWorkerIds.length > 0 ? `(${selectedWorkerIds.length})` : ''}</span>
+                                                        <span className="text-[10px] opacity-80 font-medium uppercase tracking-wider">End Work Day</span>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+
+
+                {activeTab === 'ADVANCE' && (
+                    <div className="space-y-6">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-800 mb-4">Team Advances</h3>
+
+                            {/* Week Navigation */}
+                            <div className="flex items-center justify-between bg-gray-50 p-2 rounded-lg mb-4 border border-gray-200">
+                                <button onClick={handlePrevAdvanceWeek} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600">
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <div className="text-center">
+                                    <div className="text-sm font-bold text-gray-800">
+                                        {format(advanceWeekStart, 'MMM d')} - {format(advanceWeekEnd, 'MMM d, yyyy')}
+                                    </div>
+                                    <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">
+                                        {isSameDay(advanceWeekStart, startOfWeek(new Date(), { weekStartsOn: 0 })) ? 'Current Week' : 'Selected Week'}
+                                    </div>
+                                </div>
+                                <button onClick={handleNextAdvanceWeek} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600">
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+
+                            {/* Summary Card (Filtered by Week) */}
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="bg-red-50 p-3 rounded-lg text-center border border-red-100">
+                                    <div className="text-xs text-red-600 font-medium uppercase">Total Advances</div>
+                                    <div className="text-xl font-bold text-red-700">
+                                        ₹{advances
+                                            .filter(a => {
+                                                const d = parseISO(a.date);
+                                                return a.teamId === currentUser?.teamId &&
+                                                    !a.notes?.includes('[SETTLEMENT]') &&
+                                                    d >= advanceWeekStart && d <= advanceWeekEnd;
+                                            })
+                                            .reduce((sum, a) => sum + a.amount, 0)
+                                            .toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="bg-green-50 p-3 rounded-lg text-center border border-green-100">
+                                    <div className="text-xs text-green-600 font-medium uppercase">Settlements</div>
+                                    <div className="text-xl font-bold text-green-700">
+                                        ₹{advances
+                                            .filter(a => {
+                                                const d = parseISO(a.date);
+                                                return a.teamId === currentUser?.teamId &&
+                                                    a.notes?.includes('[SETTLEMENT]') &&
+                                                    d >= advanceWeekStart && d <= advanceWeekEnd;
+                                            })
+                                            .reduce((sum, a) => sum + a.amount, 0)
+                                            .toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Add Advance Form */}
+                            <div className="mb-6 border-t pt-4">
+                                <h4 className="font-semibold text-gray-700 mb-2">Request New Advance</h4>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-gray-500">Amount (₹)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Enter Amount"
+                                            className="w-full p-2 border rounded-md"
+                                            id="rep-advance-amount"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500">Date</label>
+                                        <input
+                                            type="date"
+                                            defaultValue={new Date().toISOString().split('T')[0]}
+                                            className="w-full p-2 border rounded-md"
+                                            id="rep-advance-date"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500">Notes (Optional)</label>
+                                        <textarea
+                                            placeholder="Reason for advance..."
+                                            className="w-full p-2 border rounded-md resize-none"
+                                            rows={2}
+                                            id="rep-advance-notes"
+                                        />
+                                    </div>
+                                    <button
+                                        className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+                                        onClick={async () => {
+                                            const amountInput = document.getElementById('rep-advance-amount') as HTMLInputElement;
+                                            const dateInput = document.getElementById('rep-advance-date') as HTMLInputElement;
+                                            const notesInput = document.getElementById('rep-advance-notes') as HTMLTextAreaElement;
+
+                                            if (!amountInput.value || !dateInput.value) {
+                                                alert('Please enter amount and date');
+                                                return;
+                                            }
+
+                                            await addAdvance({
+                                                teamId: currentUser?.teamId || '',
+                                                amount: parseFloat(amountInput.value),
+                                                date: dateInput.value,
+                                                notes: notesInput.value
+                                            });
+
+                                            amountInput.value = '';
+                                            notesInput.value = '';
+                                            alert('Advance Recorded Successfully');
+                                        }}
+                                    >
+                                        Record Advance
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* History (Filtered by Week) */}
+                            <div className="border-t pt-2">
+                                <h4 className="font-semibold text-gray-700 mb-2 text-sm">History ({format(advanceWeekStart, 'MMM d')} - {format(advanceWeekEnd, 'MMM d')})</h4>
+                                <div className="space-y-2">
+                                    {advances
+                                        .filter(a => {
+                                            const d = parseISO(a.date);
+                                            return a.teamId === currentUser?.teamId &&
+                                                d >= advanceWeekStart && d <= advanceWeekEnd;
+                                        })
+                                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                        .map(adv => (
+                                            <div key={adv.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
+                                                <div>
+                                                    <div className="font-medium text-gray-800">{format(new Date(adv.date), 'dd MMM')}</div>
+                                                    <div className="text-xs text-gray-500 truncate max-w-[150px]">{adv.notes?.replace('[SETTLEMENT]', '') || 'No notes'}</div>
+                                                </div>
+                                                <div className={adv.notes?.includes('[SETTLEMENT]') ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                                                    {adv.notes?.includes('[SETTLEMENT]') ? '+' : '-'}₹{adv.amount}
+                                                </div>
+                                            </div>
+                                        ))
+                                    }
+                                    {advances.filter(a => {
+                                        const d = parseISO(a.date);
+                                        return a.teamId === currentUser?.teamId &&
+                                            d >= advanceWeekStart && d <= advanceWeekEnd;
+                                    }).length === 0 && (
+                                            <div className="text-center text-xs text-gray-400 py-2">No transaction history for this week</div>
+                                        )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {activeTab === 'REPORT' && (
+                    <WeeklyReport />
+                )}
+
+                {/* Location Persistence Modal */}
+                {(!isLocationVerified && (locationError || isVerifying) && (activeTab === 'PUNCH_IN' || activeTab === 'PUNCH_OUT')) && (
+                    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-xl">
+
+                            {isVerifying ? (
+                                <div className="py-8">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                    <h3 className="text-lg font-bold text-gray-900">Requesting Location...</h3>
+                                    <p className="text-sm text-gray-500 mt-2">Please click "Allow" if prompted.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="mb-4 bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                                        <MapPin className="h-8 w-8 text-blue-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Location Required</h3>
+                                    <p className="text-gray-600 mb-6 leading-relaxed">
+                                        We need your location to mark attendance.
+                                    </p>
+
+                                    {locationError && (
+                                        <div className="mb-6 bg-red-50 border border-red-100 p-3 rounded-lg text-left">
+                                            <p className="text-xs text-red-600 font-bold mb-1">Error:</p>
+                                            <p className="text-sm text-red-800">{locationError}</p>
+
+                                            {/* Secure Context Warning */}
+                                            {!window.isSecureContext && (
+                                                <div className="mt-2 pt-2 border-t border-red-200">
+                                                    <p className="text-xs text-red-600">
+                                                        <strong>Note:</strong> You are on an "insecure" connection (HTTP). Browsers block location on HTTP.
+                                                    </p>
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsLocationVerified(true);
+                                                            // Auto-select the first site for testing purposes when bypassing
+                                                            if (sites.length > 0) setSelectedSite(sites[0]);
+                                                        }}
+                                                        className="mt-2 text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded w-full"
+                                                    >
+                                                        [DEV ONLY] Bypass Location Check
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={verifyLocation}
+                                            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-95 transition-all text-lg"
+                                        >
+                                            Yes, Request Again
+                                        </button>
+                                        <button
+                                            onClick={() => navigate('/login')}
+                                            className="w-full bg-white text-gray-500 py-3 rounded-xl font-medium hover:text-gray-700 border border-gray-200"
+                                        >
+                                            No, Log Out
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+            </div>
+
+            {/* Add Worker Modal */}
+            {
+                isAddWorkerModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[90vh]">
+                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
+                                <h3 className="text-lg font-bold text-gray-800">Add New Worker</h3>
+                                <button
+                                    onClick={() => setIsAddWorkerModalOpen(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto">
+                                <form id="add-worker-form" onSubmit={handleAddWorker} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2.5"
+                                            value={newWorkerName}
+                                            onChange={e => setNewWorkerName(e.target.value)}
+                                            placeholder="Enter name"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                        <select
+                                            required
+                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2.5"
+                                            value={newWorkerRole}
+                                            onChange={e => setNewWorkerRole(e.target.value)}
+                                        >
+                                            <option value="">Select Role</option>
+                                            {teams.find(t => t.id === currentUser?.teamId)?.definedRoles?.map(r => (
+                                                <option key={r.name} value={r.name}>{r.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="tel"
+                                            required
+                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2.5"
+                                            value={newWorkerPhone}
+                                            onChange={e => setNewWorkerPhone(e.target.value)}
+                                            placeholder="Enter phone number"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Photos</label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {/* Worker Photo */}
+                                            <div className="flex flex-col items-center gap-2 p-3 border rounded-lg bg-gray-50 border-dashed border-gray-300">
+                                                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 border flex items-center justify-center shrink-0 relative">
+                                                    {newWorkerPhoto ? (
+                                                        <img src={newWorkerPhoto} alt="Worker" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <UserIcon className="text-gray-400" size={24} />
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                const reader = new FileReader();
+                                                                reader.onloadend = () => setNewWorkerPhoto(reader.result as string);
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        }}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-center text-gray-500 font-medium">Profile Photo</span>
+                                            </div>
+
+                                            {/* Aadhaar Photo */}
+                                            <div className="flex flex-col items-center gap-2 p-3 border rounded-lg bg-gray-50 border-dashed border-gray-300">
+                                                <div className="w-full h-16 rounded overflow-hidden bg-gray-200 border flex items-center justify-center relative">
+                                                    {newWorkerAadhaar ? (
+                                                        <img src={newWorkerAadhaar} alt="Aadhaar" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <CreditCard className="text-gray-400" size={24} />
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                const reader = new FileReader();
+                                                                reader.onloadend = () => setNewWorkerAadhaar(reader.result as string);
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        }}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-center text-gray-500 font-medium">Aadhaar Card</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </form>
+                            </div>
+
+                            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white rounded-b-xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddWorkerModalOpen(false)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    form="add-worker-form"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
+                                >
+                                    Add Worker
+                                </button>
+                            </div>
+                        </div>
+                    </div >
+                )
+            }
+
+            {/* Bottom Nav */}
+            <div className="bg-white border-t flex justify-around p-2 pb-safe shrink-0 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <NavButton icon={<LogOut className="rotate-180" />} label="Punch In" active={activeTab === 'PUNCH_IN'} onClick={() => setActiveTab('PUNCH_IN')} />
+                <NavButton icon={<LogOut />} label="Punch Out" active={activeTab === 'PUNCH_OUT'} onClick={() => setActiveTab('PUNCH_OUT')} />
+                <NavButton icon={<CreditCard />} label="Advance" active={activeTab === 'ADVANCE'} onClick={() => setActiveTab('ADVANCE')} />
+                <NavButton icon={<FileText />} label="Report" active={activeTab === 'REPORT'} onClick={() => setActiveTab('REPORT')} />
+            </div>
+        </div >
+    );
+};
+
+const NavButton = ({ icon, label, active, onClick }: any) => (
+    <button onClick={onClick} className={clsx("flex flex-col items-center p-2 rounded-lg w-full", active ? "text-blue-600" : "text-gray-400 hover:text-gray-600")}>
+        <div className="mb-1">{icon}</div>
+        <span className="text-xs font-medium">{label}</span>
+    </button>
+);
