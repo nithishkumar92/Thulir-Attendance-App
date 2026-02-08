@@ -213,17 +213,24 @@ export const TeamInterface: React.FC = () => {
             const location = await getCurrentLocation();
             setCurrentLocation(location);
 
-            // Find nearest site within radius
-            const validSite = sites.find(site => {
+            // 1. Find the nearest site from ALL sites
+            const nearestSite = sites.find(site => {
                 const distance = calculateDistance(location.lat, location.lng, site.location.lat, site.location.lng);
                 return distance <= site.radius;
             });
 
-            if (validSite) {
-                setSelectedSite(validSite);
-                setIsLocationVerified(true);
+            if (nearestSite) {
+                // 2. Check if this site is permitted
+                const isPermitted = permittedSites.some(s => s.id === nearestSite.id);
+
+                if (isPermitted) {
+                    setSelectedSite(nearestSite);
+                    setIsLocationVerified(true);
+                } else {
+                    setLocationError(`You are at "${nearestSite.name}", but this site is not permitted for your team.`);
+                }
             } else {
-                setLocationError('You are far from the site.');
+                setLocationError('You are far from any site.');
             }
         } catch (err: any) {
             console.error(err);
@@ -292,7 +299,7 @@ export const TeamInterface: React.FC = () => {
             {/* Header */}
             <div className="bg-white shadow p-4 flex justify-between items-center z-20 shrink-0">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <h1 className="text-lg font-bold text-gray-800 truncate">Team: {currentUser?.username}</h1>
+                    <h1 className="text-lg font-bold text-gray-800 truncate">Team: {currentUser?.name}</h1>
                     <button
                         onClick={() => setIsAddWorkerModalOpen(true)}
                         className="bg-blue-600 text-white px-3 py-1.5 rounded-full hover:bg-blue-700 flex items-center gap-1.5 text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0 whitespace-nowrap"
