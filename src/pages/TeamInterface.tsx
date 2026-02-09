@@ -341,7 +341,7 @@ export const TeamInterface: React.FC = () => {
     return (
         <div className="h-[100dvh] bg-gray-50 flex flex-col font-sans overflow-hidden">
             {/* Header */}
-            <div className="bg-white shadow p-4 flex justify-between items-center z-20 shrink-0">
+            <div className="bg-white shadow px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center z-20 shrink-0">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <h1 className="text-lg font-bold text-gray-800 truncate">Team: {currentUser?.name}</h1>
                     <button
