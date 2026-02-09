@@ -10,6 +10,17 @@ export const Login: React.FC = () => {
     const { login } = useApp();
     const navigate = useNavigate();
 
+    // Pre-fetch location permission/warm-up GPS
+    React.useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                () => { console.log("Location pre-fetched"); },
+                (err) => { console.log("Location pre-fetch failed", err); },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+    }, []);
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -43,6 +54,8 @@ export const Login: React.FC = () => {
                             <input
                                 type="text"
                                 required
+                                name="username"
+                                autoComplete="username"
                                 className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2 border"
                                 placeholder="Enter username"
                                 value={username}
@@ -60,6 +73,8 @@ export const Login: React.FC = () => {
                             <input
                                 type="password"
                                 required
+                                name="password"
+                                autoComplete="current-password"
                                 className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2 border"
                                 placeholder="Enter password"
                                 value={password}

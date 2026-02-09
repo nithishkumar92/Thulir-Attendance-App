@@ -603,9 +603,9 @@ export const TeamInterface: React.FC = () => {
                 {activeTab === 'ADVANCE' && (
                     <div className="space-y-6">
                         {/* Site Selector for Advances */}
-                        {permittedSites.length > 0 && (
-                            <div className="bg-white p-4 rounded-lg shadow-sm">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Select Site</label>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Filter by Site</label>
+                            {permittedSites.length > 0 ? (
                                 <select
                                     value={advanceSiteId}
                                     onChange={(e) => setAdvanceSiteId(e.target.value)}
@@ -615,8 +615,12 @@ export const TeamInterface: React.FC = () => {
                                         <option key={site.id} value={site.id}>{site.name}</option>
                                     ))}
                                 </select>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="text-sm text-gray-500 italic p-2 border rounded-md bg-gray-50">
+                                    All Sites (No specific assignment)
+                                </div>
+                            )}
+                        </div>
 
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                             <h3 className="text-lg font-bold text-gray-800 mb-4">Team Advances</h3>
@@ -773,9 +777,9 @@ export const TeamInterface: React.FC = () => {
                 )}
                 {activeTab === 'REPORT' && (
                     <div className="space-y-4">
-                        {permittedSites.length > 0 && (
-                            <div className="bg-white p-4 rounded-lg shadow-sm mx-4 mt-4">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
+                        <div className="bg-white p-4 rounded-lg shadow-sm mx-4 mt-4">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
+                            {permittedSites.length > 0 ? (
                                 <select
                                     value={reportSiteId}
                                     onChange={(e) => setReportSiteId(e.target.value)}
@@ -785,8 +789,12 @@ export const TeamInterface: React.FC = () => {
                                         <option key={site.id} value={site.id}>{site.name}</option>
                                     ))}
                                 </select>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="text-sm text-gray-500 italic p-2 border rounded-md bg-gray-50">
+                                    All Sites (No specific assignment)
+                                </div>
+                            )}
+                        </div>
                         <WeeklyReport teamId={currentUser?.teamId} siteId={reportSiteId} />
                     </div>
                 )}

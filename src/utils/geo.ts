@@ -16,19 +16,25 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 export const getCurrentLocation = (): Promise<{ lat: number; lng: number }> => {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
-            reject(new Error('Geolocation is not supported by your browser'));
-        } else {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    resolve({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    });
-                },
-                (error) => {
-                    reject(error);
-                }
-            );
+            reject(new Error('Geolocation not supported'));
+            return;
         }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+            },
+            (error) => {
+                reject(error);
+            },
+            {
+                enableHighAccuracy: true, // Force GPS
+                timeout: 10000,           // 10 seconds timeout
+                maximumAge: 0             // No caching
+            }
+        );
     });
 };
