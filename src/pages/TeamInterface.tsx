@@ -1004,7 +1004,7 @@ export const TeamInterface: React.FC = () => {
             }
 
             {/* Bottom Nav */}
-            <div className="bg-white border-t flex justify-around p-2 pb-safe shrink-0 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <div className="bg-white border-t flex justify-around p-2 pb-safe shrink-0 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                 <NavButton icon={<LogOut className="rotate-180" />} label="Punch In" active={activeTab === 'PUNCH_IN'} onClick={() => setActiveTab('PUNCH_IN')} />
                 <NavButton icon={<LogOut />} label="Punch Out" active={activeTab === 'PUNCH_OUT'} onClick={() => setActiveTab('PUNCH_OUT')} />
                 <NavButton icon={<CreditCard />} label="Advance" active={activeTab === 'ADVANCE'} onClick={() => setActiveTab('ADVANCE')} />
