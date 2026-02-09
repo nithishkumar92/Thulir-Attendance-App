@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Edit2, Trash2 } from 'lucide-react';
 
 export const TeamManagement: React.FC = () => {
     // Site Management State
     const [siteModalOpen, setSiteModalOpen] = useState(false);
     const [selectedTeamSites, setSelectedTeamSites] = useState<string[]>([]);
 
-    const { teams, addTeam, updateTeam, sites } = useApp();
+    const { teams, addTeam, updateTeam, deleteTeam, sites } = useApp();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [teamName, setTeamName] = useState('');
+    const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
 
     // Role Management State
     const [roleModalOpen, setRoleModalOpen] = useState(false);
@@ -18,16 +19,40 @@ export const TeamManagement: React.FC = () => {
     const [newRoleWage, setNewRoleWage] = useState('');
     const [editingRoleIndex, setEditingRoleIndex] = useState<number | null>(null);
 
-    const handleAddTeam = (e: React.FormEvent) => {
+    const handleSaveTeam = (e: React.FormEvent) => {
         e.preventDefault();
-        addTeam({
-            id: Date.now().toString(),
-            name: teamName,
-            repId: '',
-            definedRoles: []
-        });
+
+        if (editingTeamId) {
+            // Edit existing team
+            updateTeam({
+                ...teams.find(t => t.id === editingTeamId)!,
+                name: teamName
+            });
+        } else {
+            // Create new team
+            addTeam({
+                id: Date.now().toString(),
+                name: teamName,
+                repId: '',
+                definedRoles: []
+            });
+        }
+
         setTeamName('');
+        setEditingTeamId(null);
         setIsModalOpen(false);
+    };
+
+    const openCreateModal = () => {
+        setEditingTeamId(null);
+        setTeamName('');
+        setIsModalOpen(true);
+    };
+
+    const openEditTeamModal = (team: any) => {
+        setEditingTeamId(team.id);
+        setTeamName(team.name);
+        setIsModalOpen(true);
     };
 
     const openRoleModal = (team: any) => {
@@ -110,7 +135,7 @@ export const TeamManagement: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">Team Management</h2>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openCreateModal}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
                 >
                     <Plus size={20} />
@@ -123,9 +148,22 @@ export const TeamManagement: React.FC = () => {
                     <div key={team.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                         <div className="flex justify-between items-start">
                             <h3 className="text-lg font-semibold text-gray-800">{team.name}</h3>
-                            <button className="text-gray-400 hover:text-blue-600">
-                                {/* Edit Icon placeholder */}
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => openEditTeamModal(team)}
+                                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Rename Team"
+                                >
+                                    <Edit2 size={18} />
+                                </button>
+                                <button
+                                    onClick={() => deleteTeam(team.id)}
+                                    className="text-gray-400 hover:text-red-600 transition-colors"
+                                    title="Delete Team"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
                         </div>
                         <p className="text-gray-500 text-sm mt-1">Rep ID: {team.repId || 'Unassigned'}</p>
 
@@ -183,8 +221,8 @@ export const TeamManagement: React.FC = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-full max-w-sm">
-                        <h3 className="text-lg font-bold mb-4">Create New Team</h3>
-                        <form onSubmit={handleAddTeam}>
+                        <h3 className="text-lg font-bold mb-4">{editingTeamId ? 'Edit Team Name' : 'Create New Team'}</h3>
+                        <form onSubmit={handleSaveTeam}>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Team Name</label>
                             <input
                                 type="text"
@@ -195,7 +233,7 @@ export const TeamManagement: React.FC = () => {
                             />
                             <div className="flex justify-end gap-3">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-600">Cancel</button>
-                                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md">Create</button>
+                                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md">{editingTeamId ? 'Update' : 'Create'}</button>
                             </div>
                         </form>
                     </div>
@@ -296,13 +334,13 @@ export const TeamManagement: React.FC = () => {
                                     key={site.id}
                                     onClick={() => toggleSiteSelection(site.id)}
                                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedTeamSites.includes(site.id)
-                                            ? 'bg-blue-50 border-blue-200'
-                                            : 'bg-white border-gray-100 hover:bg-gray-50'
+                                        ? 'bg-blue-50 border-blue-200'
+                                        : 'bg-white border-gray-100 hover:bg-gray-50'
                                         }`}
                                 >
                                     <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedTeamSites.includes(site.id)
-                                            ? 'bg-blue-600 border-blue-600'
-                                            : 'border-gray-300'
+                                        ? 'bg-blue-600 border-blue-600'
+                                        : 'border-gray-300'
                                         }`}>
                                         {selectedTeamSites.includes(site.id) && <Plus size={14} className="text-white transform rotate-45" strokeWidth={4} />}
                                     </div>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, Check, Search, Lock, Unlock } from 'lucide-react';
+import { Plus, Check, Search, Lock, Unlock, Loader, Trash2 } from 'lucide-react';
 import { Worker } from '../../types';
+import { compressImage } from '../../utils/image';
 
 export const WorkerManagement: React.FC = () => {
-    const { workers, teams, addWorker, updateWorker, approveWorker } = useApp();
+    const { workers, teams, addWorker, updateWorker, approveWorker, deleteWorker } = useApp();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showPendingOnly, setShowPendingOnly] = useState(false); // New state filter
@@ -18,6 +19,9 @@ export const WorkerManagement: React.FC = () => {
     const [newWorkerPhone, setNewWorkerPhone] = useState('');
     const [newWorkerPhoto, setNewWorkerPhoto] = useState<string>('');
     const [newWorkerAadhaar, setNewWorkerAadhaar] = useState<string>('');
+
+    // Compression State
+    const [isCompressing, setIsCompressing] = useState(false);
 
     const openAddModal = () => {
         setEditingWorkerId(null);
@@ -43,14 +47,20 @@ export const WorkerManagement: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setField: (val: string) => void) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, setField: (val: string) => void) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setField(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            setIsCompressing(true);
+            try {
+                // Compress image to max 800px width/height and 0.5 quality (JPEG)
+                const compressedBase64 = await compressImage(file, 800, 0.5);
+                setField(compressedBase64);
+            } catch (error) {
+                console.error("Image compression failed:", error);
+                alert("Failed to process image. Please try again.");
+            } finally {
+                setIsCompressing(false);
+            }
         }
     };
 
@@ -234,9 +244,16 @@ export const WorkerManagement: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => openEditModal(worker)}
-                                        className="text-blue-600 hover:text-blue-900"
+                                        className="text-blue-600 hover:text-blue-900 mr-4"
                                     >
                                         Edit
+                                    </button>
+                                    <button
+                                        onClick={() => deleteWorker(worker.id)}
+                                        className="text-gray-400 hover:text-red-600"
+                                        title="Delete Worker"
+                                    >
+                                        <Trash2 size={16} />
                                     </button>
                                 </td>
                             </tr>
@@ -303,6 +320,12 @@ export const WorkerManagement: React.FC = () => {
                                     >
                                         Edit
                                     </button>
+                                    <button
+                                        onClick={() => deleteWorker(worker.id)}
+                                        className="text-red-600 text-xs font-bold uppercase tracking-wide border border-red-200 px-3 py-1.5 rounded bg-red-50"
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -318,7 +341,18 @@ export const WorkerManagement: React.FC = () => {
             {/* Add/Edit Worker Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+                    {/* Compression Overlay */}
+                    {isCompressing && (
+                        <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
+                            <div className="flex flex-col items-center animate-bounce-subtle">
+                                <Loader className="w-10 h-10 text-blue-600 animate-spin mb-3" />
+                                <h3 className="text-lg font-bold text-gray-800">Compressing Image...</h3>
+                                <p className="text-sm text-gray-500">Optimizing for storage</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh] relative">
                         {/* Header - Fixed */}
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
                             <h3 className="text-lg font-bold text-gray-800">{editingWorkerId ? 'Edit Worker' : 'Add New Worker'}</h3>

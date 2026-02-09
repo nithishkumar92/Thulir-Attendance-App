@@ -3,10 +3,12 @@ import { useApp } from '../../context/AppContext';
 import { Users, MapPin, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { MissingPunchOutsModal } from '../../components/MissingPunchOutsModal';
 
 export const DashboardOverview: React.FC = () => {
-    const { workers, sites, attendance } = useApp();
+    const { workers, sites, attendance, missingPunchOuts } = useApp();
     const navigate = useNavigate();
+    const [isMissingModalOpen, setIsMissingModalOpen] = React.useState(false);
 
     // Statistics
     const totalWorkers = workers.length;
@@ -42,6 +44,31 @@ export const DashboardOverview: React.FC = () => {
                     </div>
                     <div className="text-yellow-700 bg-yellow-200/50 px-3 py-1 rounded-md text-xs font-bold uppercase hover:bg-yellow-300 transition-colors">
                         Review Now &rarr;
+                    </div>
+                </div>
+            )}
+
+            {/* Missing Punch Outs Alert */}
+            {missingPunchOuts.length > 0 && (
+                <div
+                    onClick={() => setIsMissingModalOpen(true)}
+                    className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg shadow-sm flex items-center justify-between cursor-pointer hover:bg-red-100 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="bg-red-200 p-2 rounded-full text-red-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-red-800 uppercase tracking-wide">Missing Punch Outs</h3>
+                            <p className="text-sm text-red-900 font-medium">
+                                {missingPunchOuts.length} worker{missingPunchOuts.length !== 1 ? 's' : ''} forgot to punch out previously.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="text-red-700 bg-red-200/50 px-3 py-1 rounded-md text-xs font-bold uppercase hover:bg-red-300 transition-colors">
+                        Fix Now &rarr;
                     </div>
                 </div>
             )}
@@ -132,6 +159,8 @@ export const DashboardOverview: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            <MissingPunchOutsModal isOpen={isMissingModalOpen} onClose={() => setIsMissingModalOpen(false)} />
         </div>
     );
 };

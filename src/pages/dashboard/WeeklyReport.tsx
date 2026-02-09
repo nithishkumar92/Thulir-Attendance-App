@@ -76,12 +76,34 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
 
         // Final Fallback for manual/legacy without times: Status based
         if (record.status === 'HALF_DAY') return 0.5;
+        // ONLY return 1 for PRESENT if we don't have punch times AND it's a verified completed record.
+        // But for "partially completed" (punched in but not out), we should probably return 0 until finalized.
+        // However, existing logic might rely on 'PRESENT' status being sufficient.
+        // User request: "attendance duty should visible only when both punch in and punch out is available"
+        // So, if punchInTime exists but punchOutTime does NOT, we should return 0 (or indicate pending).
+
+        if (record.punchInTime && !record.punchOutTime) {
+            return 0; // Incomplete shift
+        }
+
         if (record.status === 'PRESENT') return 1;
 
         return 0;
     };
 
-    const getShiftSymbol = (shift: number) => {
+    const getShiftSymbol = (shift: number, record?: any) => {
+        // If incomplete (punched in but not out), show specific symbol or just '0'/'A'? 
+        // User wants duty "visible only when... available". 
+        // If we returned 0 above for incomplete, it usually shows 'A'. 
+        // Maybe we should show '?' or something to indicate pending? 
+        // For now, let's strictly follow "visible only when both... available". 
+        // If 0, it shows 'A'. But 'A' means Absent. 
+        // We should distinguishing "Working" vs "Absent".
+
+        if (record && record.punchInTime && !record.punchOutTime) {
+            return '-'; // or 'In'
+        }
+
         if (shift === 0) return 'A';
         if (shift === 0.5) return '/';
         if (shift === 1) return 'X';
@@ -107,7 +129,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
                     date: day,
                     status: record ? record.status : 'ABSENT',
                     shiftCount,
-                    ...record
+                    record // Pass full record
                 };
             });
             const totalPresent = daysData.reduce((sum, d) => sum + d.shiftCount, 0);
@@ -209,7 +231,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
         const attendanceHeaders = [['Worker', 'Team', ...days.map(d => format(d, 'EEE d')), 'Total']];
         const attendanceRows = reportData.map(({ worker, daysData, totalPresent }) => {
             const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
-            const dailyStatuses = daysData.map(d => getShiftSymbol(d.shiftCount)); // Use new symbols
+            const dailyStatuses = daysData.map(d => getShiftSymbol(d.shiftCount, d.record));
             return [worker.name, teamName, ...dailyStatuses, totalPresent];
         });
 
@@ -297,7 +319,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
         const attendanceHeaders = [['Worker', 'Team', ...days.map(d => format(d, 'EEE d')), 'Total']];
         const attendanceRows = reportData.map(({ worker, daysData, totalPresent }) => {
             const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
-            const dailyStatuses = daysData.map(d => getShiftSymbol(d.shiftCount));
+            const dailyStatuses = daysData.map(d => getShiftSymbol(d.shiftCount, d.record));
             return [worker.name, teamName, ...dailyStatuses, totalPresent];
         });
 
@@ -441,14 +463,16 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
                                         {teams.find(t => t.id === worker.teamId)?.name || '-'}
                                     </td>
                                     {daysData.map((data, idx) => {
-                                        const symbol = getShiftSymbol(data.shiftCount);
+                                        const symbol = getShiftSymbol(data.shiftCount, data.record);
                                         return (
                                             <td key={idx} className="px-4 py-4 text-center border-l border-gray-50/50 dark:border-gray-700">
                                                 <div className={clsx(
                                                     "inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs shadow-sm transition-transform hover:scale-110 cursor-default",
                                                     symbol === 'A'
                                                         ? "bg-red-50 text-red-600 ring-1 ring-red-100 dark:bg-red-900/40 dark:text-red-300 dark:ring-red-800"
-                                                        : "bg-blue-50 text-blue-600 ring-1 ring-blue-100 dark:bg-blue-900/40 dark:text-blue-300 dark:ring-blue-800"
+                                                        : symbol === '-'
+                                                            ? "bg-yellow-50 text-yellow-600 ring-1 ring-yellow-100" // Pending style
+                                                            : "bg-blue-50 text-blue-600 ring-1 ring-blue-100 dark:bg-blue-900/40 dark:text-blue-300 dark:ring-blue-800"
                                                 )}>
                                                     {symbol}
                                                 </div>

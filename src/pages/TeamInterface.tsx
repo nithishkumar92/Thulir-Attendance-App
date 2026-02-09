@@ -11,14 +11,15 @@ import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO
 type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
 
 export const TeamInterface: React.FC = () => {
-    const { currentUser, workers, sites, recordAttendance, attendance, addAdvance, advances, logout, refreshData, teams, addWorker } = useApp();
+    const { currentUser, workers, sites, recordAttendance, updateAttendance, attendance, addAdvance, advances, logout, refreshData, teams, addWorker } = useApp();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<Tab>('PUNCH_IN');
     const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [locationError, setLocationError] = useState('');
     const [selectedSite, setSelectedSite] = useState<Site | null>(null);
     const [isLocationVerified, setIsLocationVerified] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(false); // Added state
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false); // UI State for processing
 
     // Advances Tab State
     const [selectedAdvanceWeek, setSelectedAdvanceWeek] = useState(new Date());
@@ -164,26 +165,64 @@ export const TeamInterface: React.FC = () => {
 
     const handleBulkPunchOut = async () => {
         if (!selectedSite || selectedWorkerIds.length === 0) return;
+        setIsSubmitting(true);
+
+
+        // Fallback: If verification succeeded but currentLocation lost, use site location
+        const finalLocation = currentLocation || selectedSite.location;
+
+        if (!finalLocation) {
+            alert("Location data missing. Please re-verify.");
+            verifyLocation();
+            return;
+        }
 
         const today = new Date().toISOString().split('T')[0];
         const now = new Date().toISOString();
+        let successCount = 0;
+        let failCount = 0;
 
-        // Process all selected workers
-        for (const workerId of selectedWorkerIds) {
-            const existingRecord = attendance.find(r => r.workerId === workerId && r.date === today);
+        try {
+            // Process all selected workers
+            for (const workerId of selectedWorkerIds) {
+                const existingRecord = attendance.find(r => r.workerId === workerId && r.date === today);
 
-            if (existingRecord) {
-                await recordAttendance({
-                    ...existingRecord,
-                    punchOutTime: now,
-                    punchOutLocation: currentLocation!,
-                    status: existingRecord.status // Keep existing status (PRESENT)
-                });
+                if (existingRecord) {
+                    try {
+                        await updateAttendance({
+                            ...existingRecord,
+                            punchOutTime: now,
+                            punchOutLocation: finalLocation, // Use fallback
+                            status: existingRecord.status, // Keep status, will be updated by AppContext logic
+                            verified: true
+                        });
+
+                        successCount++;
+                    } catch (err) {
+                        console.error(`Failed to punch out worker ${workerId}`, err);
+                        failCount++;
+                    }
+                } else {
+                    console.warn(`No attendance record found for worker ${workerId} today.`);
+                    // Optionally alert or just log?
+                }
             }
+
+            if (successCount > 0) {
+                // Refresh data to ensure UI sync
+                await refreshData();
+                setSuccessMessage(`Successfully punched out ${successCount} workers.`);
+                if (failCount > 0) {
+                    alert(`Punched out ${successCount} workers, but failed for ${failCount}. Please check.`);
+                }
+                setSelectedWorkerIds([]); // Reset selection only if some success
+            } else if (failCount > 0) {
+                alert(`Failed to punch out selected workers. Please try again.`);
+            }
+        } finally {
+            setIsSubmitting(false);
         }
 
-        setSuccessMessage(`Successfully punched out ${selectedWorkerIds.length} workers.`);
-        setSelectedWorkerIds([]); // Reset selection
         setTimeout(() => setSuccessMessage(''), 3000);
     };
 
@@ -250,6 +289,7 @@ export const TeamInterface: React.FC = () => {
 
     const handleBulkPunchIn = async () => {
         if (!selectedSite || selectedWorkerIds.length === 0) return;
+        setIsSubmitting(true);
 
         const today = new Date().toISOString().split('T')[0];
         const now = new Date().toISOString();
@@ -265,17 +305,21 @@ export const TeamInterface: React.FC = () => {
                 siteId: selectedSite.id,
                 date: today,
                 punchInTime: now,
-                punchInLocation: currentLocation!,
+                punchInLocation: currentLocation || selectedSite.location, // Fallback
                 status: 'PRESENT',
                 verified: true,
                 punchInPhoto: photo || undefined
             });
         }
 
+        // Refresh data to ensure UI sync
+        await refreshData();
+
         setSuccessMessage(`Successfully punched in ${selectedWorkerIds.length} workers.`);
         setSelectedWorkerIds([]);
         setPhoto(null);
         setTimeout(() => setSuccessMessage(''), 3000);
+        setIsSubmitting(false);
     };
 
     // ... (rest of code) ...
@@ -380,7 +424,8 @@ export const TeamInterface: React.FC = () => {
                                 <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
                                     {teamWorkers.map(worker => {
                                         const today = new Date().toISOString().split('T')[0];
-                                        const isAlreadyPunchedIn = attendance.some(r => r.workerId === worker.id && r.date === today);
+                                        const todayRecord = attendance.find(r => r.workerId === worker.id && r.date === today);
+                                        const isAlreadyPunchedIn = !!todayRecord;
                                         const isSelected = selectedWorkerIds.includes(worker.id);
 
                                         return (
@@ -412,9 +457,14 @@ export const TeamInterface: React.FC = () => {
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {isAlreadyPunchedIn && (
+                                                    {isAlreadyPunchedIn && !todayRecord?.punchOutTime && (
                                                         <div className="absolute inset-0 bg-gray-500/10 flex items-center justify-center">
-                                                            <span className="bg-gray-100/80 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-300">PUNCHED IN</span>
+                                                            <span className="bg-green-100/90 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-300 shadow-sm">PUNCHED IN</span>
+                                                        </div>
+                                                    )}
+                                                    {isAlreadyPunchedIn && todayRecord?.punchOutTime && (
+                                                        <div className="absolute inset-0 bg-gray-500/40 flex items-center justify-center">
+                                                            <span className="bg-gray-100/90 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-300 shadow-sm">COMPLETED</span>
                                                         </div>
                                                     )}
                                                     {!worker.approved && (
@@ -1002,6 +1052,17 @@ export const TeamInterface: React.FC = () => {
                     </div >
                 )
             }
+
+            {/* Processing Overlay */}
+            {isSubmitting && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[100]">
+                    <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center animate-bounce-subtle">
+                        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <h3 className="text-lg font-bold text-gray-800">Processing...</h3>
+                        <p className="text-sm text-gray-500">Syncing with server</p>
+                    </div>
+                </div>
+            )}
 
             {/* Bottom Nav */}
             <div className="bg-white border-t flex justify-around p-2 pb-safe shrink-0 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">

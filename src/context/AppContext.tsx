@@ -11,7 +11,9 @@ interface AppState {
     sites: Site[];
     workers: Worker[];
     attendance: AttendanceRecord[];
+    missingPunchOuts: AttendanceRecord[];
     advances: AdvancePayment[];
+    isLoading: boolean;
 }
 
 interface AppContextType extends AppState {
@@ -33,6 +35,10 @@ interface AppContextType extends AppState {
     updateUserStatus: (userId: string, isLocked: boolean) => void;
     deleteUser: (userId: string) => void;
     deleteAttendance: (id: string) => void;
+    updateSite: (site: Site) => void;
+    deleteSite: (siteId: string) => void;
+    deleteWorker: (workerId: string) => void;
+    deleteTeam: (teamId: string) => void;
     refreshData: () => Promise<void>;
 }
 
@@ -66,12 +72,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             sites: [],
             workers: [],
             attendance: [],
+            missingPunchOuts: [],
             advances: [],
+            isLoading: true,
         };
     });
 
     // Load data from Supabase on mount
     const loadSupabaseData = async () => {
+        setState(prev => ({ ...prev, isLoading: true }));
         try {
             const [teams, workers, sites, attendance, advances, dbUsers] = await Promise.all([
                 api.fetchTeams(),
@@ -83,6 +92,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ]);
 
             const freshUsers = dbUsers.length > 0 ? dbUsers : INITIAL_DATA.users;
+
+            // Calculate missing punch outs locally to ensure consistency
+            const today = new Date().toISOString().split('T')[0];
+            const derivedMissingPunchOuts = attendance.filter(a => {
+                return !a.punchOutTime && a.date < today;
+            });
 
             setState(prev => {
                 let updatedCurrentUser = prev.currentUser;
@@ -100,6 +115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     workers,
                     sites,
                     attendance,
+                    missingPunchOuts: derivedMissingPunchOuts,
                     advances,
                     users: freshUsers,
                     currentUser: updatedCurrentUser
@@ -109,6 +125,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             console.error("Failed to load data from Supabase:", error);
             // Ensure users are loaded even if DB fails
             setState(prev => ({ ...prev, users: INITIAL_DATA.users }));
+        } finally {
+            setState(prev => ({ ...prev, isLoading: false }));
         }
     };
 
@@ -132,9 +150,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const login = async (username: string, password: string) => {
         // Debugging
         console.log("Attempting login:", { username, password });
-        console.log("Current Users in State:", state.users);
 
-        const user = state.users.find(u => u.username === username && u.password === password);
+        const findUser = (list: User[]) => list.find(u =>
+            u.username.toLowerCase() === username.toLowerCase() && u.password === password
+        );
+
+        let user = findUser(state.users);
+
+        // Fallback: If not found and currently loading or list is empty, try direct fetch
+        if (!user) {
+            console.log("User not found in state, trying direct fetch...");
+            try {
+                const dbUsers = await api.fetchAppUsers();
+                user = findUser(dbUsers);
+
+                // If found, update state
+                if (user) {
+                    setState(prev => ({
+                        ...prev,
+                        users: [...prev.users.filter(u => u.id !== user!.id), user!]
+                    }));
+                }
+            } catch (e) {
+                console.error("Direct fetch failed", e);
+            }
+        }
+
         if (user) {
             if (user.isLocked) {
                 console.log("Login failed: User is locked");
@@ -231,6 +272,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setState(prev => ({ ...prev, sites: [...prev.sites, { ...site, id: newSite ? newSite.id : site.id }] }));
         } catch (error) {
             console.error("Error adding site:", error);
+        }
+    };
+
+    const updateSite = async (updatedSite: Site) => {
+        try {
+            await api.updateSite(updatedSite.id, updatedSite);
+            setState(prev => ({
+                ...prev,
+                sites: prev.sites.map(s => s.id === updatedSite.id ? updatedSite : s)
+            }));
+        } catch (error) {
+            console.error("Error updating site:", error);
+            alert("Failed to update site details.");
+        }
+    };
+
+    const deleteSite = async (siteId: string) => {
+        if (!window.confirm("Are you sure you want to delete this site? This cannot be undone.")) return;
+
+        try {
+            await api.deleteSite(siteId);
+            setState(prev => ({
+                ...prev,
+                sites: prev.sites.filter(s => s.id !== siteId)
+            }));
+        } catch (error) {
+            console.error("Error deleting site:", error);
+            alert("Failed to delete site. Ensure no active punch-ins are linked to it.");
         }
     };
 
@@ -387,6 +456,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     };
 
+    const deleteWorker = async (workerId: string) => {
+        if (!window.confirm("Are you sure you want to delete this worker? This cannot be undone.")) return;
+
+        try {
+            await api.deleteWorker(workerId);
+            setState(prev => ({
+                ...prev,
+                workers: prev.workers.filter(w => w.id !== workerId)
+            }));
+        } catch (error) {
+            console.error("Error deleting worker:", error);
+            alert("Failed to delete worker.");
+        }
+    };
+
+    const deleteTeam = async (teamId: string) => {
+        if (!window.confirm("Are you sure you want to delete this team? This cannot be undone.")) return;
+
+        try {
+            await api.deleteTeam(teamId);
+            setState(prev => ({
+                ...prev,
+                teams: prev.teams.filter(t => t.id !== teamId)
+            }));
+        } catch (error) {
+            console.error("Error deleting team:", error);
+            alert("Failed to delete team.");
+        }
+    };
+
     return (
         <AppContext.Provider value={{
             ...state,
@@ -408,6 +507,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updateUserStatus,
             deleteUser,
             deleteAttendance,
+            updateSite,
+            deleteSite,
+            deleteWorker,
+            deleteTeam,
             refreshData
         }}>
             {children}

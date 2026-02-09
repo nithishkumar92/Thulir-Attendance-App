@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, MapPin, Trash2 } from 'lucide-react';
+import { Plus, MapPin, Trash2, Edit2 } from 'lucide-react';
 import { Site } from '../../types';
 
 export const SiteManagement: React.FC = () => {
-    const { sites, addSite } = useApp();
+    const { sites, addSite, updateSite, deleteSite } = useApp();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
 
     // Form State
     const [name, setName] = useState('');
@@ -15,13 +16,13 @@ export const SiteManagement: React.FC = () => {
 
     const [loading, setLoading] = useState(false);
 
-    const handleAddSite = async (e: React.FormEvent) => {
+    const handleSaveSite = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            const newSite: Site = {
-                id: Date.now().toString(),
+            const siteData: Site = {
+                id: editingSiteId || Date.now().toString(),
                 name,
                 location: {
                     lat: parseFloat(lat),
@@ -30,13 +31,14 @@ export const SiteManagement: React.FC = () => {
                 radius: parseInt(radius)
             };
 
-            // @ts-ignore - addSite returns promise now
-            await addSite(newSite);
+            if (editingSiteId) {
+                await updateSite(siteData);
+            } else {
+                // @ts-ignore
+                await addSite(siteData);
+            }
 
-            setIsModalOpen(false);
-            setName('');
-            setLat('');
-            setLng('');
+            closeModal();
         } catch (error) {
             // Error is alerted by context
         } finally {
@@ -44,12 +46,39 @@ export const SiteManagement: React.FC = () => {
         }
     };
 
+    const openAddModal = () => {
+        setEditingSiteId(null);
+        setName('');
+        setLat('');
+        setLng('');
+        setRadius('300');
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (site: Site) => {
+        setEditingSiteId(site.id);
+        setName(site.name);
+        setLat(site.location.lat.toString());
+        setLng(site.location.lng.toString());
+        setRadius(site.radius.toString());
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingSiteId(null);
+        setName('');
+        setLat('');
+        setLng('');
+        setRadius('300');
+    };
+
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">Site Management</h2>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openAddModal}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
                 >
                     <Plus size={20} />
@@ -70,9 +99,22 @@ export const SiteManagement: React.FC = () => {
                                     <p className="text-sm text-gray-500">Radius: {site.radius}m</p>
                                 </div>
                             </div>
-                            <button className="text-gray-400 hover:text-red-500">
-                                <Trash2 size={18} />
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => openEditModal(site)}
+                                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Edit Site"
+                                >
+                                    <Edit2 size={18} />
+                                </button>
+                                <button
+                                    onClick={() => deleteSite(site.id)}
+                                    className="text-gray-400 hover:text-red-500 transition-colors"
+                                    title="Delete Site"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
                         </div>
                         <div className="mt-4 pt-4 border-t text-sm text-gray-600">
                             <div className="flex justify-between">
@@ -91,8 +133,8 @@ export const SiteManagement: React.FC = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                        <h3 className="text-lg font-bold mb-4">Add New Site</h3>
-                        <form onSubmit={handleAddSite} className="space-y-4">
+                        <h3 className="text-lg font-bold mb-4">{editingSiteId ? 'Edit Site' : 'Add New Site'}</h3>
+                        <form onSubmit={handleSaveSite} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Site Name</label>
                                 <input
@@ -129,7 +171,7 @@ export const SiteManagement: React.FC = () => {
                             </div>
 
                             <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-md">Cancel</button>
+                                <button type="button" onClick={closeModal} className="px-4 py-2 border rounded-md">Cancel</button>
                                 <button
                                     type="submit"
                                     disabled={loading}

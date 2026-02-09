@@ -11,15 +11,21 @@ import {
     Menu,
     X,
     LogOut,
-    TrendingUp
+    TrendingUp,
+    Bell
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const TopNavigation: React.FC = () => {
-    const { currentUser, logout } = useApp();
+    const { currentUser, logout, workers, missingPunchOuts } = useApp();
     const navigate = useNavigate();
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Calculate alerts
+    const pendingApprovals = workers.filter(w => !w.approved).length;
+    const missingPunchOutCount = missingPunchOuts.length;
+    const totalAlerts = pendingApprovals + missingPunchOutCount;
 
     // Close mobile menu when location changes
     useEffect(() => {
@@ -79,6 +85,20 @@ export const TopNavigation: React.FC = () => {
 
                 {/* User & Desktop Logout */}
                 <div className="hidden lg:flex items-center gap-4">
+                    {/* Notification Bell */}
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-gray-100 relative"
+                        title="Notifications"
+                    >
+                        <Bell size={20} />
+                        {totalAlerts > 0 && (
+                            <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] flex items-center justify-center border-2 border-white">
+                                {totalAlerts}
+                            </span>
+                        )}
+                    </button>
+
                     <span className="text-sm text-gray-600">Hi, {currentUser?.name}</span>
                     <button
                         onClick={handleLogout}
@@ -136,6 +156,21 @@ export const TopNavigation: React.FC = () => {
                             <p className="text-sm font-medium text-gray-900 truncate">{currentUser?.name}</p>
                             <p className="text-xs text-gray-500 capitalize">{currentUser?.role?.toLowerCase()}</p>
                         </div>
+                        {/* Mobile Notification Bell */}
+                        <button
+                            onClick={() => {
+                                navigate('/dashboard');
+                                setIsMobileMenuOpen(false);
+                            }}
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-gray-200 relative"
+                        >
+                            <Bell size={20} />
+                            {totalAlerts > 0 && (
+                                <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] flex items-center justify-center border-2 border-gray-50">
+                                    {totalAlerts}
+                                </span>
+                            )}
+                        </button>
                     </div>
                 </div>
 

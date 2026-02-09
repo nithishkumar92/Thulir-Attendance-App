@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Team, Worker, Site, AttendanceRecord, AdvancePayment, User } from '../types';
+import { withRetry } from '../utils/network';
 
 // USERS / AUTH
 export const fetchUserProfile = async (userId: string): Promise<User | null> => {
@@ -67,6 +68,15 @@ export const updateTeam = async (teamId: string, updates: Partial<Team>) => {
     if (error) throw error;
 };
 
+export const deleteTeam = async (teamId: string) => {
+    const { error } = await supabase
+        .from('teams')
+        .delete()
+        .eq('id', teamId);
+
+    if (error) throw error;
+};
+
 // WORKERS
 export const fetchWorkers = async (): Promise<Worker[]> => {
     const { data, error } = await supabase.from('workers').select('*');
@@ -93,6 +103,29 @@ export const fetchWorkers = async (): Promise<Worker[]> => {
 // ATTENDANCE
 export const fetchAttendance = async (): Promise<AttendanceRecord[]> => {
     const { data, error } = await supabase.from('attendance').select('*');
+    if (error) throw error;
+
+    return data.map(a => ({
+        id: a.id,
+        workerId: a.worker_id,
+        date: a.date,
+        status: a.status as 'PRESENT' | 'ABSENT' | 'HALF_DAY',
+        siteId: a.site_id,
+        punchInTime: a.check_in_time,
+        punchOutTime: a.check_out_time,
+        dutyPoints: a.duty_points,
+        verified: a.location_verified
+    }));
+};
+
+export const fetchMissingPunchOuts = async (): Promise<AttendanceRecord[]> => {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .is('check_out_time', null)
+        .lt('date', today); // Only past dates
+
     if (error) throw error;
 
     return data.map(a => ({
@@ -151,6 +184,15 @@ export const updateWorkerStatus = async (workerId: string, updates: Partial<Work
     if (error) throw error;
 };
 
+export const deleteWorker = async (workerId: string) => {
+    const { error } = await supabase
+        .from('workers')
+        .delete()
+        .eq('id', workerId);
+
+    if (error) throw error;
+};
+
 // SITES
 export const fetchSites = async (): Promise<Site[]> => {
     const { data, error } = await supabase.from('sites').select('*');
@@ -179,55 +221,84 @@ export const createSite = async (site: Partial<Site>) => {
     return data;
 };
 
-export const recordAttendance = async (record: AttendanceRecord) => {
-    // Check if exists first to update or insert (upsert)
-    const { data, error } = await supabase
-        .from('attendance')
-        .upsert({
-            worker_id: record.workerId,
-            date: record.date,
-            status: record.status,
-            site_id: record.siteId,
-            check_in_time: record.punchInTime,
-            check_out_time: record.punchOutTime,
-            location_verified: record.verified,
-            duty_points: record.dutyPoints
-        }, { onConflict: 'worker_id, date' })
-        .select()
-        .single();
+export const updateSite = async (siteId: string, updates: Partial<Site>) => {
+    const dbUpdates: any = {};
+    if (updates.name) dbUpdates.name = updates.name;
+    if (updates.location) dbUpdates.location = updates.location;
+    if (updates.radius) dbUpdates.radius = updates.radius;
+
+    const { error } = await supabase
+        .from('sites')
+        .update(dbUpdates)
+        .eq('id', siteId);
 
     if (error) throw error;
+};
 
-    // Map response to AttendanceRecord format
-    const a = data;
-    return {
-        id: a.id,
-        workerId: a.worker_id,
-        date: a.date,
-        status: a.status as 'PRESENT' | 'ABSENT' | 'HALF_DAY',
-        siteId: a.site_id,
-        punchInTime: a.check_in_time,
-        punchOutTime: a.check_out_time,
-        dutyPoints: a.duty_points,
-        verified: a.location_verified
-    };
+export const deleteSite = async (siteId: string) => {
+    const { error } = await supabase
+        .from('sites')
+        .delete()
+        .eq('id', siteId);
+
+    if (error) throw error;
+};
+
+export const recordAttendance = async (record: AttendanceRecord) => {
+    return withRetry(async () => {
+        // Check if exists first to update or insert (upsert)
+        const { data, error } = await supabase
+            .from('attendance')
+            .upsert({
+                worker_id: record.workerId,
+                date: record.date,
+                status: record.status,
+                site_id: record.siteId,
+                check_in_time: record.punchInTime,
+                check_out_time: record.punchOutTime,
+                location_verified: record.verified,
+                duty_points: record.dutyPoints
+            }, { onConflict: 'worker_id, date' })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // Map response to AttendanceRecord format
+        const a = data;
+        return {
+            id: a.id,
+            workerId: a.worker_id,
+            date: a.date,
+            status: a.status as 'PRESENT' | 'ABSENT' | 'HALF_DAY',
+            siteId: a.site_id,
+            punchInTime: a.check_in_time,
+            punchOutTime: a.check_out_time,
+            punchInLocation: a.check_in_location,
+            punchOutLocation: a.check_out_location,
+            dutyPoints: a.duty_points,
+            verified: a.location_verified
+        };
+    });
 };
 
 export const updateAttendanceById = async (id: string, record: Partial<AttendanceRecord>) => {
-    const dbUpdates: any = {};
-    if (record.date) dbUpdates.date = record.date;
-    if (record.punchInTime !== undefined) dbUpdates.check_in_time = record.punchInTime; // Allow null to clear?
-    if (record.punchOutTime !== undefined) dbUpdates.check_out_time = record.punchOutTime;
-    if (record.status) dbUpdates.status = record.status;
-    if (record.siteId) dbUpdates.site_id = record.siteId;
-    if (record.verified !== undefined) dbUpdates.location_verified = record.verified;
+    return withRetry(async () => {
+        const dbUpdates: any = {};
+        if (record.date) dbUpdates.date = record.date;
+        if (record.punchInTime !== undefined) dbUpdates.check_in_time = record.punchInTime; // Allow null to clear?
+        if (record.punchOutTime !== undefined) dbUpdates.check_out_time = record.punchOutTime;
+        if (record.status) dbUpdates.status = record.status;
+        if (record.siteId) dbUpdates.site_id = record.siteId;
+        if (record.verified !== undefined) dbUpdates.location_verified = record.verified;
 
-    const { error } = await supabase
-        .from('attendance')
-        .update(dbUpdates)
-        .eq('id', id);
+        const { error } = await supabase
+            .from('attendance')
+            .update(dbUpdates)
+            .eq('id', id);
 
-    if (error) throw error;
+        if (error) throw error;
+    });
 };
 
 export const deleteAttendance = async (id: string) => {
