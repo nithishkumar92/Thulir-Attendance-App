@@ -22,9 +22,9 @@ const pool = new Pool({
     ssl: {
         rejectUnauthorized: false
     },
-    max: 1, // Keep max connections low for serverless to prevent exhaustion
+    max: 1,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000, // Matching the working test script
 });
 
 pool.on('error', (err) => {
