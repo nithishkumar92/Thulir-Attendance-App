@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Plus, Check, Search, Lock, Unlock, Loader, Trash2 } from 'lucide-react';
 import { Worker } from '../../types';
 import { compressImage } from '../../utils/image';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 
 export const WorkerManagement: React.FC = () => {
     const { workers, teams, addWorker, updateWorker, approveWorker, deleteWorker } = useApp();
@@ -23,6 +24,12 @@ export const WorkerManagement: React.FC = () => {
     // Compression State
     const [isCompressing, setIsCompressing] = useState(false);
 
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [workerToDelete, setWorkerToDelete] = useState<string | null>(null);
+
+    const { currentUser } = useApp();
+
     const openAddModal = () => {
         setEditingWorkerId(null);
         setNewWorkerName('');
@@ -42,8 +49,10 @@ export const WorkerManagement: React.FC = () => {
         setNewWorkerRole(worker.role);
         setNewWorkerWage(worker.dailyWage?.toString() || '');
         setNewWorkerPhone(worker.phoneNumber || '');
+
         setNewWorkerPhoto(worker.photoUrl || '');
         setNewWorkerAadhaar(worker.aadhaarPhotoUrl || '');
+
         setIsModalOpen(true);
     };
 
@@ -108,6 +117,19 @@ export const WorkerManagement: React.FC = () => {
         setNewWorkerPhoto('');
         setNewWorkerAadhaar('');
         setEditingWorkerId(null);
+    };
+
+    const confirmDelete = (workerId: string) => {
+        setWorkerToDelete(workerId);
+        setDeleteModalOpen(true);
+    };
+
+    const handleDeleteWorker = () => {
+        if (workerToDelete) {
+            deleteWorker(workerToDelete);
+            setDeleteModalOpen(false);
+            setWorkerToDelete(null);
+        }
     };
 
     const pendingWorkers = workers.filter(w => !w.approved);
@@ -248,13 +270,15 @@ export const WorkerManagement: React.FC = () => {
                                     >
                                         Edit
                                     </button>
-                                    <button
-                                        onClick={() => deleteWorker(worker.id)}
-                                        className="text-gray-400 hover:text-red-600"
-                                        title="Delete Worker"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                    {currentUser?.role === 'OWNER' && (
+                                        <button
+                                            onClick={() => confirmDelete(worker.id)}
+                                            className="text-gray-400 hover:text-red-600"
+                                            title="Delete Worker"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -320,12 +344,14 @@ export const WorkerManagement: React.FC = () => {
                                     >
                                         Edit
                                     </button>
-                                    <button
-                                        onClick={() => deleteWorker(worker.id)}
-                                        className="text-red-600 text-xs font-bold uppercase tracking-wide border border-red-200 px-3 py-1.5 rounded bg-red-50"
-                                    >
-                                        Delete
-                                    </button>
+                                    {currentUser?.role === 'OWNER' && (
+                                        <button
+                                            onClick={() => confirmDelete(worker.id)}
+                                            className="text-red-600 text-xs font-bold uppercase tracking-wide border border-red-200 px-3 py-1.5 rounded bg-red-50"
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -544,6 +570,15 @@ export const WorkerManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={deleteModalOpen}
+                title="Delete Worker"
+                message="Are you sure you want to delete this worker? They will be archived and removed from active lists."
+                confirmText="Delete"
+                onConfirm={handleDeleteWorker}
+                onCancel={() => setDeleteModalOpen(false)}
+            />
         </div>
     );
 };

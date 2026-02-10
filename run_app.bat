@@ -1,6 +1,6 @@
 @echo off
 cd /d "%~dp0"
-echo Starting Eternal Ride ERP...
+echo Starting Thulir ERP System...
 echo.
 
 REM Check if node_modules exists, if not install dependencies

@@ -21,6 +21,7 @@ export interface Team {
     repId?: string; // User ID of the representative
     definedRoles?: TeamRole[];
     permittedSiteIds?: string[]; // Array of Site IDs
+    isActive: boolean;
 }
 
 export interface Worker {
@@ -47,6 +48,7 @@ export interface Site {
         lng: number;
     };
     radius: number; // in meters, default 300
+    isActive: boolean;
 }
 
 export interface AttendanceRecord {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Plus, X, Edit2, Trash2 } from 'lucide-react';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 
 export const TeamManagement: React.FC = () => {
     // Site Management State
@@ -11,6 +12,12 @@ export const TeamManagement: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [teamName, setTeamName] = useState('');
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
+
+    const { currentUser } = useApp();
 
     // Role Management State
     const [roleModalOpen, setRoleModalOpen] = useState(false);
@@ -34,7 +41,9 @@ export const TeamManagement: React.FC = () => {
                 id: Date.now().toString(),
                 name: teamName,
                 repId: '',
-                definedRoles: []
+                definedRoles: [],
+                permittedSiteIds: [],
+                isActive: true
             });
         }
 
@@ -130,6 +139,24 @@ export const TeamManagement: React.FC = () => {
         );
     };
 
+    const confirmDelete = (teamId: string) => {
+        setTeamToDelete(teamId);
+        setDeleteModalOpen(true);
+    };
+
+    const handleDeleteTeam = async () => {
+        if (teamToDelete) {
+            try {
+                await deleteTeam(teamToDelete);
+                setDeleteModalOpen(false);
+                setTeamToDelete(null);
+            } catch (error: any) {
+                alert(error.message); // Simple alert for now if active workers exist
+                setDeleteModalOpen(false);
+            }
+        }
+    };
+
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
@@ -156,13 +183,15 @@ export const TeamManagement: React.FC = () => {
                                 >
                                     <Edit2 size={18} />
                                 </button>
-                                <button
-                                    onClick={() => deleteTeam(team.id)}
-                                    className="text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Delete Team"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
+                                {currentUser?.role === 'OWNER' && (
+                                    <button
+                                        onClick={() => confirmDelete(team.id)}
+                                        className="text-gray-400 hover:text-red-600 transition-colors"
+                                        title="Delete Team"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <p className="text-gray-500 text-sm mt-1">Rep ID: {team.repId || 'Unassigned'}</p>
@@ -369,6 +398,15 @@ export const TeamManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={deleteModalOpen}
+                title="Delete Team"
+                message="Are you sure you want to delete this team? This action fails if active workers are assigned."
+                confirmText="Delete"
+                onConfirm={handleDeleteTeam}
+                onCancel={() => setDeleteModalOpen(false)}
+            />
         </div>
     );
 };

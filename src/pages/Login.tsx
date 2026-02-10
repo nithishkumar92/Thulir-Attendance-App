@@ -24,18 +24,24 @@ export const Login: React.FC = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isLoading) return;
+        // isLoading is handled by context, but we can add local state if needed
+        // For simplicity, rely on context's isLoading or just current async execution
 
         setError('');
-        const user = await login(username, password);
-        if (user) {
-            if (user.role === 'OWNER') {
-                navigate('/dashboard');
+        try {
+            const user = await login(username, password);
+            if (user) {
+                if (user.role === 'OWNER') {
+                    navigate('/dashboard');
+                } else {
+                    navigate('/team'); // or wherever team reps go
+                }
             } else {
-                navigate('/team');
+                setError('Invalid credentials');
             }
-        } else {
-            setError('Invalid credentials');
+        } catch (err) {
+            console.error("Login error:", err);
+            setError('An error occurred during login.');
         }
     };
 

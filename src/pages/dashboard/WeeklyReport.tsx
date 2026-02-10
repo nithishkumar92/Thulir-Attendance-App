@@ -377,7 +377,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
                 await navigator.share({
                     files: [file],
                     title: 'Weekly Attendance Report',
-                    text: `Shared via Eternal Ride app`,
+                    text: `Shared via Thulir ERP app`,
                 });
             } catch (error) {
                 console.log('Sharing failed', error);

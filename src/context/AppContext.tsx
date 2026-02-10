@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Team, Site, Worker, AttendanceRecord, AdvancePayment, Role } from '../types';
 import { loadData, INITIAL_DATA } from '../services/mockData';
-import * as api from '../services/supabaseService';
+import * as api from '../services/apiService';
 import { calculateDutyPoints } from '../utils/wageUtils';
 
 interface AppState {
@@ -49,20 +49,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Synchronously check localStorage on initialization
         let initialUser = null;
         try {
-            const savedUser = localStorage.getItem('eternal_ride_user');
-            const savedTimestamp = localStorage.getItem('eternal_ride_auth_time');
+            const savedUser = localStorage.getItem('thulir_erp_user');
+            const savedTimestamp = localStorage.getItem('thulir_erp_auth_time');
 
             if (savedUser && savedTimestamp) {
                 const timeDiff = Date.now() - parseInt(savedTimestamp, 10);
                 if (timeDiff < 30 * 60 * 1000) {
                     initialUser = JSON.parse(savedUser);
                 } else {
-                    localStorage.removeItem('eternal_ride_user');
-                    localStorage.removeItem('eternal_ride_auth_time');
+                    localStorage.removeItem('thulir_erp_user');
+                    localStorage.removeItem('thulir_erp_auth_time');
                 }
             }
         } catch (e) {
-            console.error("Error reading from local storage", e);
+            console.error("Failed to parse saved user", e);
         }
 
         return {
@@ -151,29 +151,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Debugging
         console.log("Attempting login:", { username, password });
 
-        const findUser = (list: User[]) => list.find(u =>
-            u.username.toLowerCase() === username.toLowerCase() && u.password === password
-        );
-
-        let user = findUser(state.users);
-
-        // Fallback: If not found and currently loading or list is empty, try direct fetch
-        if (!user) {
-            console.log("User not found in state, trying direct fetch...");
-            try {
-                const dbUsers = await api.fetchAppUsers();
-                user = findUser(dbUsers);
-
-                // If found, update state
-                if (user) {
-                    setState(prev => ({
-                        ...prev,
-                        users: [...prev.users.filter(u => u.id !== user!.id), user!]
-                    }));
-                }
-            } catch (e) {
-                console.error("Direct fetch failed", e);
-            }
+        let user = null;
+        try {
+            console.log("Verifying credentials via API...");
+            user = await api.login(username, password);
+        } catch (e) {
+            console.error("Login RPC failed", e);
         }
 
         if (user) {
@@ -185,8 +168,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             console.log("Login successful:", user);
             // Persist session
-            localStorage.setItem('eternal_ride_user', JSON.stringify(user));
-            localStorage.setItem('eternal_ride_auth_time', Date.now().toString());
+            localStorage.setItem('thulir_erp_user', JSON.stringify(user));
+            localStorage.setItem('thulir_erp_auth_time', Date.now().toString());
 
             setState(prev => ({ ...prev, currentUser: user }));
             return user;
@@ -196,8 +179,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const logout = () => {
-        localStorage.removeItem('eternal_ride_user');
-        localStorage.removeItem('eternal_ride_auth_time');
+        localStorage.removeItem('thulir_erp_user');
+        localStorage.removeItem('thulir_erp_auth_time');
         setState(prev => ({ ...prev, currentUser: null }));
     };
 
@@ -255,7 +238,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updateAttendance = async (updatedRecord: AttendanceRecord) => {
         try {
-            await api.updateAttendanceById(updatedRecord.id, updatedRecord);
+            // Attendance Record usually doesn't need ID for update in our specific logic, but let's assume update logic
+            // apiService expects a record to create, but for update we might need a specific endpoint
+            // Our previous supabase service had updateAttendanceById. apiService has recordAttendance (which is upsert).
+            // Let's use recordAttendance as it handles upsert based on worker+date
+            await api.recordAttendance(updatedRecord);
             setState(prev => ({
                 ...prev,
                 attendance: prev.attendance.map(a => a.id === updatedRecord.id ? updatedRecord : a)

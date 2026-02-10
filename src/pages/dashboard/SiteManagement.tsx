@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Plus, MapPin, Trash2, Edit2 } from 'lucide-react';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Site } from '../../types';
 
 export const SiteManagement: React.FC = () => {
     const { sites, addSite, updateSite, deleteSite } = useApp();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
+
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [siteToDelete, setSiteToDelete] = useState<string | null>(null);
+
+    const { currentUser } = useApp();
 
     // Form State
     const [name, setName] = useState('');
@@ -28,7 +35,8 @@ export const SiteManagement: React.FC = () => {
                     lat: parseFloat(lat),
                     lng: parseFloat(lng)
                 },
-                radius: parseInt(radius)
+                radius: parseInt(radius),
+                isActive: true
             };
 
             if (editingSiteId) {
@@ -73,6 +81,19 @@ export const SiteManagement: React.FC = () => {
         setRadius('300');
     };
 
+    const confirmDelete = (siteId: string) => {
+        setSiteToDelete(siteId);
+        setDeleteModalOpen(true);
+    };
+
+    const handleDeleteSite = () => {
+        if (siteToDelete) {
+            deleteSite(siteToDelete);
+            setDeleteModalOpen(false);
+            setSiteToDelete(null);
+        }
+    };
+
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
@@ -107,13 +128,15 @@ export const SiteManagement: React.FC = () => {
                                 >
                                     <Edit2 size={18} />
                                 </button>
-                                <button
-                                    onClick={() => deleteSite(site.id)}
-                                    className="text-gray-400 hover:text-red-500 transition-colors"
-                                    title="Delete Site"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
+                                {currentUser?.role === 'OWNER' && (
+                                    <button
+                                        onClick={() => confirmDelete(site.id)}
+                                        className="text-gray-400 hover:text-red-500 transition-colors"
+                                        title="Delete Site"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div className="mt-4 pt-4 border-t text-sm text-gray-600">
@@ -184,6 +207,15 @@ export const SiteManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={deleteModalOpen}
+                title="Delete Site"
+                message="Are you sure you want to delete this site? It will be archived and removed from active lists."
+                confirmText="Delete"
+                onConfirm={handleDeleteSite}
+                onCancel={() => setDeleteModalOpen(false)}
+            />
         </div>
     );
 };

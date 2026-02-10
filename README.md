@@ -1,4 +1,4 @@
-# Eternal Ride - Construction Management ERP
+# Thulir ERP System - Construction Management
 
 A comprehensive ERP software for a construction company to manage workers, attendance, sites, and payments.
 

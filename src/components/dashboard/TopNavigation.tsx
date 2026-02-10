@@ -63,7 +63,7 @@ export const TopNavigation: React.FC = () => {
                     onClick={() => navigate('/dashboard')}
                 >
                     <TrendingUp className="h-8 w-8 text-blue-600" />
-                    <h1 className="text-xl font-bold text-gray-900">Eternal Ride</h1>
+                    <h1 className="text-xl font-bold text-gray-900">Thulir ERP</h1>
                 </div>
 
                 {/* Desktop Navigation */}
