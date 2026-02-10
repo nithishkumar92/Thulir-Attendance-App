@@ -51,5 +51,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     }
 
+    if (req.method === 'PATCH') {
+        const {
+            id, name, role, teamId, dailyWage, wageType,
+            phoneNumber, photoUrl, aadhaarPhotoUrl, approved,
+            isLocked, isActive
+        } = req.body;
+
+        if (!id) {
+            return res.status(400).json({ error: 'Worker ID is required' });
+        }
+
+        try {
+            const updates: string[] = [];
+            const values: any[] = [];
+            let paramIndex = 1;
+
+            if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
+            if (role !== undefined) { updates.push(`role = $${paramIndex++}`); values.push(role); }
+            if (teamId !== undefined) { updates.push(`team_id = $${paramIndex++}`); values.push(teamId); }
+            if (dailyWage !== undefined) { updates.push(`daily_wage = $${paramIndex++}`); values.push(dailyWage); }
+            if (wageType !== undefined) { updates.push(`wage_type = $${paramIndex++}`); values.push(wageType); }
+            if (phoneNumber !== undefined) { updates.push(`phone_number = $${paramIndex++}`); values.push(phoneNumber); }
+            if (photoUrl !== undefined) { updates.push(`photo_url = $${paramIndex++}`); values.push(photoUrl); }
+            if (aadhaarPhotoUrl !== undefined) { updates.push(`aadhaar_photo_url = $${paramIndex++}`); values.push(aadhaarPhotoUrl); }
+            if (approved !== undefined) { updates.push(`approved = $${paramIndex++}`); values.push(approved); }
+            if (isLocked !== undefined) { updates.push(`is_locked = $${paramIndex++}`); values.push(isLocked); }
+            if (isActive !== undefined) { updates.push(`is_active = $${paramIndex++}`); values.push(isActive); }
+
+            if (updates.length === 0) {
+                return res.status(400).json({ error: 'No fields to update' });
+            }
+
+            values.push(id);
+            const queryText = `UPDATE workers SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+
+            const result = await query(queryText, values);
+
+            if (result.rowCount === 0) {
+                return res.status(404).json({ error: 'Worker not found' });
+            }
+
+            return res.status(200).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating worker:', error);
+            return res.status(500).json({ error: 'Failed to update worker' });
+        }
+    }
+
+    if (req.method === 'DELETE') {
+        const { id } = req.query;
+        if (!id) {
+            return res.status(400).json({ error: 'Worker ID is required' });
+        }
+
+        try {
+            await query('UPDATE workers SET is_active = false WHERE id = $1', [id]);
+            return res.status(200).json({ message: 'Worker deleted (soft delete)' });
+        } catch (error) {
+            console.error('Error deleting worker:', error);
+            return res.status(500).json({ error: 'Failed to delete worker' });
+        }
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
 }
