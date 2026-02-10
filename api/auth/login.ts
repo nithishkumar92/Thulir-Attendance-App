@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import pool, { query } from '../_db';
+import pool, { query } from '../_db.js';
 import bcrypt from 'bcryptjs';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Return user info (excluding password)
         const { password_hash, ...safeUser } = user;
-        
+
         // Map to frontend User type if needed, or just return as is
         // Our frontend expects specific fields, let's map them
         const appUser = {
