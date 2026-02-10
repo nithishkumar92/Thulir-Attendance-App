@@ -8,28 +8,29 @@ if (!connectionString) {
     console.warn('COCKROACH_DB_URL is not defined');
 }
 
-// Use a singleton pattern to prevent exhausting the connection pool
-// in a serverless environment (though Vercel isolates executions, 
-// container reuse means globals persist).
-let pool: Pool;
+// Simplified connection for Vercel Serverless
+// We simply create the pool at module level. Vercel will freeze/reuse the container,
+// so this acts as a pseudo-singleton for the lifetime of the container.
+const cleanConnectionString = connectionString ? connectionString.replace('?sslmode=verify-full', '').replace('&sslmode=verify-full', '') : undefined;
 
-// Fix: potential conflict between sslmode=verify-full and rejectUnauthorized: false
-// Strip sslmode from the URL and let the ssl config object handle it
-const cleanConnectionString = connectionString ? connectionString.replace('?sslmode=verify-full', '').replace('&sslmode=verify-full', '') : connectionString;
-
-if (!(global as any).pgPool) {
-    (global as any).pgPool = new Pool({
-        connectionString: cleanConnectionString,
-        ssl: {
-            rejectUnauthorized: false // Allow connection without explicit local cert path for now
-        },
-        max: 3, // Limit connections per serverless function instance to avoid saturating the DB
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 10000,
-    });
+if (!cleanConnectionString) {
+    console.error('CRITICAL: COCKROACH_DB_URL is missing in _db.ts');
 }
 
-pool = (global as any).pgPool;
+const pool = new Pool({
+    connectionString: cleanConnectionString,
+    ssl: {
+        rejectUnauthorized: false
+    },
+    max: 1, // Keep max connections low for serverless to prevent exhaustion
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+});
+
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+    process.exit(-1);
+});
 
 export default pool;
 
