@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { WeeklyReport } from './dashboard/WeeklyReport';
 import clsx from 'clsx';
 import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO } from 'date-fns';
+import { getTodayDateString } from '../utils/dateUtils';
 
 type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
 
@@ -177,7 +178,7 @@ export const TeamInterface: React.FC = () => {
             return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayDateString();
         const now = new Date().toISOString();
         let successCount = 0;
         let failCount = 0;
@@ -291,7 +292,7 @@ export const TeamInterface: React.FC = () => {
         if (!selectedSite || selectedWorkerIds.length === 0) return;
         setIsSubmitting(true);
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayDateString();
         const now = new Date().toISOString();
 
         for (const workerId of selectedWorkerIds) {
@@ -423,7 +424,7 @@ export const TeamInterface: React.FC = () => {
                                 {/* Worker Carousel */}
                                 <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
                                     {teamWorkers.map(worker => {
-                                        const today = new Date().toISOString().split('T')[0];
+                                        const today = getTodayDateString();
                                         const todayRecord = attendance.find(r => r.workerId === worker.id && r.date === today);
                                         const isAlreadyPunchedIn = !!todayRecord;
                                         const isSelected = selectedWorkerIds.includes(worker.id);
@@ -571,7 +572,7 @@ export const TeamInterface: React.FC = () => {
                                 </div>
 
                                 {(() => {
-                                    const today = new Date().toISOString().split('T')[0];
+                                    const today = getTodayDateString();
                                     const activeRecords = attendance.filter(r =>
                                         r.date === today &&
                                         !r.punchOutTime &&
@@ -744,7 +745,7 @@ export const TeamInterface: React.FC = () => {
                                         <label className="text-xs text-gray-500">Date</label>
                                         <input
                                             type="date"
-                                            defaultValue={new Date().toISOString().split('T')[0]}
+                                            defaultValue={getTodayDateString()}
                                             className="w-full p-2 border rounded-md"
                                             id="rep-advance-date"
                                         />

@@ -3,6 +3,7 @@ import { User, Team, Site, Worker, AttendanceRecord, AdvancePayment, Role } from
 import { loadData, INITIAL_DATA } from '../services/mockData';
 import * as api from '../services/apiService';
 import { calculateDutyPoints } from '../utils/wageUtils';
+import { getTodayDateString } from '../utils/dateUtils';
 
 interface AppState {
     currentUser: User | null;
@@ -94,7 +95,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const freshUsers = dbUsers.length > 0 ? dbUsers : INITIAL_DATA.users;
 
             // Calculate missing punch outs locally to ensure consistency
-            const today = new Date().toISOString().split('T')[0];
+            const today = getTodayDateString();
             const derivedMissingPunchOuts = attendance.filter(a => {
                 return !a.punchOutTime && a.date < today;
             });

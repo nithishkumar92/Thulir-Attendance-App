@@ -18,11 +18,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const result = await query(`SELECT * FROM attendance ORDER BY date DESC, check_in_time DESC LIMIT 500`);
+            const result = await query(`SELECT *, date::TEXT as date_str FROM attendance ORDER BY date DESC, check_in_time DESC LIMIT 500`);
             const attendance = result.rows.map(a => ({
                 id: a.id,
                 workerId: a.worker_id,
-                date: new Date(a.date).toISOString().split('T')[0],
+                date: a.date_str, // Use the string directly from DB to avoid timezone shifting
                 status: a.status,
                 siteId: a.site_id,
                 punchInTime: a.check_in_time,
@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     check_out_time = EXCLUDED.check_out_time,
                     duty_points = EXCLUDED.duty_points,
                     location_verified = EXCLUDED.location_verified
-                RETURNING *`,
+                RETURNING *, date::TEXT as date_str`,
                 [
                     workerId, date, status, siteId, punchInTime, punchOutTime,
                     JSON.stringify(punchInLocation || {}), JSON.stringify(punchOutLocation || {}),
@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const savedRecord = {
                 id: a.id,
                 workerId: a.worker_id,
-                date: new Date(a.date).toISOString().split('T')[0],
+                date: a.date_str,
                 status: a.status,
                 siteId: a.site_id,
                 punchInTime: a.check_in_time,
