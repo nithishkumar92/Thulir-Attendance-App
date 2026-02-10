@@ -13,9 +13,13 @@ if (!connectionString) {
 // container reuse means globals persist).
 let pool: Pool;
 
-if (!global.pgPool) {
-    global.pgPool = new Pool({
-        connectionString,
+// Fix: potential conflict between sslmode=verify-full and rejectUnauthorized: false
+// Strip sslmode from the URL and let the ssl config object handle it
+const cleanConnectionString = connectionString ? connectionString.replace('?sslmode=verify-full', '').replace('&sslmode=verify-full', '') : connectionString;
+
+if (!(global as any).pgPool) {
+    (global as any).pgPool = new Pool({
+        connectionString: cleanConnectionString,
         ssl: {
             rejectUnauthorized: false // Allow connection without explicit local cert path for now
         },
@@ -25,7 +29,7 @@ if (!global.pgPool) {
     });
 }
 
-pool = global.pgPool;
+pool = (global as any).pgPool;
 
 export default pool;
 
