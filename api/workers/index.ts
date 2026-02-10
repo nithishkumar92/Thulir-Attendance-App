@@ -22,7 +22,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const result = await query(
                 `SELECT * FROM workers WHERE is_active = true ORDER BY name ASC`
             );
-            return res.status(200).json(result.rows);
+            const workers = result.rows.map(w => ({
+                id: w.id,
+                name: w.name,
+                role: w.role,
+                teamId: w.team_id,
+                dailyWage: Number(w.daily_wage),
+                wageType: w.wage_type,
+                phoneNumber: w.phone_number,
+                photoUrl: w.photo_url,
+                aadhaarPhotoUrl: w.aadhaar_photo_url,
+                approved: w.approved,
+                isActive: w.is_active,
+                isLocked: w.is_locked
+            }));
+            return res.status(200).json(workers);
         } catch (error) {
             console.error('Error fetching workers:', error);
             return res.status(500).json({ error: 'Failed to fetch workers' });
@@ -44,7 +58,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     photoUrl, aadhaarPhotoUrl, approved || false, isLocked || false
                 ]
             );
-            return res.status(201).json(result.rows[0]);
+            const w = result.rows[0];
+            return res.status(201).json({
+                id: w.id,
+                name: w.name,
+                role: w.role,
+                teamId: w.team_id,
+                dailyWage: Number(w.daily_wage),
+                wageType: w.wage_type,
+                phoneNumber: w.phone_number,
+                photoUrl: w.photo_url,
+                aadhaarPhotoUrl: w.aadhaar_photo_url,
+                approved: w.approved,
+                isActive: w.is_active,
+                isLocked: w.is_locked
+            });
         } catch (error) {
             console.error('Error creating worker:', error);
             return res.status(500).json({ error: 'Failed to create worker' });
@@ -92,7 +120,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(404).json({ error: 'Worker not found' });
             }
 
-            return res.status(200).json(result.rows[0]);
+            const w = result.rows[0];
+            return res.status(200).json({
+                id: w.id,
+                name: w.name,
+                role: w.role,
+                teamId: w.team_id,
+                dailyWage: Number(w.daily_wage),
+                wageType: w.wage_type,
+                phoneNumber: w.phone_number,
+                photoUrl: w.photo_url,
+                aadhaarPhotoUrl: w.aadhaar_photo_url,
+                approved: w.approved,
+                isActive: w.is_active,
+                isLocked: w.is_locked
+            });
         } catch (error) {
             console.error('Error updating worker:', error);
             return res.status(500).json({ error: 'Failed to update worker' });
