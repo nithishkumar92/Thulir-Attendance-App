@@ -25,7 +25,7 @@ if (!(global as any).pgPool) {
         },
         max: 3, // Limit connections per serverless function instance to avoid saturating the DB
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 10000,
     });
 }
 
