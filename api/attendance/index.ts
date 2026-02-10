@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const attendance = result.rows.map(a => ({
                 id: a.id,
                 workerId: a.worker_id,
-                date: a.date, // might need formatting depending on DB return type
+                date: new Date(a.date).toISOString().split('T')[0],
                 status: a.status,
                 siteId: a.site_id,
                 punchInTime: a.check_in_time,
@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const savedRecord = {
                 id: a.id,
                 workerId: a.worker_id,
-                date: a.date,
+                date: new Date(a.date).toISOString().split('T')[0],
                 status: a.status,
                 siteId: a.site_id,
                 punchInTime: a.check_in_time,
