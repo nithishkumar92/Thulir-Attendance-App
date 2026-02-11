@@ -5,6 +5,8 @@ import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileTex
 import { Site, Worker } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { WeeklyReport } from './dashboard/WeeklyReport';
+import { AttendanceReportView } from './dashboard/AttendanceReportView';
+import { PaymentSummaryView } from './dashboard/PaymentSummaryView';
 import clsx from 'clsx';
 import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { getTodayDateString } from '../utils/dateUtils';
@@ -13,6 +15,7 @@ import { AttendanceBottomSheet } from '../components/AttendanceBottomSheet';
 
 
 type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
+type ReportSubTab = 'ATTENDANCE' | 'PAYMENT';
 
 export const TeamInterface: React.FC = () => {
     const { currentUser, workers, sites, recordAttendance, updateAttendance, attendance, addAdvance, advances, logout, refreshData, teams, addWorker } = useApp();
@@ -40,6 +43,7 @@ export const TeamInterface: React.FC = () => {
 
     // Multi-Site State
     const [reportSiteId, setReportSiteId] = useState<string>('');
+    const [reportSubTab, setReportSubTab] = useState<ReportSubTab>('ATTENDANCE');
     const [advanceSiteId, setAdvanceSiteId] = useState<string>('');
 
     // Bottom Sheet State
@@ -851,8 +855,9 @@ export const TeamInterface: React.FC = () => {
                     </div>
                 )}
                 {activeTab === 'REPORT' && (
-                    <div className="space-y-4">
-                        <div className="bg-white p-4 rounded-lg shadow-sm mx-4 mt-4">
+                    <div className="space-y-4 p-4">
+                        {/* Site Filter */}
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
                             {permittedSites.length > 0 ? (
                                 <select
@@ -870,7 +875,44 @@ export const TeamInterface: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        <WeeklyReport teamId={currentUser?.teamId} siteId={reportSiteId} />
+
+                        {/* Sub-tab Navigation */}
+                        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                            <div className="flex border-b">
+                                <button
+                                    onClick={() => setReportSubTab('ATTENDANCE')}
+                                    className={clsx(
+                                        "flex-1 py-3 px-4 font-semibold text-sm transition-colors",
+                                        reportSubTab === 'ATTENDANCE'
+                                            ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+                                            : "text-gray-600 hover:bg-gray-50"
+                                    )}
+                                >
+                                    Attendance Report
+                                </button>
+                                <button
+                                    onClick={() => setReportSubTab('PAYMENT')}
+                                    className={clsx(
+                                        "flex-1 py-3 px-4 font-semibold text-sm transition-colors",
+                                        reportSubTab === 'PAYMENT'
+                                            ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+                                            : "text-gray-600 hover:bg-gray-50"
+                                    )}
+                                >
+                                    Payment Summary
+                                </button>
+                            </div>
+
+                            {/* Sub-tab Content */}
+                            <div className="p-4">
+                                {reportSubTab === 'ATTENDANCE' && (
+                                    <AttendanceReportView teamId={currentUser?.teamId} siteId={reportSiteId} />
+                                )}
+                                {reportSubTab === 'PAYMENT' && (
+                                    <PaymentSummaryView teamId={currentUser?.teamId} siteId={reportSiteId} />
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
 
