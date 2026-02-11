@@ -5,8 +5,8 @@ import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileTex
 import { Site, Worker } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { WeeklyReport } from './dashboard/WeeklyReport';
-import { AttendanceReportView } from './dashboard/AttendanceReportView';
-import { PaymentSummaryView } from './dashboard/PaymentSummaryView';
+import { AttendanceReport } from '../components/attendance/AttendanceReport';
+import { PaymentSummary } from '../components/attendance/PaymentSummary';
 import clsx from 'clsx';
 import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { getTodayDateString } from '../utils/dateUtils';
@@ -906,10 +906,18 @@ export const TeamInterface: React.FC = () => {
                             {/* Sub-tab Content */}
                             <div className="p-4">
                                 {reportSubTab === 'ATTENDANCE' && (
-                                    <AttendanceReportView teamId={currentUser?.teamId} siteId={reportSiteId} />
+                                    <AttendanceReport
+                                        userRole={currentUser?.role === 'OWNER' ? 'OWNER' : 'TEAM_REP'}
+                                        teamId={currentUser?.teamId}
+                                        siteId={reportSiteId || undefined}
+                                    />
                                 )}
                                 {reportSubTab === 'PAYMENT' && (
-                                    <PaymentSummaryView teamId={currentUser?.teamId} siteId={reportSiteId} />
+                                    <PaymentSummary
+                                        userRole={currentUser?.role === 'OWNER' ? 'OWNER' : 'TEAM_REP'}
+                                        teamId={currentUser?.teamId}
+                                        siteId={reportSiteId || undefined}
+                                    />
                                 )}
                             </div>
                         </div>

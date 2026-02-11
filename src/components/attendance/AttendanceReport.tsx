@@ -1,0 +1,107 @@
+import React from 'react';
+import { useApp } from '../../context/AppContext';
+import { format } from 'date-fns';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { WorkerAttendanceCard } from '../WorkerAttendanceCard';
+import { useNavigate } from 'react-router-dom';
+import { useWeekNavigation } from '../../hooks/useWeekNavigation';
+import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
+import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
+
+interface AttendanceReportProps {
+    userRole: 'OWNER' | 'TEAM_REP';
+    teamId?: string;
+    siteId?: string;
+    showAddButton?: boolean;
+    onAddAttendance?: () => void;
+}
+
+/**
+ * Unified Attendance Report Component
+ * Works for both Owner Portal and Worker Portal (Team Rep)
+ * Uses role-based access control to show/hide features
+ */
+export const AttendanceReport: React.FC<AttendanceReportProps> = ({
+    userRole,
+    teamId,
+    siteId,
+    showAddButton = false,
+    onAddAttendance
+}) => {
+    const { attendance } = useApp();
+    const navigate = useNavigate();
+
+    // Use shared week navigation hook
+    const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
+
+    // Use shared worker filtering hook
+    const visibleWorkers = useFilteredWorkers({ teamId });
+
+    // Filter attendance by week and site
+    const weekAttendance = filterAttendanceBySite(
+        filterAttendanceByDateRange(attendance, weekStart, weekEnd),
+        siteId
+    );
+
+    const handleAddClick = () => {
+        if (onAddAttendance) {
+            onAddAttendance();
+        } else {
+            navigate('/add-attendance');
+        }
+    };
+
+    return (
+        <div className="space-y-4 p-4">
+            {/* Header with Week Navigation */}
+            <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-2">
+                <button
+                    onClick={handlePrevWeek}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Previous week"
+                >
+                    <ChevronLeft size={20} />
+                </button>
+                <span className="font-bold text-gray-800 flex-1 text-center">
+                    {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+                </span>
+                <button
+                    onClick={handleNextWeek}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Next week"
+                >
+                    <ChevronRight size={20} />
+                </button>
+            </div>
+
+            {/* Add Attendance Button (Owner only) */}
+            {showAddButton && userRole === 'OWNER' && (
+                <button
+                    onClick={handleAddClick}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                    <Plus size={20} />
+                    Add Attendance
+                </button>
+            )}
+
+            {/* Worker Attendance Cards */}
+            <div className="space-y-3">
+                {visibleWorkers.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-sm border p-8 text-center text-gray-500">
+                        No workers found
+                    </div>
+                ) : (
+                    visibleWorkers.map(worker => (
+                        <WorkerAttendanceCard
+                            key={worker.id}
+                            worker={worker}
+                            weekDays={weekDays}
+                            attendance={weekAttendance}
+                        />
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};

@@ -1,71 +1,52 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, subWeeks, addWeeks, parseISO, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { calculateDutyPoints } from '../../utils/wageUtils';
+import { useWeekNavigation } from '../../hooks/useWeekNavigation';
+import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
+import { calculateShifts } from '../../utils/attendanceUtils';
 
-interface PaymentSummaryViewProps {
+interface PaymentSummaryProps {
+    userRole: 'OWNER' | 'TEAM_REP';
     teamId?: string;
     siteId?: string;
+    showExportButton?: boolean;
 }
 
-export const PaymentSummaryView: React.FC<PaymentSummaryViewProps> = ({ teamId, siteId }) => {
-    const { attendance, workers, teams, currentUser, advances } = useApp();
-    const [currentDate, setCurrentDate] = useState(new Date());
+/**
+ * Unified Payment Summary Component
+ * Works for both Owner Portal and Worker Portal (Team Rep)
+ * Uses role-based access control to show/hide features
+ */
+export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
+    userRole,
+    teamId,
+    siteId,
+    showExportButton = false
+}) => {
+    const { attendance, teams, advances } = useApp();
     const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'ALL');
 
+    // Update selectedTeamId if prop changes
     React.useEffect(() => {
         if (teamId) setSelectedTeamId(teamId);
     }, [teamId]);
 
-    const start = startOfWeek(currentDate, { weekStartsOn: 0 });
-    const end = endOfWeek(currentDate, { weekStartsOn: 0 });
-    const days = eachDayOfInterval({ start, end });
+    // Use shared week navigation hook
+    const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
 
-    const handlePrevWeek = () => setCurrentDate(subWeeks(currentDate, 1));
-    const handleNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
+    // Use shared worker filtering hook
+    const visibleWorkers = useFilteredWorkers({
+        teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
+    });
 
-    // Calculate shifts helper
-    const calculateShifts = (record: any) => {
-        if (!record || record.status === 'ABSENT') return 0;
-        if (record.dutyPoints !== undefined && record.dutyPoints !== null) {
-            return Number(record.dutyPoints);
-        }
-        if (record.punchInTime && record.punchOutTime) {
-            try {
-                return calculateDutyPoints(new Date(record.punchInTime), new Date(record.punchOutTime));
-            } catch (e) {
-                return 0;
-            }
-        }
-        if (record.status === 'HALF_DAY') return 0.5;
-        if (record.punchInTime && !record.punchOutTime) return 0;
-        if (record.status === 'PRESENT') return 1;
-        return 0;
-    };
-
-    // Filter workers
-    const visibleWorkers = useMemo(() => {
-        if (!currentUser) return [];
-        let filtered = workers;
-
-        if (currentUser.role === 'TEAM_REP') {
-            filtered = workers.filter(w => w.teamId === currentUser.teamId);
-        } else if (currentUser.role !== 'OWNER') {
-            return [];
-        }
-
-        if (selectedTeamId !== 'ALL') {
-            filtered = filtered.filter(w => w.teamId === selectedTeamId);
-        }
-
-        return filtered;
-    }, [currentUser, workers, selectedTeamId]);
-
-    const uniqueRoles = useMemo(() => Array.from(new Set(visibleWorkers.map(w => w.role))).sort(), [visibleWorkers]);
+    const uniqueRoles = useMemo(
+        () => Array.from(new Set(visibleWorkers.map(w => w.role))).sort(),
+        [visibleWorkers]
+    );
 
     const dailyFinancials = useMemo(() => {
-        return days.map(day => {
+        return weekDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
 
             const roleStats: Record<string, { count: number, cost: number }> = {};
@@ -112,7 +93,7 @@ export const PaymentSummaryView: React.FC<PaymentSummaryViewProps> = ({ teamId, 
                 settlement: daySettlements
             };
         });
-    }, [days, visibleWorkers, attendance, advances, uniqueRoles, selectedTeamId, siteId]);
+    }, [weekDays, visibleWorkers, attendance, advances, uniqueRoles, selectedTeamId, siteId]);
 
     const roleTotals: Record<string, { count: number, cost: number }> = {};
     uniqueRoles.forEach(role => {
@@ -135,7 +116,7 @@ export const PaymentSummaryView: React.FC<PaymentSummaryViewProps> = ({ teamId, 
             {/* Header Controls */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 {/* Team Filter (Owner only) */}
-                {currentUser?.role === 'OWNER' && (
+                {userRole === 'OWNER' && !teamId && (
                     <select
                         value={selectedTeamId}
                         onChange={(e) => setSelectedTeamId(e.target.value)}
@@ -154,7 +135,7 @@ export const PaymentSummaryView: React.FC<PaymentSummaryViewProps> = ({ teamId, 
                         <ChevronLeft size={20} />
                     </button>
                     <span className="px-4 font-medium min-w-[200px] text-center">
-                        {format(start, 'MMM d')} - {format(end, 'MMM d, yyyy')}
+                        {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
                     </span>
                     <button onClick={handleNextWeek} className="p-1 hover:bg-gray-100 rounded">
                         <ChevronRight size={20} />

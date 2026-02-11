@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, subWeeks, addWeeks, parseISO, isWithinInterval } from 'date-fns';
 import { ChevronLeft, ChevronRight, Download, Printer } from 'lucide-react';
 import clsx from 'clsx';
-import { calculateDutyPoints } from '../../utils/wageUtils';
+import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -43,73 +43,12 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ teamId, siteId }) =>
         }
 
         // 2. Dropdown Filter (mostly for Owner)
-        // If prop teamId is passed, selectedTeamId will be forced to it anyway
         if (selectedTeamId !== 'ALL') {
             filtered = filtered.filter(w => w.teamId === selectedTeamId);
         }
 
         return filtered;
     }, [currentUser, workers, selectedTeamId]);
-
-    // ... (rest of data prep logic remains the same, assuming it depends on visibleWorkers) ...
-
-    // --- DATA PREPARATION FOR TABLES ---
-
-    const calculateShifts = (record: any) => {
-        if (!record || record.status === 'ABSENT') return 0;
-
-        // Use pre-calculated duty points if available (from DB)
-        // Check for null/undefined explicitly as 0 is a valid number
-        if (record.dutyPoints !== undefined && record.dutyPoints !== null) {
-            return Number(record.dutyPoints); // Ensure number type
-        }
-
-        // Fallback: If punchInTime and punchOutTime exist, calculate using the new utility
-        if (record.punchInTime && record.punchOutTime) {
-            try {
-                return calculateDutyPoints(new Date(record.punchInTime), new Date(record.punchOutTime));
-            } catch (e) {
-                console.error("Error calculating points for record:", record, e);
-                return 0;
-            }
-        }
-
-        // Final Fallback for manual/legacy without times: Status based
-        if (record.status === 'HALF_DAY') return 0.5;
-        // ONLY return 1 for PRESENT if we don't have punch times AND it's a verified completed record.
-        // But for "partially completed" (punched in but not out), we should probably return 0 until finalized.
-        // However, existing logic might rely on 'PRESENT' status being sufficient.
-        // User request: "attendance duty should visible only when both punch in and punch out is available"
-        // So, if punchInTime exists but punchOutTime does NOT, we should return 0 (or indicate pending).
-
-        if (record.punchInTime && !record.punchOutTime) {
-            return 0; // Incomplete shift
-        }
-
-        if (record.status === 'PRESENT') return 1;
-
-        return 0;
-    };
-
-    const getShiftSymbol = (shift: number, record?: any) => {
-        // If incomplete (punched in but not out), show specific symbol or just '0'/'A'? 
-        // User wants duty "visible only when... available". 
-        // If we returned 0 above for incomplete, it usually shows 'A'. 
-        // Maybe we should show '?' or something to indicate pending? 
-        // For now, let's strictly follow "visible only when both... available". 
-        // If 0, it shows 'A'. But 'A' means Absent. 
-        // We should distinguishing "Working" vs "Absent".
-
-        if (record && record.punchInTime && !record.punchOutTime) {
-            return '-'; // or 'In'
-        }
-
-        if (shift === 0) return 'A';
-        if (shift === 0.5) return '/';
-        if (shift === 1) return 'X';
-        if (shift === 1.5) return 'X/';
-        return shift.toString();
-    };
 
     // 1. Attendance Data (Worker Rows)
     const reportData = useMemo(() => {

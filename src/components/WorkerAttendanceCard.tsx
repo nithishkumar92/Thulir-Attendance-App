@@ -2,7 +2,7 @@ import React from 'react';
 import { Worker, AttendanceRecord } from '../types';
 import { format, isSameDay, parseISO } from 'date-fns';
 import clsx from 'clsx';
-import { calculateDutyPoints } from '../utils/wageUtils';
+import { calculateShifts, getShiftSymbol } from '../utils/attendanceUtils';
 
 interface WorkerAttendanceCardProps {
     worker: Worker;
@@ -11,36 +11,6 @@ interface WorkerAttendanceCardProps {
 }
 
 export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ worker, weekDays, attendance }) => {
-    // Calculate duty points helper
-    const calculateShifts = (record: any) => {
-        if (!record || record.status === 'ABSENT') return 0;
-        if (record.dutyPoints !== undefined && record.dutyPoints !== null) {
-            return Number(record.dutyPoints);
-        }
-        if (record.punchInTime && record.punchOutTime) {
-            try {
-                return calculateDutyPoints(new Date(record.punchInTime), new Date(record.punchOutTime));
-            } catch (e) {
-                return 0;
-            }
-        }
-        if (record.status === 'HALF_DAY') return 0.5;
-        if (record.punchInTime && !record.punchOutTime) return 0; // Incomplete
-        if (record.status === 'PRESENT') return 1;
-        return 0;
-    };
-
-    // Get symbol for duty points
-    const getShiftSymbol = (shift: number, record?: any) => {
-        if (record && record.punchInTime && !record.punchOutTime) {
-            return '-'; // Pending
-        }
-        if (shift === 0) return 'A';
-        if (shift === 0.5) return '/';
-        if (shift === 1) return 'X';
-        if (shift === 1.5) return 'X/';
-        return shift.toString();
-    };
 
     // Calculate attendance for each day
     const dailyAttendance = weekDays.map(day => {

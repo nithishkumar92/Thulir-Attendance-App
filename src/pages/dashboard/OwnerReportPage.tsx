@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AttendanceReportView } from './AttendanceReportView';
-import { PaymentSummaryView } from './PaymentSummaryView';
+import { AttendanceReport } from '../../components/attendance/AttendanceReport';
+import { PaymentSummary } from '../../components/attendance/PaymentSummary';
 import { useApp } from '../../context/AppContext';
 import clsx from 'clsx';
 
@@ -69,13 +69,21 @@ export const OwnerReportPage: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Sub-tab Content */}
+                {/* Sub-tab Content - Now using unified components */}
                 <div>
                     {reportSubTab === 'ATTENDANCE' && (
-                        <AttendanceReportView siteId={selectedSiteId} />
+                        <AttendanceReport
+                            userRole="OWNER"
+                            siteId={selectedSiteId || undefined}
+                            showAddButton={true}
+                        />
                     )}
                     {reportSubTab === 'PAYMENT' && (
-                        <PaymentSummaryView siteId={selectedSiteId} />
+                        <PaymentSummary
+                            userRole="OWNER"
+                            siteId={selectedSiteId || undefined}
+                            showExportButton={true}
+                        />
                     )}
                 </div>
             </div>
