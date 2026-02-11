@@ -8,6 +8,9 @@ import { WeeklyReport } from './dashboard/WeeklyReport';
 import clsx from 'clsx';
 import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { getTodayDateString } from '../utils/dateUtils';
+import { SiteAttendanceCard, SiteAttendanceData, WorkerRoleGroup, GroupedWorker } from '../components/SiteAttendanceCard';
+import { AttendanceBottomSheet } from '../components/AttendanceBottomSheet';
+
 
 type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
 
@@ -38,6 +41,15 @@ export const TeamInterface: React.FC = () => {
     // Multi-Site State
     const [reportSiteId, setReportSiteId] = useState<string>('');
     const [advanceSiteId, setAdvanceSiteId] = useState<string>('');
+
+    // Bottom Sheet State
+    const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+    const [selectedSiteData, setSelectedSiteData] = useState<SiteAttendanceData | null>(null);
+
+    const openBottomSheet = (data: SiteAttendanceData) => {
+        setSelectedSiteData(data);
+        setIsBottomSheetOpen(true);
+    };
 
     // Derived Permitted Sites
     const permittedSites = React.useMemo(() => {
@@ -334,6 +346,94 @@ export const TeamInterface: React.FC = () => {
 
 
 
+    // Helper to transform data for Site Cards
+    const getSiteAttendanceData = (): SiteAttendanceData[] => {
+        const today = getTodayDateString();
+        // Get all verification punches for today (or attendance records)
+        // We want to show sites where workers are PRESENT or have ATTENDED today.
+
+        // 1. Identify distinct sites from today's attendance
+        const todayAttendance = attendance.filter(a => a.date === today);
+        const relatedSiteIds = Array.from(new Set(todayAttendance.map(a => a.siteId)));
+
+        // 2. Map sites to data structure
+        return relatedSiteIds.map(siteId => {
+            const site = sites.find(s => s.id === siteId);
+            const siteName = site ? site.name : 'Unknown Site';
+
+            const siteRecords = todayAttendance.filter(a => a.siteId === siteId);
+            const activeWorkers = workers.filter(w => siteRecords.some(r => r.workerId === w.id));
+
+            // Summary Stats
+            const total = activeWorkers.length;
+            const present = siteRecords.length; // Actually all records imply present at some point
+            // Logic for "Late" or "Issue" - placeholder logic for now
+            // Example: Issue if no punch out by 6PM? Or just arbitrary for demo?
+            // Let's count "Missing Punch Out" if needed.
+            const issues = siteRecords.filter(r => !r.punchOutTime && new Date().getHours() > 18).length;
+
+            // Calculate Wages (Estimated)
+            const estimatedWages = activeWorkers.reduce((sum, w) => sum + (w.dailyWage || 0), 0);
+
+            // Group by Role
+            // Get unique roles from active workers
+            const roles = Array.from(new Set(activeWorkers.map(w => w.role)));
+
+            const teams: WorkerRoleGroup[] = roles.map(role => {
+                const roleWorkers = activeWorkers.filter(w => w.role === role);
+
+                const groupedWorkers: GroupedWorker[] = roleWorkers.map(w => {
+                    const record = siteRecords.find(r => r.workerId === w.id);
+                    // Format times
+                    const inTime = record?.punchInTime ? format(new Date(record.punchInTime), 'hh:mm a') : '-';
+                    const outTime = record?.punchOutTime ? format(new Date(record.punchOutTime), 'hh:mm a') : null;
+
+                    let status: GroupedWorker['status'] = 'present';
+                    let issueText = '';
+
+                    if (!record?.punchOutTime && new Date().getHours() > 18) {
+                        status = 'issue';
+                        issueText = 'Missing Punch Out';
+                    }
+
+                    return {
+                        id: w.id,
+                        name: w.name,
+                        avatar: w.photoUrl || '',
+                        role: w.role,
+                        in_time: inTime,
+                        out_time: outTime,
+                        status,
+                        issue_text: issueText
+                    };
+                });
+
+                // Icon mapping (simple generic fallback if not strictly defined)
+                const icon = role.toLowerCase().includes('mason') ? '🧱' : (role.toLowerCase().includes('helper') ? '🛠️' : '👷');
+
+                return {
+                    role_name: role + (role.endsWith('s') ? '' : 'S'), // Pluralize lazily
+                    icon,
+                    count: groupedWorkers.length,
+                    workers: groupedWorkers
+                };
+            });
+
+            return {
+                site_id: siteId,
+                site_name: siteName,
+                date: format(new Date(), 'MMM dd, yyyy'),
+                summary: {
+                    total_workers: total,
+                    present: present,
+                    issues: issues,
+                    estimated_wages: estimatedWages
+                },
+                teams
+            };
+        });
+    };
+
     const handleLogout = () => {
         logout();
         navigate('/login');
@@ -341,6 +441,11 @@ export const TeamInterface: React.FC = () => {
 
     return (
         <div className="h-[100dvh] bg-gray-50 flex flex-col font-sans overflow-hidden">
+            <AttendanceBottomSheet
+                isOpen={isBottomSheetOpen}
+                onClose={() => setIsBottomSheetOpen(false)}
+                data={selectedSiteData}
+            />
             {/* Header */}
             <div className="bg-white shadow px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center z-20 shrink-0">
                 <div className="flex items-center gap-3 overflow-hidden">
@@ -543,107 +648,26 @@ export const TeamInterface: React.FC = () => {
 
                 {activeTab === 'PUNCH_OUT' && (
                     <div className="space-y-6">
-                        {/* Location Header */}
-                        <div className={`p-4 rounded-xl flex items-center justify-center gap-3 shadow-sm ${isLocationVerified ? 'bg-green-600 text-white' : 'bg-red-50 border border-red-100'}`}>
-                            {isLocationVerified ? (
-                                <>
-                                    <MapPin className="text-white" size={24} />
-                                    <span className="font-bold text-lg">Location Verified: {selectedSite?.name}</span>
-                                    <div className="bg-white/20 p-1 rounded-full">
-                                        <CheckCircle className="text-white" size={20} />
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <MapPin className="text-red-600" size={24} />
-                                    <div className="text-center">
-                                        <p className="font-bold text-red-800">Location Not Verified</p>
-                                        <p className="text-xs text-red-600 cursor-pointer underline" onClick={verifyLocation}>Tap to Retry</p>
-                                    </div>
-                                </>
-                            )}
+                        {/* New Hierarchical View */}
+                        <div className="text-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wide">Active Sites</h2>
+                            <p className="text-xs text-gray-500 font-medium">(Select a site to view details)</p>
                         </div>
 
-                        {isLocationVerified && (
-                            <div className="space-y-6">
-                                <div className="text-center">
-                                    <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wide">Finished Work?</h2>
-                                    <p className="text-xs text-gray-500 font-medium text-red-600">(Select who is leaving)</p>
-                                </div>
-
-                                {(() => {
-                                    const today = getTodayDateString();
-                                    const activeRecords = attendance.filter(r =>
-                                        r.date === today &&
-                                        !r.punchOutTime &&
-                                        teamWorkers.some(w => w.id === r.workerId)
-                                    );
-
-                                    if (activeRecords.length === 0) {
-                                        return (
-                                            <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
-                                                <CheckCircle className="text-green-500 mb-2" size={48} />
-                                                <p className="text-gray-500 font-medium">All workers have punched out!</p>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <>
-                                            {/* Worker Carousel (Multi-Select Support Logic but Single UI for now) */}
-                                            {/* Keeping single select for simplicity unless bulk is needed. Reference showed single selection style. */}
-                                            <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
-                                                {teamWorkers.filter(w => activeRecords.some(r => r.workerId === w.id)).map(worker => {
-                                                    // Reuse selection logic, maybe toggle for bulk?
-                                                    // Defaulting to single select logic via selectedWorkerIds array for now
-                                                    const isSelected = selectedWorkerIds.includes(worker.id);
-                                                    return (
-                                                        <div
-                                                            key={worker.id}
-                                                            onClick={() => toggleWorkerSelection(worker.id)}
-                                                            className={`flex-shrink-0 w-32 snap-center flex flex-col items-center gap-2 transition-all duration-200 cursor-pointer ${isSelected ? 'scale-110' : 'opacity-70 scale-95'}`}
-                                                        >
-                                                            <div className={`relative w-24 h-24 rounded-full border-4 shadow-md overflow-hidden ${isSelected ? 'border-red-500 ring-4 ring-red-100' : 'border-gray-200'}`}>
-                                                                <img
-                                                                    src={worker.photoUrl || `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=128`}
-                                                                    alt={worker.name}
-                                                                    className="w-full h-full object-cover"
-                                                                />
-                                                                {isSelected && (
-                                                                    <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
-                                                                        <div className="bg-red-500 rounded-full p-1">
-                                                                            <CheckCircle className="text-white w-6 h-6" />
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{worker.name}</p>
-                                                                <p className="text-[10px] text-gray-400 uppercase font-medium">{worker.role}</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            <div className="px-2">
-                                                <button
-                                                    disabled={selectedWorkerIds.length === 0}
-                                                    onClick={handleBulkPunchOut}
-                                                    className="w-full group bg-gradient-to-r from-red-600 to-red-500 text-white py-4 rounded-full font-bold shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-3"
-                                                >
-                                                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
-                                                        <LogOut size={24} />
-                                                    </div>
-                                                    <div className="flex flex-col items-start">
-                                                        <span className="text-lg leading-none">PUNCH OUT {selectedWorkerIds.length > 0 ? `(${selectedWorkerIds.length})` : ''}</span>
-                                                        <span className="text-[10px] opacity-80 font-medium uppercase tracking-wider">End Work Day</span>
-                                                    </div>
-                                                </button>
-                                            </div>
-                                        </>
-                                    );
-                                })()}
+                        {getSiteAttendanceData().length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
+                                <CheckCircle className="text-gray-300 mb-2" size={48} />
+                                <p className="text-gray-500 font-medium">No active attendance records found today.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {getSiteAttendanceData().map(data => (
+                                    <SiteAttendanceCard
+                                        key={data.site_id}
+                                        data={data}
+                                        onClick={() => openBottomSheet(data)}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>

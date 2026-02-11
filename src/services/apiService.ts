@@ -1,14 +1,24 @@
 import { User, Worker, Team, Site, AttendanceRecord, AdvancePayment } from '../types';
+import { INITIAL_DATA } from './mockData';
 
 const API_BASE = '/api'; // Vercel routes /api -> api/ folder
+const USE_MOCK_DATA = true; // TOGGLE THIS FOR LOCAL DEV
 
 const headers = {
     'Content-Type': 'application/json'
 };
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // --- AUTH ---
 
 export const login = async (username: string, password: string): Promise<User | null> => {
+    if (USE_MOCK_DATA) {
+        await delay(500);
+        const user = INITIAL_DATA.users.find(u => u.username === username && u.password === password);
+        return user || null;
+    }
+
     try {
         const response = await fetch(`${API_BASE}/auth/login`, {
             method: 'POST',
@@ -32,12 +42,20 @@ export const login = async (username: string, password: string): Promise<User | 
 // --- WORKERS ---
 
 export const fetchWorkers = async (): Promise<Worker[]> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.workers;
+    }
     const response = await fetch(`${API_BASE}/workers`);
     if (!response.ok) throw new Error('Failed to fetch workers');
     return response.json();
 };
 
 export const createWorker = async (worker: Partial<Worker>): Promise<Worker> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return { ...worker, id: `w_${Date.now()}` } as Worker;
+    }
     const response = await fetch(`${API_BASE}/workers`, {
         method: 'POST',
         headers,
@@ -76,6 +94,10 @@ export const updateWorkerStatus = async (workerId: string, updates: Partial<Work
 // --- TEAMS ---
 
 export const fetchTeams = async (): Promise<Team[]> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.teams;
+    }
     const response = await fetch(`${API_BASE}/teams`);
     if (!response.ok) throw new Error('Failed to fetch teams');
     return response.json();
@@ -111,6 +133,10 @@ export const deleteTeam = async (teamId: string) => {
 // --- SITES ---
 
 export const fetchSites = async (): Promise<Site[]> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.sites;
+    }
     const response = await fetch(`${API_BASE}/sites`);
     if (!response.ok) throw new Error('Failed to fetch sites');
     return response.json();
@@ -147,12 +173,21 @@ export const deleteSite = async (siteId: string) => {
 // --- ATTENDANCE ---
 
 export const fetchAttendance = async (): Promise<AttendanceRecord[]> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.attendance;
+    }
     const response = await fetch(`${API_BASE}/attendance`);
     if (!response.ok) throw new Error('Failed to fetch attendance');
     return response.json();
 };
 
 export const recordAttendance = async (record: AttendanceRecord): Promise<AttendanceRecord> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        // In real app we upsert, here just return
+        return record;
+    }
     const response = await fetch(`${API_BASE}/attendance`, {
         method: 'POST',
         headers,
@@ -174,12 +209,20 @@ export const deleteAttendance = async (id: string) => {
 // --- ADVANCES ---
 
 export const fetchAdvances = async (): Promise<AdvancePayment[]> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.advances;
+    }
     const response = await fetch(`${API_BASE}/advances`);
     if (!response.ok) throw new Error('Failed to fetch advances');
     return response.json();
 };
 
 export const createAdvance = async (advance: AdvancePayment): Promise<AdvancePayment> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return { ...advance, id: `adv_${Date.now()}` };
+    }
     const response = await fetch(`${API_BASE}/advances`, {
         method: 'POST',
         headers,
@@ -210,12 +253,20 @@ export const deleteAdvance = async (id: string) => {
 // --- USERS ---
 
 export const fetchAppUsers = async (): Promise<User[]> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.users;
+    }
     const response = await fetch(`${API_BASE}/users`);
     if (!response.ok) throw new Error('Failed to fetch users');
     return response.json();
 };
 
 export const createAppUser = async (user: Partial<User>): Promise<User> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return { ...user, id: `u_${Date.now()}` } as User;
+    }
     const response = await fetch(`${API_BASE}/users`, {
         method: 'POST',
         headers,
