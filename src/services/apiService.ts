@@ -2,7 +2,7 @@ import { User, Worker, Team, Site, AttendanceRecord, AdvancePayment } from '../t
 import { INITIAL_DATA } from './mockData';
 
 const API_BASE = '/api'; // Vercel routes /api -> api/ folder
-const USE_MOCK_DATA = true; // TOGGLE THIS FOR LOCAL DEV
+const USE_MOCK_DATA = false; // Set to FALSE to use Real Database
 
 const headers = {
     'Content-Type': 'application/json'
