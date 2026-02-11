@@ -1,8 +1,8 @@
 import React from 'react';
 import { Worker, AttendanceRecord } from '../types';
 import { format, isSameDay, parseISO } from 'date-fns';
-import { Check, X } from 'lucide-react';
 import clsx from 'clsx';
+import { calculateDutyPoints } from '../utils/wageUtils';
 
 interface WorkerAttendanceCardProps {
     worker: Worker;
@@ -11,6 +11,37 @@ interface WorkerAttendanceCardProps {
 }
 
 export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ worker, weekDays, attendance }) => {
+    // Calculate duty points helper
+    const calculateShifts = (record: any) => {
+        if (!record || record.status === 'ABSENT') return 0;
+        if (record.dutyPoints !== undefined && record.dutyPoints !== null) {
+            return Number(record.dutyPoints);
+        }
+        if (record.punchInTime && record.punchOutTime) {
+            try {
+                return calculateDutyPoints(new Date(record.punchInTime), new Date(record.punchOutTime));
+            } catch (e) {
+                return 0;
+            }
+        }
+        if (record.status === 'HALF_DAY') return 0.5;
+        if (record.punchInTime && !record.punchOutTime) return 0; // Incomplete
+        if (record.status === 'PRESENT') return 1;
+        return 0;
+    };
+
+    // Get symbol for duty points
+    const getShiftSymbol = (shift: number, record?: any) => {
+        if (record && record.punchInTime && !record.punchOutTime) {
+            return '-'; // Pending
+        }
+        if (shift === 0) return 'A';
+        if (shift === 0.5) return '/';
+        if (shift === 1) return 'X';
+        if (shift === 1.5) return 'X/';
+        return shift.toString();
+    };
+
     // Calculate attendance for each day
     const dailyAttendance = weekDays.map(day => {
         const record = attendance.find(a =>
@@ -18,19 +49,19 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
             isSameDay(parseISO(a.date), day)
         );
 
-        const isPresent = record && record.status === 'PRESENT' && record.punchInTime && record.punchOutTime;
-        const isPending = record && record.punchInTime && !record.punchOutTime;
+        const shiftCount = record ? calculateShifts(record) : 0;
+        const symbol = getShiftSymbol(shiftCount, record);
 
         return {
             date: day,
-            isPresent,
-            isPending,
+            shiftCount,
+            symbol,
             record
         };
     });
 
     // Calculate totals
-    const totalDuty = dailyAttendance.filter(d => d.isPresent).length;
+    const totalDuty = dailyAttendance.reduce((sum, d) => sum + d.shiftCount, 0);
     const estimatedEarned = totalDuty * (worker.dailyWage || 0);
 
     // Day labels
@@ -73,20 +104,16 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
                             </div>
                             {/* Attendance Status */}
                             <div className={clsx(
-                                "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
-                                day.isPresent
-                                    ? "bg-green-100 text-green-600 ring-2 ring-green-200"
-                                    : day.isPending
+                                "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm transition-all",
+                                day.symbol === 'A'
+                                    ? "bg-red-100 text-red-600 ring-2 ring-red-200"
+                                    : day.symbol === '-'
                                         ? "bg-yellow-100 text-yellow-600 ring-2 ring-yellow-200"
-                                        : "bg-red-100 text-red-600 ring-2 ring-red-200"
+                                        : day.symbol === '/'
+                                            ? "bg-orange-100 text-orange-600 ring-2 ring-orange-200"
+                                            : "bg-green-100 text-green-600 ring-2 ring-green-200"
                             )}>
-                                {day.isPresent ? (
-                                    <Check size={20} strokeWidth={3} />
-                                ) : day.isPending ? (
-                                    <span className="text-xs font-bold">-</span>
-                                ) : (
-                                    <X size={20} strokeWidth={3} />
-                                )}
+                                {day.symbol}
                             </div>
                         </div>
                     ))}

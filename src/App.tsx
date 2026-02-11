@@ -13,6 +13,7 @@ import { AttendanceCorrections } from './pages/dashboard/AttendanceCorrections';
 import { TeamManagement } from './pages/dashboard/TeamManagement';
 import { AdvanceManagement } from './pages/dashboard/AdvanceManagement';
 import { UserManagement } from './pages/dashboard/UserManagement';
+import { OwnerReportPage } from './pages/dashboard/OwnerReportPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, roles?: string[] }> = ({ children, roles }) => {
     const { currentUser } = useApp();
@@ -48,7 +49,7 @@ function App() {
                         <Route path="workers" element={<WorkerManagement />} />
                         <Route path="teams" element={<TeamManagement />} />
                         <Route path="sites" element={<SiteManagement />} />
-                        <Route path="report" element={<WeeklyReport />} />
+                        <Route path="report" element={<OwnerReportPage />} />
                         <Route path="attendance" element={<AttendanceCorrections />} />
                         <Route path="payments" element={<AdvanceManagement />} />
                         <Route path="users" element={<UserManagement />} />
