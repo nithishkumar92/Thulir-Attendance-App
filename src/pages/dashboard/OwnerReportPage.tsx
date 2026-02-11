@@ -70,7 +70,7 @@ export const OwnerReportPage: React.FC = () => {
                 </div>
 
                 {/* Sub-tab Content */}
-                <div className="p-4">
+                <div>
                     {reportSubTab === 'ATTENDANCE' && (
                         <AttendanceReportView siteId={selectedSiteId} />
                     )}
