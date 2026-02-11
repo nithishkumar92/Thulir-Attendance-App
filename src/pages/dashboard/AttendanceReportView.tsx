@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, subWeeks, addWeeks, parseISO, isSameDay } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { WorkerAttendanceCard } from '../../components/WorkerAttendanceCard';
+import { useNavigate } from 'react-router-dom';
 
 interface AttendanceReportViewProps {
     teamId?: string;
@@ -11,6 +12,7 @@ interface AttendanceReportViewProps {
 
 export const AttendanceReportView: React.FC<AttendanceReportViewProps> = ({ teamId, siteId }) => {
     const { attendance, workers, currentUser } = useApp();
+    const navigate = useNavigate();
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const start = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
@@ -52,23 +54,37 @@ export const AttendanceReportView: React.FC<AttendanceReportViewProps> = ({ team
 
     return (
         <div className="space-y-4">
-            {/* Week Navigation */}
-            <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-3">
-                <button
-                    onClick={handlePrevWeek}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <ChevronLeft size={20} />
-                </button>
-                <span className="font-bold text-gray-800">
-                    {format(start, 'MMM d')} - {format(end, 'MMM d, yyyy')}
-                </span>
-                <button
-                    onClick={handleNextWeek}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <ChevronRight size={20} />
-                </button>
+            {/* Header with Week Navigation and Add Button */}
+            <div className="flex items-center justify-between gap-3">
+                {/* Week Navigation */}
+                <div className="flex items-center bg-white rounded-lg shadow-sm border p-3 flex-1">
+                    <button
+                        onClick={handlePrevWeek}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <span className="font-bold text-gray-800 flex-1 text-center">
+                        {format(start, 'MMM d')} - {format(end, 'MMM d, yyyy')}
+                    </span>
+                    <button
+                        onClick={handleNextWeek}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+
+                {/* Add Attendance Button (Owner only) */}
+                {currentUser?.role === 'OWNER' && (
+                    <button
+                        onClick={() => navigate('/dashboard/attendance')}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-sm hover:bg-blue-700 transition-colors font-semibold whitespace-nowrap"
+                    >
+                        <Plus size={20} />
+                        <span className="hidden sm:inline">Add Attendance</span>
+                    </button>
+                )}
             </div>
 
             {/* Worker Cards Grid */}
