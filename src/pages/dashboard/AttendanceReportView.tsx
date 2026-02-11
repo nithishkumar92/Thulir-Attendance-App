@@ -53,7 +53,7 @@ export const AttendanceReportView: React.FC<AttendanceReportViewProps> = ({ team
     }, [attendance, days, siteId]);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 p-4">
             {/* Header with Week Navigation and Add Button */}
             <div className="flex items-center justify-between gap-3">
                 {/* Week Navigation */}
