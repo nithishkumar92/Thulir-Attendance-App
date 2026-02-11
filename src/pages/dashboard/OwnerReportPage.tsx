@@ -1,16 +1,46 @@
 import React, { useState } from 'react';
 import { AttendanceReportView } from './AttendanceReportView';
 import { PaymentSummaryView } from './PaymentSummaryView';
+import { useApp } from '../../context/AppContext';
 import clsx from 'clsx';
 
 type ReportSubTab = 'ATTENDANCE' | 'PAYMENT';
 
 export const OwnerReportPage: React.FC = () => {
+    const { sites } = useApp();
     const [reportSubTab, setReportSubTab] = useState<ReportSubTab>('ATTENDANCE');
+    const [selectedSiteId, setSelectedSiteId] = useState<string>('');
+
+    // Initialize with first site
+    React.useEffect(() => {
+        if (sites.length > 0 && !selectedSiteId) {
+            setSelectedSiteId(sites[0].id);
+        }
+    }, [sites, selectedSiteId]);
 
     return (
         <div className="space-y-4">
             <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
+
+            {/* Site Filter */}
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
+                {sites.length > 0 ? (
+                    <select
+                        value={selectedSiteId}
+                        onChange={(e) => setSelectedSiteId(e.target.value)}
+                        className="w-full p-2 border rounded-md bg-white"
+                    >
+                        {sites.map(site => (
+                            <option key={site.id} value={site.id}>{site.name}</option>
+                        ))}
+                    </select>
+                ) : (
+                    <div className="text-sm text-gray-500 italic p-2 border rounded-md bg-gray-50">
+                        No sites available
+                    </div>
+                )}
+            </div>
 
             {/* Sub-tab Navigation */}
             <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -42,10 +72,10 @@ export const OwnerReportPage: React.FC = () => {
                 {/* Sub-tab Content */}
                 <div className="p-4">
                     {reportSubTab === 'ATTENDANCE' && (
-                        <AttendanceReportView />
+                        <AttendanceReportView siteId={selectedSiteId} />
                     )}
                     {reportSubTab === 'PAYMENT' && (
-                        <PaymentSummaryView />
+                        <PaymentSummaryView siteId={selectedSiteId} />
                     )}
                 </div>
             </div>
