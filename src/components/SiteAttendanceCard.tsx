@@ -58,39 +58,43 @@ export const SiteAttendanceCard: React.FC<SiteAttendanceCardProps> = ({ data, on
             <div className="p-4 space-y-5">
                 {data.teams.map((team, idx) => (
                     <div key={idx} className="space-y-2">
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                        <div className="flex flex-col gap-2">
+                            {/* Team Title */}
+                            <div className="flex items-center gap-2 text-sm font-bold text-gray-700 uppercase tracking-wide bg-gray-50 p-1.5 rounded-lg border border-gray-100">
                                 <span className="text-lg">{team.icon}</span>
-                                <span>{team.role_name} ({team.count})</span>
+                                <span>{team.role_name}</span> {/* Team Name */}
+                                <span className="text-gray-400 font-normal ml-auto text-xs">{team.count} workers</span>
                             </div>
-                            <div className="text-xs text-gray-600 pl-7 leading-snug">
-                                {team.workers.map(w => w.name).join(' - ')}
-                            </div>
-                        </div>
 
-                        {/* Avatar Stack */}
-                        <div className="flex items-center pl-1">
-                            {team.workers.slice(0, 5).map((worker, wIdx) => (
-                                <div
-                                    key={worker.id}
-                                    className="w-8 h-8 rounded-full border-2 border-white -ml-2 first:ml-0 overflow-hidden shadow-sm bg-gray-100 flex items-center justify-center"
-                                    style={{ zIndex: 10 - wIdx }}
-                                >
-                                    <img
-                                        src={worker.avatar}
-                                        alt={worker.name}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=64`;
-                                        }}
-                                    />
-                                </div>
-                            ))}
-                            {team.workers.length > 5 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white -ml-2 bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shadow-sm z-0">
-                                    +{team.workers.length - 5}
-                                </div>
-                            )}
+                            {/* Worker Avatars & Names Grid */}
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 pt-1">
+                                {team.workers.map(worker => (
+                                    <div key={worker.id} className="flex flex-col items-center gap-1.5 group">
+                                        <div className="relative">
+                                            <div className={clsx(
+                                                "w-10 h-10 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-sm transition-transform group-hover:scale-105",
+                                                worker.status === 'issue' ? "border-red-400 bg-red-50 text-red-600" :
+                                                    worker.status === 'absent' ? "border-gray-200 bg-gray-100 text-gray-400 grayscale" :
+                                                        "border-white bg-blue-50 text-blue-600 ring-2 ring-blue-50"
+                                            )}>
+                                                {worker.avatar ? (
+                                                    <img src={worker.avatar} alt={worker.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xs font-bold">{worker.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            {/* Status Dot */}
+                                            {worker.status === 'issue' && (
+                                                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] sm:text-xs font-medium text-gray-700 text-center leading-tight line-clamp-2 w-full break-words">
+                                            {worker.name}
+                                        </span>
+                                        <span className="text-[9px] text-gray-400 -mt-1">{worker.role}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}
