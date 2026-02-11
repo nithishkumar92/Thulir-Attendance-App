@@ -68,13 +68,8 @@ export const TeamInterface: React.FC = () => {
         return sites.filter(s => team.permittedSiteIds?.includes(s.id));
     }, [currentUser, teams, sites]);
 
-    // Initialize logic
-    useEffect(() => {
-        if (permittedSites.length > 0) {
-            if (!reportSiteId) setReportSiteId(permittedSites[0].id);
-            if (!advanceSiteId) setAdvanceSiteId(permittedSites[0].id);
-        }
-    }, [permittedSites]);
+    // Initialize logic - Removed auto-selection to keep "All Sites" as default
+    // reportSiteId and advanceSiteId default to empty string = "All Sites"
 
     // Add Worker Modal State
     const [isAddWorkerModalOpen, setIsAddWorkerModalOpen] = useState(false);
