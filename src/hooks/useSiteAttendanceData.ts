@@ -5,9 +5,10 @@ import { getTodayDateString } from '../utils/dateUtils';
 import { SiteAttendanceData, WorkerRoleGroup, GroupedWorker } from '../components/SiteAttendanceCard';
 
 export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) => {
-    const { attendance, workers, sites } = useApp();
+    const { attendance, workers, sites, teams: teamsData } = useApp();
 
     return useMemo(() => {
+
         const targetDate = dateFilter || getTodayDateString();
 
         // 1. Filter Attendance by Date
@@ -59,8 +60,9 @@ export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) 
 
             const estimatedWages = activeWorkers.reduce((sum, w) => sum + (w.dailyWage || 0), 0);
 
-            // Group by Role
-            const roles = Array.from(new Set(activeWorkers.map(w => w.role)));
+            // Group by Team
+            const teamIds = Array.from(new Set(activeWorkers.map(w => w.teamId)));
+
 
             const teams: WorkerRoleGroup[] = roles.map(role => {
                 const roleWorkers = activeWorkers.filter(w => w.role === role);
@@ -116,5 +118,6 @@ export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) 
                 teams
             };
         }).filter(Boolean) as SiteAttendanceData[]; // Remove nulls from search filter
-    }, [attendance, workers, sites, dateFilter, searchTerm]);
+    }, [attendance, workers, sites, teamsData, dateFilter, searchTerm]); // Added teamsData dependency
 };
+
