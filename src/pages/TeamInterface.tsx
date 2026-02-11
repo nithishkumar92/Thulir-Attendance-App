@@ -859,21 +859,16 @@ export const TeamInterface: React.FC = () => {
                         {/* Site Filter */}
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
-                            {permittedSites.length > 0 ? (
-                                <select
-                                    value={reportSiteId}
-                                    onChange={(e) => setReportSiteId(e.target.value)}
-                                    className="w-full p-2 border rounded-md bg-white"
-                                >
-                                    {permittedSites.map(site => (
-                                        <option key={site.id} value={site.id}>{site.name}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="text-sm text-gray-500 italic p-2 border rounded-md bg-gray-50">
-                                    All Sites (No specific assignment)
-                                </div>
-                            )}
+                            <select
+                                value={reportSiteId}
+                                onChange={(e) => setReportSiteId(e.target.value)}
+                                className="w-full p-2 border rounded-md bg-white"
+                            >
+                                <option value="">All Sites</option>
+                                {permittedSites.map(site => (
+                                    <option key={site.id} value={site.id}>{site.name}</option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Sub-tab Navigation */}
