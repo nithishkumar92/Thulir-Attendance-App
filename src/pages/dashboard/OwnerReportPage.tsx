@@ -9,14 +9,7 @@ type ReportSubTab = 'ATTENDANCE' | 'PAYMENT';
 export const OwnerReportPage: React.FC = () => {
     const { sites } = useApp();
     const [reportSubTab, setReportSubTab] = useState<ReportSubTab>('ATTENDANCE');
-    const [selectedSiteId, setSelectedSiteId] = useState<string>('');
-
-    // Initialize with first site
-    React.useEffect(() => {
-        if (sites.length > 0 && !selectedSiteId) {
-            setSelectedSiteId(sites[0].id);
-        }
-    }, [sites, selectedSiteId]);
+    const [selectedSiteId, setSelectedSiteId] = useState<string>(''); // Empty string = All Sites
 
     return (
         <div className="space-y-4">
@@ -25,21 +18,16 @@ export const OwnerReportPage: React.FC = () => {
             {/* Site Filter */}
             <div className="bg-white p-4 rounded-lg shadow-sm">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">View Report For</label>
-                {sites.length > 0 ? (
-                    <select
-                        value={selectedSiteId}
-                        onChange={(e) => setSelectedSiteId(e.target.value)}
-                        className="w-full p-2 border rounded-md bg-white"
-                    >
-                        {sites.map(site => (
-                            <option key={site.id} value={site.id}>{site.name}</option>
-                        ))}
-                    </select>
-                ) : (
-                    <div className="text-sm text-gray-500 italic p-2 border rounded-md bg-gray-50">
-                        No sites available
-                    </div>
-                )}
+                <select
+                    value={selectedSiteId}
+                    onChange={(e) => setSelectedSiteId(e.target.value)}
+                    className="w-full p-2 border rounded-md bg-white"
+                >
+                    <option value="">All Sites</option>
+                    {sites.map(site => (
+                        <option key={site.id} value={site.id}>{site.name}</option>
+                    ))}
+                </select>
             </div>
 
             {/* Sub-tab Navigation */}
