@@ -28,14 +28,22 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     showAddButton = false,
     onAddAttendance
 }) => {
-    const { attendance } = useApp();
+    const { attendance, teams } = useApp();
     const navigate = useNavigate();
+    const [selectedTeamId, setSelectedTeamId] = React.useState<string>(teamId || 'ALL');
+
+    // Update selectedTeamId if prop changes
+    React.useEffect(() => {
+        if (teamId) setSelectedTeamId(teamId);
+    }, [teamId]);
 
     // Use shared week navigation hook
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
 
     // Use shared worker filtering hook
-    const visibleWorkers = useFilteredWorkers({ teamId });
+    const visibleWorkers = useFilteredWorkers({
+        teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
+    });
 
     // Filter attendance by week and site
     const weekAttendance = filterAttendanceBySite(
@@ -73,6 +81,22 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     <ChevronRight size={20} />
                 </button>
             </div>
+
+            {/* Team Filter (Owner only) */}
+            {userRole === 'OWNER' && !teamId && (
+                <div className="bg-white p-3 rounded-lg shadow-sm border">
+                    <select
+                        value={selectedTeamId}
+                        onChange={(e) => setSelectedTeamId(e.target.value)}
+                        className="w-full p-2 border rounded-lg bg-white text-sm"
+                    >
+                        <option value="ALL">All Teams</option>
+                        {teams.map(team => (
+                            <option key={team.id} value={team.id}>{team.name}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
 
             {/* Add Attendance Button (Owner only) */}
             {showAddButton && userRole === 'OWNER' && (

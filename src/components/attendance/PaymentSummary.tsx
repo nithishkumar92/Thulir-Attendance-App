@@ -162,6 +162,20 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
                 {/* Controls Row */}
                 <div className="flex items-center gap-2">
+                    {/* Team Filter (Owner only) */}
+                    {userRole === 'OWNER' && !teamId && (
+                        <select
+                            value={selectedTeamId}
+                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                            className="flex-1 p-2 border rounded-lg bg-white shadow-sm text-sm"
+                        >
+                            <option value="ALL">All Teams</option>
+                            {teams.map(team => (
+                                <option key={team.id} value={team.id}>{team.name}</option>
+                            ))}
+                        </select>
+                    )}
+
                     {/* Sort Order (Card View Only) */}
                     {viewMode === 'card' && (
                         <select
