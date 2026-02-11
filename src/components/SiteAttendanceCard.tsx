@@ -58,9 +58,14 @@ export const SiteAttendanceCard: React.FC<SiteAttendanceCardProps> = ({ data, on
             <div className="p-4 space-y-5">
                 {data.teams.map((team, idx) => (
                     <div key={idx} className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
-                            <span className="text-lg">{team.icon}</span>
-                            <span>{team.role_name} ({team.count})</span>
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                <span className="text-lg">{team.icon}</span>
+                                <span>{team.role_name} ({team.count})</span>
+                            </div>
+                            <div className="text-xs text-gray-600 pl-7 leading-snug">
+                                {team.workers.map(w => w.name).join(' - ')}
+                            </div>
                         </div>
 
                         {/* Avatar Stack */}

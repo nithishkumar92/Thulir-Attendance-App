@@ -19,7 +19,7 @@ export const AttendanceCorrections: React.FC = () => {
     // Filter State
     const [searchTerm, setSearchTerm] = useState('');
     const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [useDateFilter, setUseDateFilter] = useState(true); // Default to true for Owner View
+    const [useDateFilter, setUseDateFilter] = useState(false); // Default to false (Show All Dates)
     const [viewMode, setViewMode] = useState<'CARD' | 'TABLE'>('CARD'); // Mobile-first default
 
     // Hierarchical Data Hook
