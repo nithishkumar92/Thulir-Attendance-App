@@ -75,16 +75,17 @@ export const AttendanceReportView: React.FC<AttendanceReportViewProps> = ({ team
                     </button>
                 </div>
 
-                {/* Add Attendance Button (Owner only) */}
-                {currentUser?.role === 'OWNER' && (
-                    <button
-                        onClick={() => navigate('/dashboard/attendance')}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-sm hover:bg-blue-700 transition-colors font-semibold whitespace-nowrap"
-                    >
-                        <Plus size={20} />
-                        <span className="hidden sm:inline">Add Attendance</span>
-                    </button>
-                )}
+                {/* Add Attendance Button */}
+                <button
+                    onClick={() => {
+                        console.log('Button clicked, currentUser:', currentUser);
+                        navigate('/dashboard/attendance');
+                    }}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-sm hover:bg-blue-700 transition-colors font-semibold whitespace-nowrap"
+                >
+                    <Plus size={20} />
+                    <span className="hidden sm:inline">Add Attendance</span>
+                </button>
             </div>
 
             {/* Worker Cards Grid */}
