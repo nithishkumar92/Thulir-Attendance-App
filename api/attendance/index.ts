@@ -5,7 +5,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,DELETE');
     res.setHeader(
         'Access-Control-Allow-Headers',
         'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
@@ -81,6 +81,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch (error) {
             console.error('Error recording attendance:', error);
             return res.status(500).json({ error: 'Failed to record attendance' });
+        }
+    }
+
+    if (req.method === 'DELETE') {
+        const { id } = req.query;
+
+        if (!id || typeof id !== 'string') {
+            return res.status(400).json({ error: 'Attendance ID is required' });
+        }
+
+        try {
+            const result = await query(
+                `DELETE FROM attendance WHERE id = $1 RETURNING id`,
+                [id]
+            );
+
+            if (result.rowCount === 0) {
+                return res.status(404).json({ error: 'Attendance record not found' });
+            }
+
+            return res.status(200).json({ success: true, id });
+        } catch (error) {
+            console.error('Error deleting attendance:', error);
+            return res.status(500).json({ error: 'Failed to delete attendance' });
         }
     }
 
