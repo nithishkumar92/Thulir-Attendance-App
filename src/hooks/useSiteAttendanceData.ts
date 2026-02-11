@@ -8,7 +8,6 @@ export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) 
     const { attendance, workers, sites, teams: teamsData } = useApp();
 
     return useMemo(() => {
-
         const targetDate = dateFilter || getTodayDateString();
 
         // 1. Filter Attendance by Date
@@ -63,11 +62,12 @@ export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) 
             // Group by Team
             const teamIds = Array.from(new Set(activeWorkers.map(w => w.teamId)));
 
+            const teams: WorkerRoleGroup[] = teamIds.map(teamId => {
+                const team = teamsData.find(t => t.id === teamId);
+                const teamName = team ? team.name : 'Unknown Team';
+                const teamWorkers = activeWorkers.filter(w => w.teamId === teamId);
 
-            const teams: WorkerRoleGroup[] = roles.map(role => {
-                const roleWorkers = activeWorkers.filter(w => w.role === role);
-
-                const groupedWorkers: GroupedWorker[] = roleWorkers.map(w => {
+                const groupedWorkers: GroupedWorker[] = teamWorkers.map(w => {
                     const record = siteRecords.find(r => r.workerId === w.id);
                     // Format times
                     const inTime = record?.punchInTime ? format(new Date(record.punchInTime), 'hh:mm a') : '-';
@@ -95,11 +95,9 @@ export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) 
                     };
                 });
 
-                const icon = role.toLowerCase().includes('mason') ? '🧱' : (role.toLowerCase().includes('helper') ? '🛠️' : '👷');
-
                 return {
-                    role_name: role + (role.endsWith('s') ? '' : 'S'),
-                    icon,
+                    role_name: teamName, // Using team name for the section header
+                    icon: '👥',
                     count: groupedWorkers.length,
                     workers: groupedWorkers
                 };
@@ -118,6 +116,5 @@ export const useSiteAttendanceData = (dateFilter?: string, searchTerm?: string) 
                 teams
             };
         }).filter(Boolean) as SiteAttendanceData[]; // Remove nulls from search filter
-    }, [attendance, workers, sites, teamsData, dateFilter, searchTerm]); // Added teamsData dependency
+    }, [attendance, workers, sites, teamsData, dateFilter, searchTerm]);
 };
-
