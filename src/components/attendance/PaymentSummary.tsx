@@ -28,6 +28,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     const { attendance, teams, advances } = useApp();
     const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'ALL');
     const [viewMode, setViewMode] = useState<'card' | 'table'>('card'); // Default to card view
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // Sorting for card view
 
     // Update selectedTeamId if prop changes
     React.useEffect(() => {
@@ -102,6 +103,14 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         });
     }, [weekDays, visibleWorkers, attendance, advances, uniqueRoles, selectedTeamId, siteId]);
 
+    // Sort daily financials based on sort order (for card view)
+    const sortedDailyFinancials = useMemo(() => {
+        if (viewMode === 'table') return dailyFinancials;
+        return sortOrder === 'newest'
+            ? [...dailyFinancials].reverse()
+            : dailyFinancials;
+    }, [dailyFinancials, sortOrder, viewMode]);
+
     const roleTotals: Record<string, { count: number, cost: number }> = {};
     uniqueRoles.forEach(role => {
         roleTotals[role] = dailyFinancials.reduce((acc, day) => {
@@ -153,17 +162,15 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
                 {/* Controls Row */}
                 <div className="flex items-center gap-2">
-                    {/* Team Filter (Owner only) */}
-                    {userRole === 'OWNER' && !teamId && (
+                    {/* Sort Order (Card View Only) */}
+                    {viewMode === 'card' && (
                         <select
-                            value={selectedTeamId}
-                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
                             className="flex-1 p-2 border rounded-lg bg-white shadow-sm text-sm"
                         >
-                            <option value="ALL">All Teams</option>
-                            {teams.map(team => (
-                                <option key={team.id} value={team.id}>{team.name}</option>
-                            ))}
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
                         </select>
                     )}
 
@@ -216,7 +223,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             {/* Card View */}
             {viewMode === 'card' && (
                 <div className="space-y-3">
-                    {dailyFinancials.map((dayStat, idx) => {
+                    {sortedDailyFinancials.map((dayStat, idx) => {
                         const hasData = dayStat.totalWorkers > 0 || dayStat.advance > 0 || dayStat.settlement > 0;
 
                         return (
