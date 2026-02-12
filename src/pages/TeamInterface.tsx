@@ -647,28 +647,202 @@ export const TeamInterface: React.FC = () => {
 
                 {activeTab === 'PUNCH_OUT' && (
                     <div className="space-y-6">
-                        {/* New Hierarchical View */}
-                        <div className="text-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wide">Active Sites</h2>
-                            <p className="text-xs text-gray-500 font-medium">(Select a site to view details)</p>
+                        {/* Location Header */}
+                        <div className={`p-4 rounded-xl flex items-center justify-center gap-3 shadow-sm ${isLocationVerified ? 'bg-orange-600 text-white' : 'bg-red-50 border border-red-100'}`}>
+                            {isLocationVerified ? (
+                                <>
+                                    <MapPin className="text-white" size={24} />
+                                    <span className="font-bold text-lg">Location Verified: {selectedSite?.name}</span>
+                                    <div className="bg-white/20 p-1 rounded-full">
+                                        <CheckCircle className="text-white" size={20} />
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <MapPin className="text-red-600" size={24} />
+                                    <div className="text-center">
+                                        <p className="font-bold text-red-800">Location Not Verified</p>
+                                        <p className="text-xs text-red-600 cursor-pointer underline" onClick={verifyLocation}>Tap to Retry</p>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        {getSiteAttendanceData().length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
-                                <CheckCircle className="text-gray-300 mb-2" size={48} />
-                                <p className="text-gray-500 font-medium">No active attendance records found today.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {getSiteAttendanceData().map(data => (
-                                    <SiteAttendanceCard
-                                        key={data.site_id}
-                                        data={data}
-                                        onClick={() => openBottomSheet(data)}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        {isLocationVerified && (() => {
+                            // Filter workers eligible for punch out
+                            const today = getTodayDateString();
+                            const eligibleWorkers = teamWorkers.filter(worker => {
+                                const todayRecord = attendance.find(r =>
+                                    r.workerId === worker.id &&
+                                    r.date === today &&
+                                    r.siteId === selectedSite?.id
+                                );
+                                // Worker must have punched in but not punched out
+                                return todayRecord && todayRecord.punchInTime && !todayRecord.punchOutTime;
+                            });
+
+                            return (
+                                <div className="space-y-6">
+                                    <div className="text-center">
+                                        <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wide">WHO'S LEAVING?</h2>
+                                        <p className="text-xs text-gray-500 font-medium">(Select workers to punch out)</p>
+                                    </div>
+
+                                    {eligibleWorkers.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center">
+                                            <CheckCircle className="text-gray-300 mb-2" size={48} />
+                                            <p className="text-gray-500 font-medium">No workers to punch out</p>
+                                            <p className="text-xs text-gray-400 mt-1">All workers have already punched out or haven't punched in yet</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Worker Carousel */}
+                                            <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
+                                                {eligibleWorkers.map(worker => {
+                                                    const isSelected = selectedWorkerIds.includes(worker.id);
+                                                    const todayRecord = attendance.find(r =>
+                                                        r.workerId === worker.id &&
+                                                        r.date === today &&
+                                                        r.siteId === selectedSite?.id
+                                                    );
+
+                                                    return (
+                                                        <div
+                                                            key={worker.id}
+                                                            onClick={() => toggleWorkerSelection(worker.id)}
+                                                            className={`flex-shrink-0 w-32 snap-center flex flex-col items-center gap-2 transition-all duration-200 cursor-pointer ${isSelected ? 'scale-110' : 'opacity-100 scale-95'
+                                                                }`}
+                                                        >
+                                                            <div className={`relative w-24 h-24 rounded-full border-4 shadow-md overflow-hidden ${isSelected
+                                                                    ? 'border-orange-500 ring-4 ring-orange-100'
+                                                                    : 'border-gray-200'
+                                                                }`}>
+                                                                <img
+                                                                    src={worker.photoUrl || `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=128`}
+                                                                    alt={worker.name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                                {isSelected && (
+                                                                    <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                                                                        <div className="bg-orange-500 rounded-full p-1">
+                                                                            <CheckCircle className="text-white w-6 h-6" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {!isSelected && todayRecord && (
+                                                                    <div className="absolute top-1 right-1 bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                                                                        IN
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-center">
+                                                                <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{worker.name}</p>
+                                                                <p className="text-[10px] text-gray-400 uppercase font-medium">{worker.role}</p>
+                                                                {todayRecord?.punchInTime && (
+                                                                    <p className="text-[9px] text-green-600 font-medium mt-0.5">
+                                                                        In: {format(new Date(todayRecord.punchInTime), 'h:mm a')}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Photo & Action */}
+                                            <div className="space-y-4 px-2">
+                                                {!photo ? (
+                                                    <div className="relative">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            capture="environment"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    const reader = new FileReader();
+                                                                    reader.onloadend = () => setPhoto(reader.result as string);
+                                                                    reader.readAsDataURL(file);
+                                                                }
+                                                            }}
+                                                            className="hidden"
+                                                            id="punch-out-photo-input"
+                                                        />
+                                                        <label
+                                                            htmlFor="punch-out-photo-input"
+                                                            className="flex items-center justify-center gap-3 p-6 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+                                                        >
+                                                            <Camera className="text-gray-400" size={32} />
+                                                            <div className="text-center">
+                                                                <p className="font-bold text-gray-700">Take Photo (Optional)</p>
+                                                                <p className="text-xs text-gray-500">Tap to capture</p>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative">
+                                                        <img src={photo} alt="Punch out" className="w-full h-48 object-cover rounded-xl shadow-md" />
+                                                        <button
+                                                            onClick={() => setPhoto(null)}
+                                                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={async () => {
+                                                        if (selectedWorkerIds.length === 0) {
+                                                            alert('Please select at least one worker to punch out');
+                                                            return;
+                                                        }
+
+                                                        setIsSubmitting(true);
+                                                        const today = getTodayDateString();
+                                                        const punchOutTime = new Date().toISOString();
+
+                                                        try {
+                                                            for (const workerId of selectedWorkerIds) {
+                                                                const record = attendance.find(r =>
+                                                                    r.workerId === workerId &&
+                                                                    r.date === today &&
+                                                                    r.siteId === selectedSite?.id
+                                                                );
+
+                                                                if (record && record.id) {
+                                                                    await updateAttendance(record.id, {
+                                                                        punchOutTime,
+                                                                        punchOutPhoto: photo || undefined
+                                                                    });
+                                                                }
+                                                            }
+
+                                                            setSuccessMessage(`Successfully punched out ${selectedWorkerIds.length} worker(s)`);
+                                                            setSelectedWorkerIds([]);
+                                                            setPhoto(null);
+                                                            setTimeout(() => setSuccessMessage(''), 3000);
+                                                        } catch (error) {
+                                                            console.error('Punch out error:', error);
+                                                            alert('Failed to punch out. Please try again.');
+                                                        } finally {
+                                                            setIsSubmitting(false);
+                                                        }
+                                                    }}
+                                                    disabled={selectedWorkerIds.length === 0 || isSubmitting}
+                                                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all ${selectedWorkerIds.length === 0 || isSubmitting
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 active:scale-95'
+                                                        }`}
+                                                >
+                                                    {isSubmitting ? 'PUNCHING OUT...' : `PUNCH OUT ${selectedWorkerIds.length > 0 ? `(${selectedWorkerIds.length})` : ''}`}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
 
