@@ -42,9 +42,28 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
 
     // Use shared worker filtering hook
-    const visibleWorkers = useFilteredWorkers({
+    const allWorkers = useFilteredWorkers({
         teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
     });
+
+    // Filter to show only workers with at least 0.5 duty points in the selected week
+    const visibleWorkers = useMemo(() => {
+        return allWorkers.filter(worker => {
+            // Calculate total duty points for this worker in the week
+            const totalDuty = weekDays.reduce((sum, day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = attendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
+                );
+                return sum + (record ? calculateShifts(record) : 0);
+            }, 0);
+
+            // Show only workers with at least 0.5 duty points
+            return totalDuty >= 0.5;
+        });
+    }, [allWorkers, weekDays, attendance, siteId]);
 
     const uniqueRoles = useMemo(
         () => Array.from(new Set(visibleWorkers.map(w => w.role))).sort(),

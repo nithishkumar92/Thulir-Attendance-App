@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
+import { calculateShifts } from '../../utils/attendanceUtils';
 
 interface AttendanceReportProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -41,7 +42,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
 
     // Use shared worker filtering hook
-    const visibleWorkers = useFilteredWorkers({
+    const allWorkers = useFilteredWorkers({
         teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
     });
 
@@ -50,6 +51,24 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         filterAttendanceByDateRange(attendance, weekStart, weekEnd),
         siteId
     );
+
+    // Filter to show only workers with at least 0.5 duty points in the selected week
+    const visibleWorkers = React.useMemo(() => {
+        return allWorkers.filter(worker => {
+            // Calculate total duty points for this worker in the week
+            const totalDuty = weekDays.reduce((sum, day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = weekAttendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr
+                );
+                return sum + (record ? calculateShifts(record) : 0);
+            }, 0);
+
+            // Show only workers with at least 0.5 duty points
+            return totalDuty >= 0.5;
+        });
+    }, [allWorkers, weekDays, weekAttendance]);
 
     const handleAddClick = () => {
         if (onAddAttendance) {
