@@ -276,22 +276,27 @@ export const TeamInterface: React.FC = () => {
                 if (isPermitted) {
                     setSelectedSite(nearestSite);
                     setIsLocationVerified(true);
+
+                    // Haptic feedback on success (mobile)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200); // Success vibration
+                    }
                 } else {
-                    setLocationError(`You are at "${nearestSite.name}", but this site is not permitted for your team.`);
+                    setLocationError(`🚫 You are at "${nearestSite.name}", but this site is not permitted for your team.`);
                 }
             } else {
-                setLocationError('You are far from any site.');
+                setLocationError('📍 You are too far from any work site. Please move closer to your assigned site.');
             }
         } catch (err: any) {
             console.error(err);
             if (err.code === 1) {
-                setLocationError('BLOCKED: Browser blocked location. Click lock icon in url bar.');
+                setLocationError('🔒 Location access is blocked. Please allow location access in your browser settings and try again.');
             } else if (err.code === 2) {
-                setLocationError('GPS signal lost. Please move outside.');
+                setLocationError('📡 GPS signal is weak. Please move to an open area with clear sky view and try again.');
             } else if (err.code === 3) {
-                setLocationError('Location timed out. Please try again.');
+                setLocationError('⏱️ Location request timed out. This can happen indoors or in bad weather. Please try again.');
             } else {
-                setLocationError('GPS failed. Ensure it is turned on.');
+                setLocationError('❌ GPS is not working. Please make sure location services are turned on in your device settings.');
             }
         } finally {
             setIsVerifying(false);
@@ -326,10 +331,18 @@ export const TeamInterface: React.FC = () => {
         // Refresh data to ensure UI sync
         await refreshData();
 
-        setSuccessMessage(`Successfully punched in ${selectedWorkerIds.length} workers.`);
+        // Enhanced success feedback
+        const count = selectedWorkerIds.length;
+        setSuccessMessage(`✓ Successfully punched in ${count} worker${count > 1 ? 's' : ''}!`);
+
+        // Haptic feedback (mobile)
+        if (navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]); // Success pattern
+        }
+
         setSelectedWorkerIds([]);
         setPhoto(null);
-        setTimeout(() => setSuccessMessage(''), 3000);
+        setTimeout(() => setSuccessMessage(''), 5000); // 5 seconds instead of 3
         setIsSubmitting(false);
     };
 
@@ -489,33 +502,58 @@ export const TeamInterface: React.FC = () => {
                 </div>
 
                 {successMessage && (
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                        {successMessage}
+                    <div className="bg-green-50 border-2 border-green-400 text-green-800 px-4 py-4 rounded-xl mb-4 flex items-center gap-3 shadow-lg animate-pulse">
+                        <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
+                        <span className="font-bold text-base">{successMessage}</span>
                     </div>
                 )}
 
                 {activeTab === 'PUNCH_IN' && (
                     <div className="space-y-6">
-                        {/* Location Header */}
-                        <div className={`p-4 rounded-xl flex items-center justify-center gap-3 shadow-sm ${isLocationVerified ? 'bg-green-600 text-white' : 'bg-red-50 border border-red-100'}`}>
-                            {isLocationVerified ? (
-                                <>
-                                    <MapPin className="text-white" size={24} />
-                                    <span className="font-bold text-lg">Location Verified: {selectedSite?.name}</span>
-                                    <div className="bg-white/20 p-1 rounded-full">
-                                        <CheckCircle className="text-white" size={20} />
+                        {/* Location Verification Section */}
+                        {isVerifying ? (
+                            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 flex flex-col items-center gap-3">
+                                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+                                <p className="text-sm font-bold text-blue-800">Finding your location...</p>
+                                <p className="text-xs text-blue-600 text-center">This may take a few seconds. Make sure you're outdoors for best results.</p>
+                            </div>
+                        ) : isLocationVerified ? (
+                            <div className="bg-green-600 text-white p-4 rounded-xl flex items-center justify-center gap-3 shadow-lg">
+                                <MapPin className="text-white" size={24} />
+                                <span className="font-bold text-lg">✓ Location Verified: {selectedSite?.name}</span>
+                                <div className="bg-white/20 p-1 rounded-full">
+                                    <CheckCircle className="text-white" size={20} />
+                                </div>
+                            </div>
+                        ) : locationError ? (
+                            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="text-2xl">{locationError.split(' ')[0]}</div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-red-800 mb-1">Location Error</p>
+                                        <p className="text-sm text-red-700">{locationError}</p>
                                     </div>
-                                </>
-                            ) : (
-                                <>
-                                    <MapPin className="text-red-600" size={24} />
-                                    <div className="text-center">
-                                        <p className="font-bold text-red-800">Location Not Verified</p>
-                                        <p className="text-xs text-red-600 cursor-pointer underline" onClick={verifyLocation}>Tap to Retry</p>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                                </div>
+                                <button
+                                    onClick={verifyLocation}
+                                    className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <MapPin size={20} />
+                                    Try Again
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={verifyLocation}
+                                className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3"
+                            >
+                                <MapPin size={24} />
+                                <div className="text-left">
+                                    <div className="text-lg">Verify My Location</div>
+                                    <div className="text-xs opacity-80">Tap to check if you're at the work site</div>
+                                </div>
+                            </button>
+                        )}
 
                         {isLocationVerified && (
                             <div className="space-y-6">
@@ -646,26 +684,50 @@ export const TeamInterface: React.FC = () => {
 
                 {activeTab === 'PUNCH_OUT' && (
                     <div className="space-y-6">
-                        {/* Location Header */}
-                        <div className={`p-4 rounded-xl flex items-center justify-center gap-3 shadow-sm ${isLocationVerified ? 'bg-orange-600 text-white' : 'bg-red-50 border border-red-100'}`}>
-                            {isLocationVerified ? (
-                                <>
-                                    <MapPin className="text-white" size={24} />
-                                    <span className="font-bold text-lg">Location Verified: {selectedSite?.name}</span>
-                                    <div className="bg-white/20 p-1 rounded-full">
-                                        <CheckCircle className="text-white" size={20} />
+                        {/* Location Verification Section */}
+                        {isVerifying ? (
+                            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 flex flex-col items-center gap-3">
+                                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+                                <p className="text-sm font-bold text-blue-800">Finding your location...</p>
+                                <p className="text-xs text-blue-600 text-center">This may take a few seconds. Make sure you're outdoors for best results.</p>
+                            </div>
+                        ) : isLocationVerified ? (
+                            <div className="bg-orange-600 text-white p-4 rounded-xl flex items-center justify-center gap-3 shadow-lg">
+                                <MapPin className="text-white" size={24} />
+                                <span className="font-bold text-lg">✓ Location Verified: {selectedSite?.name}</span>
+                                <div className="bg-white/20 p-1 rounded-full">
+                                    <CheckCircle className="text-white" size={20} />
+                                </div>
+                            </div>
+                        ) : locationError ? (
+                            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="text-2xl">{locationError.split(' ')[0]}</div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-red-800 mb-1">Location Error</p>
+                                        <p className="text-sm text-red-700">{locationError}</p>
                                     </div>
-                                </>
-                            ) : (
-                                <>
-                                    <MapPin className="text-red-600" size={24} />
-                                    <div className="text-center">
-                                        <p className="font-bold text-red-800">Location Not Verified</p>
-                                        <p className="text-xs text-red-600 cursor-pointer underline" onClick={verifyLocation}>Tap to Retry</p>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                                </div>
+                                <button
+                                    onClick={verifyLocation}
+                                    className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <MapPin size={20} />
+                                    Try Again
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={verifyLocation}
+                                className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3"
+                            >
+                                <MapPin size={24} />
+                                <div className="text-left">
+                                    <div className="text-lg">Verify My Location</div>
+                                    <div className="text-xs opacity-80">Tap to check if you're at the work site</div>
+                                </div>
+                            </button>
+                        )}
 
                         {isLocationVerified && (() => {
                             // Filter workers eligible for punch out

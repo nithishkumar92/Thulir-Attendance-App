@@ -4,6 +4,7 @@ import { format, startOfWeek, endOfWeek } from 'date-fns';
 import { Plus, Search, IndianRupee, Calendar, FileText, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { AdvancePayment } from '../../types';
+import { calculateShifts } from '../../utils/attendanceUtils';
 
 export const AdvanceManagement: React.FC = () => {
     const { teams, advances, addAdvance, updateAdvance, deleteAdvance, currentUser, workers, attendance } = useApp();
@@ -22,28 +23,6 @@ export const AdvanceManagement: React.FC = () => {
     const [notes, setNotes] = useState('');
     const [isSettlement, setIsSettlement] = useState(false);
 
-    // Calculate Shifts Helper (Duplicated from WeeklyReport to avoid dependency issues for now)
-    const calculateShifts = (record: any) => {
-        if (!record || record.status === 'ABSENT') return 0;
-        if (!record.punchInTime) return record.status === 'HALF_DAY' ? 0.5 : 1;
-
-        const inTime = new Date(record.punchInTime);
-        const outTime = record.punchOutTime ? new Date(record.punchOutTime) : new Date(record.date + 'T18:00:00');
-
-        const getMinutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
-        const inMin = getMinutes(inTime);
-        const outMin = getMinutes(outTime);
-
-        let totalShift = 0;
-        // 06:00-09:00
-        if (Math.max(0, Math.min(outMin, 540) - Math.max(inMin, 360)) > 30) totalShift += 0.5;
-        // 09:00-13:00
-        if (Math.max(0, Math.min(outMin, 780) - Math.max(inMin, 540)) > 30) totalShift += 0.5;
-        // 13:00-18:00
-        if (Math.max(0, Math.min(outMin, 1080) - Math.max(inMin, 780)) > 30) totalShift += 0.5;
-
-        return totalShift;
-    };
 
     // Filter teams based on search
     const filteredTeams = useMemo(() => {

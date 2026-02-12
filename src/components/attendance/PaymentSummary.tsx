@@ -130,111 +130,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
     const balanceToPay = totalRoleCost - totalAdvance - totalSettlement;
 
-    // Download PDF function
-    const handleDownload = () => {
-        const doc = new jsPDF();
-
-        // Title
-        doc.setFontSize(18);
-        doc.text(`Weekly Attendance Report`, 14, 22);
-        doc.setFontSize(10);
-        doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
-
-        if (selectedTeamId !== 'ALL') {
-            const teamName = teams.find(t => t.id === selectedTeamId)?.name;
-            doc.text(`Team: ${teamName}`, 14, 34);
-        }
-
-        // 1. ATTENDANCE TABLE (Worker x Days)
-        const attendanceStartY = selectedTeamId !== 'ALL' ? 40 : 34;
-        const attendanceHeaders = [['Worker', 'Team', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
-
-        const attendanceRows = visibleWorkers.map(worker => {
-            const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
-            const dailyStatuses = weekDays.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const record = attendance.find(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr &&
-                    (!siteId || a.siteId === siteId)
-                );
-                const shiftCount = record ? calculateShifts(record) : 0;
-                return getShiftSymbol(shiftCount, record);
-            });
-            const totalPresent = weekDays.reduce((sum, day) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const record = attendance.find(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr &&
-                    (!siteId || a.siteId === siteId)
-                );
-                return sum + (record ? calculateShifts(record) : 0);
-            }, 0);
-            return [worker.name, teamName, ...dailyStatuses, totalPresent];
-        });
-
-        autoTable(doc, {
-            startY: attendanceStartY,
-            head: attendanceHeaders,
-            body: attendanceRows,
-            theme: 'grid',
-            headStyles: { fillColor: [66, 66, 66] },
-            styles: { fontSize: 8 },
-        });
-
-        // 2. PAYMENT SUMMARY TABLE (Date x Roles)
-        const paymentStartY = (doc as any).lastAutoTable.finalY + 15;
-        doc.setFontSize(14);
-        doc.text("Payment Summary", 14, paymentStartY);
-
-        const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement']];
-        const financialRows = dailyFinancials.map(day => {
-            const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
-            return [
-                format(day.date, 'dd-MMM'),
-                format(day.date, 'EEE'),
-                ...rolesCounts,
-                day.advance || '',
-                day.settlement || ''
-            ];
-        });
-
-        // Add Totals Row
-        const totalRow = [
-            'Total Duty', '',
-            ...uniqueRoles.map(role => roleTotals[role].count),
-            '', ''
-        ];
-
-        // Add Amount Row
-        const amountRow = [
-            'Amount', '',
-            ...uniqueRoles.map(role => roleTotals[role].cost.toLocaleString()),
-            totalAdvance.toLocaleString(),
-            totalSettlement.toLocaleString()
-        ];
-
-        autoTable(doc, {
-            startY: paymentStartY + 5,
-            head: financialHeaders,
-            body: [...financialRows, totalRow, amountRow],
-            theme: 'striped',
-            headStyles: { fillColor: [46, 125, 50] }, // Green for finances
-            styles: { fontSize: 9 }
-        });
-
-        // Final Balance
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
-        doc.setFontSize(12);
-        doc.setTextColor(46, 125, 50);
-        doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
-
-        const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-        doc.save(fileName);
-    };
-
-    // WhatsApp share function
-    const handleWhatsAppShare = async () => {
+    // Helper function to generate PDF (used by both download and share)
+    const generatePDF = (): jsPDF => {
         const doc = new jsPDF();
 
         // Title
@@ -319,7 +216,19 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         doc.setTextColor(46, 125, 50);
         doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
 
-        // File sharing logic
+        return doc;
+    };
+
+    // Download PDF function
+    const handleDownload = () => {
+        const doc = generatePDF();
+        const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
+    };
+
+    // WhatsApp share function
+    const handleWhatsAppShare = async () => {
+        const doc = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
         const blob = doc.output('blob');
         const file = new File([blob], fileName, { type: 'application/pdf' });
