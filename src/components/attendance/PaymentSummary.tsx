@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight, Download, Share2, LayoutGrid, LayoutList } from 'lucide-react';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
-import { calculateShifts } from '../../utils/attendanceUtils';
+import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -136,7 +136,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
         // Title
         doc.setFontSize(18);
-        doc.text(`Payment Summary`, 14, 22);
+        doc.text(`Weekly Attendance Report`, 14, 22);
         doc.setFontSize(10);
         doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
 
@@ -145,8 +145,48 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             doc.text(`Team: ${teamName}`, 14, 34);
         }
 
-        // Financial Summary Table
-        const startY = selectedTeamId !== 'ALL' ? 40 : 34;
+        // 1. ATTENDANCE TABLE (Worker x Days)
+        const attendanceStartY = selectedTeamId !== 'ALL' ? 40 : 34;
+        const attendanceHeaders = [['Worker', 'Team', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
+
+        const attendanceRows = visibleWorkers.map(worker => {
+            const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
+            const dailyStatuses = weekDays.map(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = attendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
+                );
+                const shiftCount = record ? calculateShifts(record) : 0;
+                return getShiftSymbol(shiftCount, record);
+            });
+            const totalPresent = weekDays.reduce((sum, day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = attendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
+                );
+                return sum + (record ? calculateShifts(record) : 0);
+            }, 0);
+            return [worker.name, teamName, ...dailyStatuses, totalPresent];
+        });
+
+        autoTable(doc, {
+            startY: attendanceStartY,
+            head: attendanceHeaders,
+            body: attendanceRows,
+            theme: 'grid',
+            headStyles: { fillColor: [66, 66, 66] },
+            styles: { fontSize: 8 },
+        });
+
+        // 2. PAYMENT SUMMARY TABLE (Date x Roles)
+        const paymentStartY = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(14);
+        doc.text("Payment Summary", 14, paymentStartY);
+
         const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement']];
         const financialRows = dailyFinancials.map(day => {
             const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
@@ -175,7 +215,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         ];
 
         autoTable(doc, {
-            startY: startY,
+            startY: paymentStartY + 5,
             head: financialHeaders,
             body: [...financialRows, totalRow, amountRow],
             theme: 'striped',
@@ -189,7 +229,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         doc.setTextColor(46, 125, 50);
         doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
 
-        const fileName = `payment-summary-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
+        const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
         doc.save(fileName);
     };
 
@@ -199,7 +239,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
         // Title
         doc.setFontSize(18);
-        doc.text(`Payment Summary`, 14, 22);
+        doc.text(`Weekly Attendance Report`, 14, 22);
         doc.setFontSize(10);
         doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
 
@@ -208,8 +248,48 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             doc.text(`Team: ${teamName}`, 14, 34);
         }
 
-        // Financial Summary Table
-        const startY = selectedTeamId !== 'ALL' ? 40 : 34;
+        // 1. ATTENDANCE TABLE (Worker x Days)
+        const attendanceStartY = selectedTeamId !== 'ALL' ? 40 : 34;
+        const attendanceHeaders = [['Worker', 'Team', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
+
+        const attendanceRows = visibleWorkers.map(worker => {
+            const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
+            const dailyStatuses = weekDays.map(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = attendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
+                );
+                const shiftCount = record ? calculateShifts(record) : 0;
+                return getShiftSymbol(shiftCount, record);
+            });
+            const totalPresent = weekDays.reduce((sum, day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = attendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
+                );
+                return sum + (record ? calculateShifts(record) : 0);
+            }, 0);
+            return [worker.name, teamName, ...dailyStatuses, totalPresent];
+        });
+
+        autoTable(doc, {
+            startY: attendanceStartY,
+            head: attendanceHeaders,
+            body: attendanceRows,
+            theme: 'grid',
+            headStyles: { fillColor: [66, 66, 66] },
+            styles: { fontSize: 8 },
+        });
+
+        // 2. PAYMENT SUMMARY TABLE (Date x Roles)
+        const paymentStartY = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(14);
+        doc.text("Payment Summary", 14, paymentStartY);
+
         const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement']];
         const financialRows = dailyFinancials.map(day => {
             const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
@@ -226,7 +306,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         const amountRow = ['Amount', '', ...uniqueRoles.map(role => roleTotals[role].cost.toLocaleString()), totalAdvance.toLocaleString(), totalSettlement.toLocaleString()];
 
         autoTable(doc, {
-            startY: startY,
+            startY: paymentStartY + 5,
             head: financialHeaders,
             body: [...financialRows, totalRow, amountRow],
             theme: 'striped',
@@ -240,7 +320,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
 
         // File sharing logic
-        const fileName = `payment-summary-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
+        const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
         const blob = doc.output('blob');
         const file = new File([blob], fileName, { type: 'application/pdf' });
 
@@ -248,7 +328,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             try {
                 await navigator.share({
                     files: [file],
-                    title: 'Payment Summary',
+                    title: 'Weekly Attendance Report',
                     text: `Shared via Thulir ERP app`,
                 });
             } catch (error) {
