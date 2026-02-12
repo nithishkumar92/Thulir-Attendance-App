@@ -6,6 +6,9 @@ import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { calculateShifts } from '../../utils/attendanceUtils';
 
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 interface PaymentSummaryProps {
     userRole: 'OWNER' | 'TEAM_REP';
     teamId?: string;
@@ -129,15 +132,133 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
     // Download PDF function
     const handleDownload = () => {
-        // TODO: Implement PDF generation
-        alert('Download PDF functionality will be implemented');
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text(`Payment Summary`, 14, 22);
+        doc.setFontSize(10);
+        doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
+
+        if (selectedTeamId !== 'ALL') {
+            const teamName = teams.find(t => t.id === selectedTeamId)?.name;
+            doc.text(`Team: ${teamName}`, 14, 34);
+        }
+
+        // Financial Summary Table
+        const startY = selectedTeamId !== 'ALL' ? 40 : 34;
+        const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement']];
+        const financialRows = dailyFinancials.map(day => {
+            const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
+            return [
+                format(day.date, 'dd-MMM'),
+                format(day.date, 'EEE'),
+                ...rolesCounts,
+                day.advance || '',
+                day.settlement || ''
+            ];
+        });
+
+        // Add Totals Row
+        const totalRow = [
+            'Total Duty', '',
+            ...uniqueRoles.map(role => roleTotals[role].count),
+            '', ''
+        ];
+
+        // Add Amount Row
+        const amountRow = [
+            'Amount', '',
+            ...uniqueRoles.map(role => roleTotals[role].cost.toLocaleString()),
+            totalAdvance.toLocaleString(),
+            totalSettlement.toLocaleString()
+        ];
+
+        autoTable(doc, {
+            startY: startY,
+            head: financialHeaders,
+            body: [...financialRows, totalRow, amountRow],
+            theme: 'striped',
+            headStyles: { fillColor: [46, 125, 50] }, // Green for finances
+            styles: { fontSize: 9 }
+        });
+
+        // Final Balance
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.setTextColor(46, 125, 50);
+        doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
+
+        const fileName = `payment-summary-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
     };
 
     // WhatsApp share function
-    const handleWhatsAppShare = () => {
-        const message = `*Payment Summary*\n${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}\n\nNet Payable Balance: ₹${balanceToPay.toLocaleString()}`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+    const handleWhatsAppShare = async () => {
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text(`Payment Summary`, 14, 22);
+        doc.setFontSize(10);
+        doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
+
+        if (selectedTeamId !== 'ALL') {
+            const teamName = teams.find(t => t.id === selectedTeamId)?.name;
+            doc.text(`Team: ${teamName}`, 14, 34);
+        }
+
+        // Financial Summary Table
+        const startY = selectedTeamId !== 'ALL' ? 40 : 34;
+        const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement']];
+        const financialRows = dailyFinancials.map(day => {
+            const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
+            return [
+                format(day.date, 'dd-MMM'),
+                format(day.date, 'EEE'),
+                ...rolesCounts,
+                day.advance || '',
+                day.settlement || ''
+            ];
+        });
+
+        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count), '', ''];
+        const amountRow = ['Amount', '', ...uniqueRoles.map(role => roleTotals[role].cost.toLocaleString()), totalAdvance.toLocaleString(), totalSettlement.toLocaleString()];
+
+        autoTable(doc, {
+            startY: startY,
+            head: financialHeaders,
+            body: [...financialRows, totalRow, amountRow],
+            theme: 'striped',
+            headStyles: { fillColor: [46, 125, 50] },
+            styles: { fontSize: 9 }
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.setTextColor(46, 125, 50);
+        doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
+
+        // File sharing logic
+        const fileName = `payment-summary-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
+        const blob = doc.output('blob');
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Payment Summary',
+                    text: `Shared via Thulir ERP app`,
+                });
+            } catch (error) {
+                console.log('Sharing failed', error);
+            }
+        } else {
+            // Fallback: Download and alert
+            doc.save(fileName);
+            alert("File sharing is not supported on this browser. The PDF has been downloaded instead. Please open WhatsApp and attach the file manually.");
+        }
     };
 
     return (

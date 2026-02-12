@@ -4,7 +4,6 @@ import { getCurrentLocation, calculateDistance } from '../utils/geo'; // Assumin
 import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Site, Worker } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { WeeklyReport } from './dashboard/WeeklyReport';
 import { AttendanceReport } from '../components/attendance/AttendanceReport';
 import { PaymentSummary } from '../components/attendance/PaymentSummary';
 import clsx from 'clsx';

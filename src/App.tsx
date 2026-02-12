@@ -8,7 +8,6 @@ import { OwnerDashboard } from './pages/OwnerDashboard';
 import { DashboardOverview } from './pages/dashboard/DashboardOverview';
 import { WorkerManagement } from './pages/dashboard/WorkerManagement';
 import { SiteManagement } from './pages/dashboard/SiteManagement';
-import { WeeklyReport } from './pages/dashboard/WeeklyReport';
 import { AttendanceCorrections } from './pages/dashboard/AttendanceCorrections';
 import { TeamManagement } from './pages/dashboard/TeamManagement';
 import { AdvanceManagement } from './pages/dashboard/AdvanceManagement';
