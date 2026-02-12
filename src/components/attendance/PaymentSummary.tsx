@@ -47,9 +47,23 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     });
 
     // Filter to show only workers with at least 0.5 duty points in the selected week
+    // OR workers who have any attendance record (including incomplete punches)
     const visibleWorkers = useMemo(() => {
         return allWorkers.filter(worker => {
-            // Calculate total duty points for this worker in the week
+            // Check if worker has ANY attendance record in the week
+            const hasAnyAttendance = weekDays.some(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                return attendance.some(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
+                );
+            });
+
+            // If they have any attendance record, show them
+            if (hasAnyAttendance) return true;
+
+            // Otherwise, calculate total duty points
             const totalDuty = weekDays.reduce((sum, day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const record = attendance.find(a =>

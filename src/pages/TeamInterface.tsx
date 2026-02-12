@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { getCurrentLocation, calculateDistance } from '../utils/geo'; // Assuming this utility exists or is imported correctly
 import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -11,6 +11,7 @@ import { startOfWeek, endOfWeek, format, isSameDay, addWeeks, subWeeks, parseISO
 import { getTodayDateString } from '../utils/dateUtils';
 import { SiteAttendanceCard, SiteAttendanceData, WorkerRoleGroup, GroupedWorker } from '../components/SiteAttendanceCard';
 import { AttendanceBottomSheet } from '../components/AttendanceBottomSheet';
+import { sortWorkersByProbability } from '../utils/workerSortingUtils';
 
 
 type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
@@ -244,6 +245,14 @@ export const TeamInterface: React.FC = () => {
     const teamWorkers = currentUser?.role === 'OWNER'
         ? workers.filter(w => !w.isLocked)
         : workers.filter(w => w.teamId === currentUser?.teamId && !w.isLocked);
+
+    // Smart sorting: Sort workers by probability of punching in today
+    // Priority 1: Workers who worked yesterday
+    // Priority 2: Ranked by 30-day work frequency
+    // Priority 3: Alphabetical
+    const sortedTeamWorkers = useMemo(() => {
+        return sortWorkersByProbability(teamWorkers, attendance, selectedSite?.id);
+    }, [teamWorkers, attendance, selectedSite]);
 
     useEffect(() => {
         // Attempt to get location on mount or tab change to 'PUNCH_IN'/'PUNCH_OUT'
@@ -564,7 +573,7 @@ export const TeamInterface: React.FC = () => {
 
                                 {/* Worker Carousel */}
                                 <div className="flex overflow-x-auto pb-4 gap-4 px-2 snap-x scrollbar-hide">
-                                    {teamWorkers.map(worker => {
+                                    {sortedTeamWorkers.map(worker => {
                                         const today = getTodayDateString();
                                         const todayRecord = attendance.find(r => r.workerId === worker.id && r.date === today);
                                         const isAlreadyPunchedIn = !!todayRecord;
