@@ -714,8 +714,8 @@ export const TeamInterface: React.FC = () => {
                                                                 }`}
                                                         >
                                                             <div className={`relative w-24 h-24 rounded-full border-4 shadow-md overflow-hidden ${isSelected
-                                                                    ? 'border-orange-500 ring-4 ring-orange-100'
-                                                                    : 'border-gray-200'
+                                                                ? 'border-orange-500 ring-4 ring-orange-100'
+                                                                : 'border-gray-200'
                                                                 }`}>
                                                                 <img
                                                                     src={worker.photoUrl || `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=128`}
@@ -811,7 +811,9 @@ export const TeamInterface: React.FC = () => {
                                                                 );
 
                                                                 if (record && record.id) {
-                                                                    await updateAttendance(record.id, {
+                                                                    // Update the full record object
+                                                                    await updateAttendance({
+                                                                        ...record,
                                                                         punchOutTime,
                                                                         punchOutPhoto: photo || undefined
                                                                     });
@@ -831,8 +833,8 @@ export const TeamInterface: React.FC = () => {
                                                     }}
                                                     disabled={selectedWorkerIds.length === 0 || isSubmitting}
                                                     className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all ${selectedWorkerIds.length === 0 || isSubmitting
-                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                            : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 active:scale-95'
+                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                        : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 active:scale-95'
                                                         }`}
                                                 >
                                                     {isSubmitting ? 'PUNCHING OUT...' : `PUNCH OUT ${selectedWorkerIds.length > 0 ? `(${selectedWorkerIds.length})` : ''}`}
