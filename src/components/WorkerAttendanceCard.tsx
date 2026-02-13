@@ -39,9 +39,9 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+        <div className="border-b border-gray-200 pb-4 mb-4">
             {/* Header with Photo and Name */}
-            <div className="p-4 flex items-center gap-3 border-b border-gray-100">
+            <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 ring-2 ring-blue-50">
                     {worker.photoUrl ? (
                         <img
@@ -65,7 +65,7 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
             </div>
 
             {/* Daily Attendance Grid */}
-            <div className="p-4">
+            <div className="mb-3">
                 <div className="grid grid-cols-7 gap-2">
                     {dailyAttendance.map((day, idx) => (
                         <div key={idx} className="flex flex-col items-center">
@@ -92,7 +92,7 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
             </div>
 
             {/* Footer with Totals */}
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-sm">
+            <div className="flex justify-between items-center text-sm bg-gray-50 px-3 py-2 rounded-lg">
                 <div>
                     <span className="text-gray-600">Total Duty:</span>
                     <span className="ml-2 font-bold text-gray-900">{totalDuty}</span>
