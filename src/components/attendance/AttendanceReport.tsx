@@ -8,11 +8,11 @@ import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
 import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import * as pdfMake from 'pdfmake/build/pdfmake';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
-// Set up pdfMake fonts
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+// Set up pdfMake fonts - use type assertion to avoid TypeScript errors
+(pdfMake as any).vfs = (pdfFonts as any).pdfMake.vfs;
 
 interface AttendanceReportProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -244,7 +244,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const handleDownload = () => {
         const docDefinition = generatePDF();
         const fileName = `attendance-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-        pdfMake.createPdf(docDefinition).download(fileName);
+        (pdfMake as any).createPdf(docDefinition).download(fileName);
     };
 
     // Expose download function to parent

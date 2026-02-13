@@ -5,11 +5,11 @@ import { ChevronLeft, ChevronRight, Download, Share2, LayoutGrid, LayoutList } f
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import * as pdfMake from 'pdfmake/build/pdfmake';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
-// Set up pdfMake fonts
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+// Set up pdfMake fonts - use type assertion to avoid TypeScript errors
+(pdfMake as any).vfs = (pdfFonts as any).pdfMake.vfs;
 
 interface PaymentSummaryProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -293,7 +293,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     const handleDownload = () => {
         const docDefinition = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-        pdfMake.createPdf(docDefinition).download(fileName);
+        (pdfMake as any).createPdf(docDefinition).download(fileName);
     };
 
     // Expose download function to parent
@@ -308,7 +308,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         const docDefinition = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
 
-        pdfMake.createPdf(docDefinition).getBlob((blob) => {
+        (pdfMake as any).createPdf(docDefinition).getBlob((blob: Blob) => {
             const file = new File([blob], fileName, { type: 'application/pdf' });
 
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -321,7 +321,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 });
             } else {
                 // Fallback: Download and alert
-                pdfMake.createPdf(docDefinition).download(fileName);
+                (pdfMake as any).createPdf(docDefinition).download(fileName);
                 alert("File sharing is not supported on this browser. The PDF has been downloaded instead. Please open WhatsApp and attach the file manually.");
             }
         });
