@@ -1,6 +1,6 @@
 import React from 'react';
 import { Worker, AttendanceRecord } from '../types';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import clsx from 'clsx';
 import { calculateShifts, getShiftSymbol } from '../utils/attendanceUtils';
 
@@ -14,9 +14,10 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
 
     // Calculate attendance for each day
     const dailyAttendance = weekDays.map(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
         const record = attendance.find(a =>
             a.workerId === worker.id &&
-            isSameDay(parseISO(a.date), day)
+            a.date === dateStr
         );
 
         const shiftCount = record ? calculateShifts(record) : 0;
