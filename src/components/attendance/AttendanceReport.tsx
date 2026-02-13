@@ -11,9 +11,6 @@ import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
 import * as pdfMake from 'pdfmake/build/pdfmake';
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
-// Set up pdfMake fonts - use type assertion to avoid TypeScript errors
-(pdfMake as any).vfs = (pdfFonts as any).pdfMake.vfs;
-
 interface AttendanceReportProps {
     userRole: 'OWNER' | 'TEAM_REP';
     teamId?: string;
@@ -100,6 +97,11 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     // Generate PDF for Attendance Report with Payment Summary using pdfmake
     const generatePDF = () => {
+        // Initialize pdfMake fonts at runtime
+        if (!(pdfMake as any).vfs) {
+            (pdfMake as any).vfs = (pdfFonts as any).pdfMake.vfs;
+        }
+
         // Prepare attendance table data
         const attendanceHeaders = ['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total'];
 
