@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { getCurrentLocation, calculateDistance } from '../utils/geo'; // Assuming this utility exists or is imported correctly
-import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Site, Worker } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { AttendanceReport } from '../components/attendance/AttendanceReport';
@@ -50,6 +50,9 @@ export const TeamInterface: React.FC = () => {
     // Bottom Sheet State
     const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
     const [selectedSiteData, setSelectedSiteData] = useState<SiteAttendanceData | null>(null);
+
+    // Report Download State
+    const [reportDownloadFn, setReportDownloadFn] = useState<(() => void) | null>(null);
 
     const openBottomSheet = (data: SiteAttendanceData) => {
         setSelectedSiteData(data);
@@ -1122,7 +1125,7 @@ export const TeamInterface: React.FC = () => {
 
                         {/* Sub-tab Navigation */}
                         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                            <div className="flex border-b">
+                            <div className="flex border-b items-center">
                                 <button
                                     onClick={() => setReportSubTab('ATTENDANCE')}
                                     className={clsx(
@@ -1145,6 +1148,15 @@ export const TeamInterface: React.FC = () => {
                                 >
                                     Payment Summary
                                 </button>
+                                {/* Download Button */}
+                                <button
+                                    onClick={() => reportDownloadFn && reportDownloadFn()}
+                                    disabled={!reportDownloadFn}
+                                    className="p-3 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Download PDF"
+                                >
+                                    <Download size={20} className="text-gray-700" />
+                                </button>
                             </div>
 
                             {/* Sub-tab Content */}
@@ -1154,6 +1166,7 @@ export const TeamInterface: React.FC = () => {
                                         userRole={currentUser?.role === 'OWNER' ? 'OWNER' : 'TEAM_REP'}
                                         teamId={currentUser?.teamId}
                                         siteId={reportSiteId || undefined}
+                                        onDownloadReady={(fn) => setReportDownloadFn(() => fn)}
                                     />
                                 )}
                                 {reportSubTab === 'PAYMENT' && (
@@ -1161,6 +1174,7 @@ export const TeamInterface: React.FC = () => {
                                         userRole={currentUser?.role === 'OWNER' ? 'OWNER' : 'TEAM_REP'}
                                         teamId={currentUser?.teamId}
                                         siteId={reportSiteId || undefined}
+                                        onDownloadReady={(fn) => setReportDownloadFn(() => fn)}
                                     />
                                 )}
                             </div>

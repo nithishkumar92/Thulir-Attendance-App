@@ -14,6 +14,7 @@ interface PaymentSummaryProps {
     teamId?: string;
     siteId?: string;
     showExportButton?: boolean;
+    onDownloadReady?: (downloadFn: () => void) => void;
 }
 
 /**
@@ -26,7 +27,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     userRole,
     teamId,
     siteId,
-    showExportButton = false
+    showExportButton = false,
+    onDownloadReady
 }) => {
     const { attendance, teams, advances } = useApp();
     const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'ALL');
@@ -258,6 +260,13 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
         doc.save(fileName);
     };
+
+    // Expose download function to parent
+    React.useEffect(() => {
+        if (onDownloadReady) {
+            onDownloadReady(handleDownload);
+        }
+    }, [onDownloadReady, weekStart]);
 
     // WhatsApp share function
     const handleWhatsAppShare = async () => {

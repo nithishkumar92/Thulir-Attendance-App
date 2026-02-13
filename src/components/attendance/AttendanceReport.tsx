@@ -7,7 +7,9 @@ import { useNavigate } from 'react-router-dom';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
-import { calculateShifts } from '../../utils/attendanceUtils';
+import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface AttendanceReportProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -15,6 +17,7 @@ interface AttendanceReportProps {
     siteId?: string;
     showAddButton?: boolean;
     onAddAttendance?: () => void;
+    onDownloadReady?: (downloadFn: () => void) => void;
 }
 
 /**
@@ -27,7 +30,8 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     teamId,
     siteId,
     showAddButton = false,
-    onAddAttendance
+    onAddAttendance,
+    onDownloadReady
 }) => {
     const { attendance, teams } = useApp();
     const navigate = useNavigate();
@@ -90,6 +94,67 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
             navigate('/add-attendance');
         }
     };
+
+    // Generate PDF for Attendance Report
+    const generatePDF = (): jsPDF => {
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text(`Attendance Report`, 14, 22);
+        doc.setFontSize(10);
+        doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
+
+        // Attendance Table
+        const headers = [['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
+
+        const rows = visibleWorkers.map(worker => {
+            const dailyStatuses = weekDays.map(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = weekAttendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr
+                );
+                const shiftCount = record ? calculateShifts(record) : 0;
+                return getShiftSymbol(shiftCount, record);
+            });
+            const totalDuty = weekDays.reduce((sum, day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const record = weekAttendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr
+                );
+                return sum + (record ? calculateShifts(record) : 0);
+            }, 0);
+            return [worker.name, worker.role, ...dailyStatuses, totalDuty];
+        });
+
+        autoTable(doc, {
+            startY: 34,
+            head: headers,
+            body: rows,
+            theme: 'grid',
+            headStyles: { fillColor: [66, 66, 66] },
+            styles: { fontSize: 8 },
+        });
+
+        return doc;
+    };
+
+    // Download PDF function
+    const handleDownload = () => {
+        const doc = generatePDF();
+        const fileName = `attendance-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
+        doc.save(fileName);
+    };
+
+    // Expose download function to parent
+    React.useEffect(() => {
+        if (onDownloadReady) {
+            onDownloadReady(handleDownload);
+        }
+    }, [onDownloadReady, weekStart, visibleWorkers, weekAttendance]);
+
 
     return (
         <div className="space-y-4 p-4">
