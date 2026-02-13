@@ -99,7 +99,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     const generatePDF = () => {
         // Initialize pdfMake fonts at runtime
         if (!(pdfMake as any).vfs) {
-            (pdfMake as any).vfs = (pdfFonts as any).pdfMake.vfs;
+            (pdfMake as any).vfs = pdfFonts;
         }
 
         // Prepare attendance table data
