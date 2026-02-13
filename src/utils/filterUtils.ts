@@ -1,5 +1,5 @@
 import { Worker, AttendanceRecord, User } from '../types';
-import { parseISO, isWithinInterval } from 'date-fns';
+import { format } from 'date-fns';
 
 /**
  * Filter workers based on user role and permissions.
@@ -62,9 +62,13 @@ export const filterAttendanceByDateRange = (
     startDate: Date,
     endDate: Date
 ): AttendanceRecord[] => {
+    // Convert dates to strings for comparison to avoid timezone issues
+    const startStr = format(startDate, 'yyyy-MM-dd');
+    const endStr = format(endDate, 'yyyy-MM-dd');
+
     return attendance.filter(record => {
-        const recordDate = parseISO(record.date);
-        return isWithinInterval(recordDate, { start: startDate, end: endDate });
+        // Simple string comparison - record.date is already 'yyyy-MM-dd' format
+        return record.date >= startStr && record.date <= endStr;
     });
 };
 
