@@ -42,21 +42,21 @@ export const SiteAttendanceCard: React.FC<SiteAttendanceCardProps> = ({ data, on
     return (
         <div
             onClick={onClick}
-            className="bg-white rounded-xl shadow-sm border border-dashed border-gray-300 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+            className="border-b border-gray-300 pb-4 mb-4 cursor-pointer active:opacity-70 transition-opacity"
         >
             {/* Header */}
-            <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-b border-dashed border-gray-300">
+            <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                     <MapPin className="text-red-500 w-4 h-4" />
                     <span className="font-bold text-gray-800 text-sm">{data.site_name}</span>
                 </div>
-                <div className="text-xs font-mono text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                <div className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                     [ {data.date} ]
                 </div>
             </div>
 
             {/* Body */}
-            <div className="p-4 space-y-5">
+            <div className="space-y-4">
                 {data.teams.map((team, idx) => (
                     <div key={idx} className="space-y-2">
                         <div className="flex flex-col gap-2">
@@ -102,7 +102,7 @@ export const SiteAttendanceCard: React.FC<SiteAttendanceCardProps> = ({ data, on
             </div>
 
             {/* Footer */}
-            <div className="bg-gray-50 px-4 py-3 border-t border-dashed border-gray-300 flex justify-between items-center text-xs">
+            <div className="bg-gray-50 px-3 py-2 rounded-lg mt-3 flex justify-between items-center text-xs">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]"></div>
