@@ -12,6 +12,7 @@ import { getTodayDateString } from '../utils/dateUtils';
 import { SiteAttendanceCard, SiteAttendanceData, WorkerRoleGroup, GroupedWorker } from '../components/SiteAttendanceCard';
 import { AttendanceBottomSheet } from '../components/AttendanceBottomSheet';
 import { sortWorkersByProbability } from '../utils/workerSortingUtils';
+import { calculateDutyPoints } from '../utils/wageUtils';
 
 
 type Tab = 'PUNCH_IN' | 'PUNCH_OUT' | 'REPORT' | 'ADVANCE';
@@ -201,10 +202,17 @@ export const TeamInterface: React.FC = () => {
 
                 if (existingRecord) {
                     try {
+                        // Calculate duty points for completed attendance
+                        const dutyPoints = calculateDutyPoints(
+                            new Date(existingRecord.punchInTime!),
+                            new Date(now)
+                        );
+
                         await updateAttendance({
                             ...existingRecord,
                             punchOutTime: now,
                             punchOutLocation: finalLocation, // Use fallback
+                            dutyPoints, // Add calculated duty points
                             status: existingRecord.status, // Keep status, will be updated by AppContext logic
                             verified: true
                         });
