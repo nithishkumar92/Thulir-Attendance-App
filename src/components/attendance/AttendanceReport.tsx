@@ -95,7 +95,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
     };
 
-    // Generate PDF for Attendance Report
+    // Generate PDF for Attendance Report with Payment Summary
     const generatePDF = (): jsPDF => {
         const doc = new jsPDF();
 
@@ -105,7 +105,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         doc.setFontSize(10);
         doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
 
-        // Attendance Table
+        // 1. ATTENDANCE TABLE
         const headers = [['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
 
         const rows = visibleWorkers.map(worker => {
@@ -137,6 +137,84 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
             headStyles: { fillColor: [66, 66, 66] },
             styles: { fontSize: 8 },
         });
+
+        // 2. PAYMENT SUMMARY TABLE
+        const paymentStartY = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(14);
+        doc.text("Payment Summary", 14, paymentStartY);
+
+        // Calculate unique roles
+        const uniqueRoles = Array.from(new Set(visibleWorkers.map(w => w.role))).sort();
+
+        // Calculate daily financials
+        const dailyFinancials = weekDays.map(day => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+
+            const roleStats: Record<string, { count: number, cost: number }> = {};
+            uniqueRoles.forEach(role => roleStats[role] = { count: 0, cost: 0 });
+
+            visibleWorkers.forEach(worker => {
+                const record = weekAttendance.find(a =>
+                    a.workerId === worker.id &&
+                    a.date === dateStr
+                );
+                const shiftCount = record ? calculateShifts(record) : 0;
+
+                if (uniqueRoles.includes(worker.role)) {
+                    roleStats[worker.role].count += shiftCount;
+                    roleStats[worker.role].cost += (worker.dailyWage || 0) * shiftCount;
+                }
+            });
+
+            return {
+                date: day,
+                roleStats
+            };
+        });
+
+        // Calculate role totals
+        const roleTotals: Record<string, { count: number, cost: number }> = {};
+        uniqueRoles.forEach(role => {
+            roleTotals[role] = dailyFinancials.reduce((acc, day) => {
+                const stat = day.roleStats[role] || { count: 0, cost: 0 };
+                return {
+                    count: acc.count + stat.count,
+                    cost: acc.cost + stat.cost
+                };
+            }, { count: 0, cost: 0 });
+        });
+
+        const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
+
+        // Payment summary table
+        const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Daily Total']];
+        const financialRows = dailyFinancials.map(day => {
+            const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
+            const dailyTotal = Object.values(day.roleStats).reduce((sum, stat) => sum + stat.cost, 0);
+            return [
+                format(day.date, 'dd-MMM'),
+                format(day.date, 'EEE'),
+                ...rolesCounts,
+                dailyTotal ? `₹${dailyTotal.toLocaleString()}` : ''
+            ];
+        });
+
+        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count), ''];
+        const amountRow = ['Amount', '', ...uniqueRoles.map(role => `₹${roleTotals[role].cost.toLocaleString()}`), `₹${totalRoleCost.toLocaleString()}`];
+
+        autoTable(doc, {
+            startY: paymentStartY + 5,
+            head: financialHeaders,
+            body: [...financialRows, totalRow, amountRow],
+            theme: 'striped',
+            headStyles: { fillColor: [46, 125, 50] },
+            styles: { fontSize: 9 }
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.setTextColor(46, 125, 50);
+        doc.text(`Total Amount: ₹${totalRoleCost.toLocaleString()}`, 14, finalY);
 
         return doc;
     };
