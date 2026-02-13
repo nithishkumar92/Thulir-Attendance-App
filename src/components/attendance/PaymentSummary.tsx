@@ -5,9 +5,11 @@ import { ChevronLeft, ChevronRight, Download, Share2, LayoutGrid, LayoutList } f
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
 
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// Set up pdfMake fonts
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 interface PaymentSummaryProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -165,24 +167,10 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
     const balanceToPay = totalRoleCost - totalAdvance - totalSettlement;
 
-    // Helper function to generate PDF (used by both download and share)
-    const generatePDF = (): jsPDF => {
-        const doc = new jsPDF();
-
-        // Title
-        doc.setFontSize(18);
-        doc.text(`Weekly Attendance Report`, 14, 22);
-        doc.setFontSize(10);
-        doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
-
-        if (selectedTeamId !== 'ALL') {
-            const teamName = teams.find(t => t.id === selectedTeamId)?.name;
-            doc.text(`Team: ${teamName}`, 14, 34);
-        }
-
-        // 1. ATTENDANCE TABLE (Worker x Days)
-        const attendanceStartY = selectedTeamId !== 'ALL' ? 40 : 34;
-        const attendanceHeaders = [['Worker', 'Team', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
+    // Helper function to generate PDF using pdfmake
+    const generatePDF = () => {
+        // Prepare attendance table data
+        const attendanceHeaders = ['Worker', 'Team', ...weekDays.map(d => format(d, 'EEE d')), 'Total'];
 
         const attendanceRows = visibleWorkers.map(worker => {
             const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
@@ -205,60 +193,107 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 );
                 return sum + (record ? calculateShifts(record) : 0);
             }, 0);
-            return [worker.name, teamName, ...dailyStatuses, totalPresent];
+            return [worker.name, teamName, ...dailyStatuses, totalPresent.toString()];
         });
 
-        autoTable(doc, {
-            startY: attendanceStartY,
-            head: attendanceHeaders,
-            body: attendanceRows,
-            theme: 'grid',
-            headStyles: { fillColor: [66, 66, 66] },
-            styles: { fontSize: 8 },
-        });
-
-        // 2. PAYMENT SUMMARY TABLE (Date x Roles)
-        const paymentStartY = (doc as any).lastAutoTable.finalY + 15;
-        doc.setFontSize(14);
-        doc.text("Payment Summary", 14, paymentStartY);
-
-        const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement']];
-        const financialRows = dailyFinancials.map(day => {
-            const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
+        // Prepare payment summary table data
+        const paymentHeaders = ['Date', 'Weekday', ...uniqueRoles, 'Advance', 'Settlement'];
+        const paymentRows = dailyFinancials.map(day => {
+            const rolesCounts = uniqueRoles.map(role => (day.roleStats[role].count || '').toString());
             return [
                 format(day.date, 'dd-MMM'),
                 format(day.date, 'EEE'),
                 ...rolesCounts,
-                day.advance || '',
-                day.settlement || ''
+                (day.advance || '').toString(),
+                (day.settlement || '').toString()
             ];
         });
 
-        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count), '', ''];
+        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count.toString()), '', ''];
         const amountRow = ['Amount', '', ...uniqueRoles.map(role => roleTotals[role].cost.toLocaleString()), totalAdvance.toLocaleString(), totalSettlement.toLocaleString()];
 
-        autoTable(doc, {
-            startY: paymentStartY + 5,
-            head: financialHeaders,
-            body: [...financialRows, totalRow, amountRow],
-            theme: 'striped',
-            headStyles: { fillColor: [46, 125, 50] },
-            styles: { fontSize: 9 }
-        });
+        // Create pdfmake document definition
+        const content: any[] = [
+            { text: 'Weekly Attendance Report', style: 'header' },
+            { text: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, style: 'subheader' }
+        ];
 
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
-        doc.setFontSize(12);
-        doc.setTextColor(46, 125, 50);
-        doc.text(`Balance To Pay: ₹${balanceToPay.toLocaleString()}`, 14, finalY);
+        if (selectedTeamId !== 'ALL') {
+            const teamName = teams.find(t => t.id === selectedTeamId)?.name;
+            content.push({ text: `Team: ${teamName}`, style: 'teamInfo' });
+        }
 
-        return doc;
+        content.push(
+            { text: '\n' },
+            {
+                table: {
+                    headerRows: 1,
+                    widths: Array(attendanceHeaders.length).fill('auto'),
+                    body: [attendanceHeaders, ...attendanceRows]
+                },
+                layout: 'lightHorizontalLines',
+                style: 'tableStyle'
+            },
+            { text: '\n' },
+            { text: 'Payment Summary', style: 'sectionHeader' },
+            { text: '\n' },
+            {
+                table: {
+                    headerRows: 1,
+                    widths: Array(paymentHeaders.length).fill('auto'),
+                    body: [paymentHeaders, ...paymentRows, totalRow, amountRow]
+                },
+                layout: 'lightHorizontalLines',
+                style: 'tableStyle'
+            },
+            { text: '\n' },
+            { text: `Balance To Pay: ₹${balanceToPay.toLocaleString()}`, style: 'total' }
+        );
+
+        const docDefinition: any = {
+            content,
+            styles: {
+                header: {
+                    fontSize: 18,
+                    bold: true,
+                    margin: [0, 0, 0, 5]
+                },
+                subheader: {
+                    fontSize: 10,
+                    margin: [0, 0, 0, 5]
+                },
+                teamInfo: {
+                    fontSize: 10,
+                    margin: [0, 0, 0, 10]
+                },
+                sectionHeader: {
+                    fontSize: 14,
+                    bold: true,
+                    margin: [0, 10, 0, 5]
+                },
+                tableStyle: {
+                    fontSize: 8,
+                    margin: [0, 5, 0, 15]
+                },
+                total: {
+                    fontSize: 12,
+                    bold: true,
+                    color: '#2e7d32'
+                }
+            },
+            defaultStyle: {
+                font: 'Roboto'
+            }
+        };
+
+        return docDefinition;
     };
 
     // Download PDF function
     const handleDownload = () => {
-        const doc = generatePDF();
+        const docDefinition = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-        doc.save(fileName);
+        pdfMake.createPdf(docDefinition).download(fileName);
     };
 
     // Expose download function to parent
@@ -270,26 +305,26 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
     // WhatsApp share function
     const handleWhatsAppShare = async () => {
-        const doc = generatePDF();
+        const docDefinition = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-        const blob = doc.output('blob');
-        const file = new File([blob], fileName, { type: 'application/pdf' });
 
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
+        pdfMake.createPdf(docDefinition).getBlob((blob) => {
+            const file = new File([blob], fileName, { type: 'application/pdf' });
+
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
                     files: [file],
                     title: 'Weekly Attendance Report',
                     text: `Shared via Thulir ERP app`,
+                }).catch((error) => {
+                    console.log('Sharing failed', error);
                 });
-            } catch (error) {
-                console.log('Sharing failed', error);
+            } else {
+                // Fallback: Download and alert
+                pdfMake.createPdf(docDefinition).download(fileName);
+                alert("File sharing is not supported on this browser. The PDF has been downloaded instead. Please open WhatsApp and attach the file manually.");
             }
-        } else {
-            // Fallback: Download and alert
-            doc.save(fileName);
-            alert("File sharing is not supported on this browser. The PDF has been downloaded instead. Please open WhatsApp and attach the file manually.");
-        }
+        });
     };
 
     return (

@@ -8,8 +8,11 @@ import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
 import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+
+// Set up pdfMake fonts
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 interface AttendanceReportProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -95,20 +98,12 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
     };
 
-    // Generate PDF for Attendance Report with Payment Summary
-    const generatePDF = (): jsPDF => {
-        const doc = new jsPDF();
+    // Generate PDF for Attendance Report with Payment Summary using pdfmake
+    const generatePDF = () => {
+        // Prepare attendance table data
+        const attendanceHeaders = ['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total'];
 
-        // Title
-        doc.setFontSize(18);
-        doc.text(`Attendance Report`, 14, 22);
-        doc.setFontSize(10);
-        doc.text(`${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, 14, 28);
-
-        // 1. ATTENDANCE TABLE
-        const headers = [['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total']];
-
-        const rows = visibleWorkers.map(worker => {
+        const attendanceRows = visibleWorkers.map(worker => {
             const dailyStatuses = weekDays.map(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const record = weekAttendance.find(a =>
@@ -126,30 +121,14 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 );
                 return sum + (record ? calculateShifts(record) : 0);
             }, 0);
-            return [worker.name, worker.role, ...dailyStatuses, totalDuty];
+            return [worker.name, worker.role, ...dailyStatuses, totalDuty.toString()];
         });
 
-        autoTable(doc, {
-            startY: 34,
-            head: headers,
-            body: rows,
-            theme: 'grid',
-            headStyles: { fillColor: [66, 66, 66] },
-            styles: { fontSize: 8 },
-        });
-
-        // 2. PAYMENT SUMMARY TABLE
-        const paymentStartY = (doc as any).lastAutoTable.finalY + 15;
-        doc.setFontSize(14);
-        doc.text("Payment Summary", 14, paymentStartY);
-
-        // Calculate unique roles
+        // Calculate unique roles and payment data
         const uniqueRoles = Array.from(new Set(visibleWorkers.map(w => w.role))).sort();
 
-        // Calculate daily financials
         const dailyFinancials = weekDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
-
             const roleStats: Record<string, { count: number, cost: number }> = {};
             uniqueRoles.forEach(role => roleStats[role] = { count: 0, cost: 0 });
 
@@ -166,13 +145,9 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 }
             });
 
-            return {
-                date: day,
-                roleStats
-            };
+            return { date: day, roleStats };
         });
 
-        // Calculate role totals
         const roleTotals: Record<string, { count: number, cost: number }> = {};
         uniqueRoles.forEach(role => {
             roleTotals[role] = dailyFinancials.reduce((acc, day) => {
@@ -186,10 +161,10 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
         const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
 
-        // Payment summary table
-        const financialHeaders = [['Date', 'Weekday', ...uniqueRoles, 'Daily Total']];
-        const financialRows = dailyFinancials.map(day => {
-            const rolesCounts = uniqueRoles.map(role => day.roleStats[role].count || '');
+        // Prepare payment summary table data
+        const paymentHeaders = ['Date', 'Weekday', ...uniqueRoles, 'Daily Total'];
+        const paymentRows = dailyFinancials.map(day => {
+            const rolesCounts = uniqueRoles.map(role => (day.roleStats[role].count || '').toString());
             const dailyTotal = Object.values(day.roleStats).reduce((sum, stat) => sum + stat.cost, 0);
             return [
                 format(day.date, 'dd-MMM'),
@@ -199,31 +174,77 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
             ];
         });
 
-        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count), ''];
+        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count.toString()), ''];
         const amountRow = ['Amount', '', ...uniqueRoles.map(role => `₹${roleTotals[role].cost.toLocaleString()}`), `₹${totalRoleCost.toLocaleString()}`];
 
-        autoTable(doc, {
-            startY: paymentStartY + 5,
-            head: financialHeaders,
-            body: [...financialRows, totalRow, amountRow],
-            theme: 'striped',
-            headStyles: { fillColor: [46, 125, 50] },
-            styles: { fontSize: 9 }
-        });
+        // Create pdfmake document definition
+        const docDefinition: any = {
+            content: [
+                { text: 'Attendance Report', style: 'header' },
+                { text: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, style: 'subheader' },
+                { text: '\n' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: Array(attendanceHeaders.length).fill('auto'),
+                        body: [attendanceHeaders, ...attendanceRows]
+                    },
+                    layout: 'lightHorizontalLines',
+                    style: 'tableStyle'
+                },
+                { text: '\n' },
+                { text: 'Payment Summary', style: 'sectionHeader' },
+                { text: '\n' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: Array(paymentHeaders.length).fill('auto'),
+                        body: [paymentHeaders, ...paymentRows, totalRow, amountRow]
+                    },
+                    layout: 'lightHorizontalLines',
+                    style: 'tableStyle'
+                },
+                { text: '\n' },
+                { text: `Total Amount: ₹${totalRoleCost.toLocaleString()}`, style: 'total' }
+            ],
+            styles: {
+                header: {
+                    fontSize: 18,
+                    bold: true,
+                    margin: [0, 0, 0, 5]
+                },
+                subheader: {
+                    fontSize: 10,
+                    margin: [0, 0, 0, 10]
+                },
+                sectionHeader: {
+                    fontSize: 14,
+                    bold: true,
+                    margin: [0, 10, 0, 5]
+                },
+                tableStyle: {
+                    fontSize: 8,
+                    margin: [0, 5, 0, 15]
+                },
+                total: {
+                    fontSize: 12,
+                    bold: true,
+                    color: '#2e7d32'
+                }
+            },
+            defaultStyle: {
+                font: 'Roboto'
+            }
+        };
 
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
-        doc.setFontSize(12);
-        doc.setTextColor(46, 125, 50);
-        doc.text(`Total Amount: ₹${totalRoleCost.toLocaleString()}`, 14, finalY);
-
-        return doc;
+        return docDefinition;
     };
 
     // Download PDF function
     const handleDownload = () => {
-        const doc = generatePDF();
+        const docDefinition = generatePDF();
         const fileName = `attendance-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-        doc.save(fileName);
+        pdfMake.createPdf(docDefinition).download(fileName);
     };
 
     // Expose download function to parent
