@@ -25,10 +25,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Or we select them but don't return them. SQL optimization is better.
 
             let queryText = `SELECT * FROM workers WHERE is_active = true ORDER BY name ASC`;
+            // Reverted explicit select due to missing columns issue. Will filter in map.
+            /* 
             if (excludePhotos === 'true') {
-                // Explicitly select columns excluding photos
-                queryText = `SELECT id, name, role, team_id, daily_wage, wage_type, phone_number, approved, is_active, is_locked FROM workers WHERE is_active = true ORDER BY name ASC`;
-            }
+                 queryText = `SELECT id, name, role, team_id, daily_wage, wage_type, phone_number, approved, is_active, is_locked FROM workers WHERE is_active = true ORDER BY name ASC`;
+            } 
+            */
 
             const result = await query(queryText);
             const workers = result.rows.map(w => ({
@@ -39,8 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dailyWage: Number(w.daily_wage),
                 wageType: w.wage_type,
                 phoneNumber: w.phone_number,
-                photoUrl: w.photo_url || undefined, // undefined if not selected
-                aadhaarPhotoUrl: w.aadhaar_photo_url || undefined,
+                photoUrl: (excludePhotos === 'true') ? undefined : (w.photo_url || undefined),
+                aadhaarPhotoUrl: (excludePhotos === 'true') ? undefined : (w.aadhaar_photo_url || undefined),
                 approved: w.approved,
                 isActive: w.is_active,
                 isLocked: w.is_locked
