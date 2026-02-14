@@ -102,7 +102,7 @@ export const TeamInterface: React.FC = () => {
             photoUrl: newWorkerPhoto,
             aadhaarPhotoUrl: newWorkerAadhaar,
             isActive: true,
-            approved: false,
+            approved: true, // Auto-approve
             isLocked: false
         });
 
@@ -112,7 +112,7 @@ export const TeamInterface: React.FC = () => {
         setNewWorkerRole('');
         setNewWorkerPhoto('');
         setNewWorkerAadhaar('');
-        alert("Worker added! Waiting for admin approval.");
+        alert("Worker added successfully!");
     };
 
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

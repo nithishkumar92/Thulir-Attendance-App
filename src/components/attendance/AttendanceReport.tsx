@@ -8,8 +8,8 @@ import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
 import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
+import { generateWeeklyReportPDF } from '../../utils/pdfGenerator';
 import * as pdfMake from 'pdfmake/build/pdfmake';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
 interface AttendanceReportProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -33,7 +33,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     onAddAttendance,
     onDownloadReady
 }) => {
-    const { attendance, teams } = useApp();
+    const { attendance, teams, advances } = useApp();
     const navigate = useNavigate();
     const [selectedTeamId, setSelectedTeamId] = React.useState<string>(teamId || 'ALL');
 
@@ -97,149 +97,16 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     // Generate PDF for Attendance Report with Payment Summary using pdfmake
     const generatePDF = () => {
-        // Initialize pdfMake fonts at runtime
-        if (!(pdfMake as any).vfs) {
-            (pdfMake as any).vfs = pdfFonts;
-        }
-
-        // Prepare attendance table data
-        const attendanceHeaders = ['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total'];
-
-        const attendanceRows = visibleWorkers.map(worker => {
-            const dailyStatuses = weekDays.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const record = weekAttendance.find(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr
-                );
-                const shiftCount = record ? calculateShifts(record) : 0;
-                return getShiftSymbol(shiftCount, record);
-            });
-            const totalDuty = weekDays.reduce((sum, day) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const record = weekAttendance.find(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr
-                );
-                return sum + (record ? calculateShifts(record) : 0);
-            }, 0);
-            return [worker.name, worker.role, ...dailyStatuses, totalDuty.toString()];
-        });
-
-        // Calculate unique roles and payment data
-        const uniqueRoles = Array.from(new Set(visibleWorkers.map(w => w.role))).sort();
-
-        const dailyFinancials = weekDays.map(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const roleStats: Record<string, { count: number, cost: number }> = {};
-            uniqueRoles.forEach(role => roleStats[role] = { count: 0, cost: 0 });
-
-            visibleWorkers.forEach(worker => {
-                const record = weekAttendance.find(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr
-                );
-                const shiftCount = record ? calculateShifts(record) : 0;
-
-                if (uniqueRoles.includes(worker.role)) {
-                    roleStats[worker.role].count += shiftCount;
-                    roleStats[worker.role].cost += (worker.dailyWage || 0) * shiftCount;
-                }
-            });
-
-            return { date: day, roleStats };
-        });
-
-        const roleTotals: Record<string, { count: number, cost: number }> = {};
-        uniqueRoles.forEach(role => {
-            roleTotals[role] = dailyFinancials.reduce((acc, day) => {
-                const stat = day.roleStats[role] || { count: 0, cost: 0 };
-                return {
-                    count: acc.count + stat.count,
-                    cost: acc.cost + stat.cost
-                };
-            }, { count: 0, cost: 0 });
-        });
-
-        const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
-
-        // Prepare payment summary table data
-        const paymentHeaders = ['Date', 'Weekday', ...uniqueRoles, 'Daily Total'];
-        const paymentRows = dailyFinancials.map(day => {
-            const rolesCounts = uniqueRoles.map(role => (day.roleStats[role].count || '').toString());
-            const dailyTotal = Object.values(day.roleStats).reduce((sum, stat) => sum + stat.cost, 0);
-            return [
-                format(day.date, 'dd-MMM'),
-                format(day.date, 'EEE'),
-                ...rolesCounts,
-                dailyTotal ? `₹${dailyTotal.toLocaleString()}` : ''
-            ];
-        });
-
-        const totalRow = ['Total Duty', '', ...uniqueRoles.map(role => roleTotals[role].count.toString()), ''];
-        const amountRow = ['Amount', '', ...uniqueRoles.map(role => `₹${roleTotals[role].cost.toLocaleString()}`), `₹${totalRoleCost.toLocaleString()}`];
-
-        // Create pdfmake document definition
-        const docDefinition: any = {
-            content: [
-                { text: 'Attendance Report', style: 'header' },
-                { text: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`, style: 'subheader' },
-                { text: '\n' },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: Array(attendanceHeaders.length).fill('auto'),
-                        body: [attendanceHeaders, ...attendanceRows]
-                    },
-                    layout: 'lightHorizontalLines',
-                    style: 'tableStyle'
-                },
-                { text: '\n' },
-                { text: 'Payment Summary', style: 'sectionHeader' },
-                { text: '\n' },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: Array(paymentHeaders.length).fill('auto'),
-                        body: [paymentHeaders, ...paymentRows, totalRow, amountRow]
-                    },
-                    layout: 'lightHorizontalLines',
-                    style: 'tableStyle'
-                },
-                { text: '\n' },
-                { text: `Total Amount: ₹${totalRoleCost.toLocaleString()}`, style: 'total' }
-            ],
-            styles: {
-                header: {
-                    fontSize: 18,
-                    bold: true,
-                    margin: [0, 0, 0, 5]
-                },
-                subheader: {
-                    fontSize: 10,
-                    margin: [0, 0, 0, 10]
-                },
-                sectionHeader: {
-                    fontSize: 14,
-                    bold: true,
-                    margin: [0, 10, 0, 5]
-                },
-                tableStyle: {
-                    fontSize: 8,
-                    margin: [0, 5, 0, 15]
-                },
-                total: {
-                    fontSize: 12,
-                    bold: true,
-                    color: '#2e7d32'
-                }
-            },
-            defaultStyle: {
-                font: 'Roboto'
-            }
-        };
-
-        return docDefinition;
+        return generateWeeklyReportPDF(
+            weekStart,
+            weekEnd,
+            visibleWorkers,
+            attendance,
+            teams,
+            advances,
+            siteId,
+            selectedTeamId
+        );
     };
 
     // Download PDF function
