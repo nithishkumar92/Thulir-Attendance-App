@@ -17,8 +17,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'GET') {
+        const { startDate, endDate } = req.query;
+
         try {
-            const result = await query(`SELECT * FROM advances ORDER BY date DESC`);
+            let queryText = `SELECT * FROM advances`;
+            const values: any[] = [];
+
+            if (startDate && typeof startDate === 'string' && endDate && typeof endDate === 'string') {
+                queryText += ` WHERE date >= $1 AND date <= $2`;
+                values.push(startDate, endDate);
+            }
+
+            queryText += ` ORDER BY date DESC`;
+
+            const result = await query(queryText, values);
             const advances = result.rows.map(a => ({
                 id: a.id,
                 teamId: a.team_id,

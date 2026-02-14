@@ -17,11 +17,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'GET') {
+        const { excludePhotos } = req.query;
+
         try {
             // Fetch all active workers
-            const result = await query(
-                `SELECT * FROM workers WHERE is_active = true ORDER BY name ASC`
-            );
+            // If excludePhotos is true, we don't select photo_url and aadhaar_photo_url
+            // Or we select them but don't return them. SQL optimization is better.
+
+            let queryText = `SELECT * FROM workers WHERE is_active = true ORDER BY name ASC`;
+            if (excludePhotos === 'true') {
+                // Explicitly select columns excluding photos
+                queryText = `SELECT id, name, role, team_id, daily_wage, wage_type, phone_number, approved, is_active, is_locked FROM workers WHERE is_active = true ORDER BY name ASC`;
+            }
+
+            const result = await query(queryText);
             const workers = result.rows.map(w => ({
                 id: w.id,
                 name: w.name,
@@ -30,8 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dailyWage: Number(w.daily_wage),
                 wageType: w.wage_type,
                 phoneNumber: w.phone_number,
-                photoUrl: w.photo_url,
-                aadhaarPhotoUrl: w.aadhaar_photo_url,
+                photoUrl: w.photo_url || undefined, // undefined if not selected
+                aadhaarPhotoUrl: w.aadhaar_photo_url || undefined,
                 approved: w.approved,
                 isActive: w.is_active,
                 isLocked: w.is_locked

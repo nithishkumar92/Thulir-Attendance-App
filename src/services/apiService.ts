@@ -41,15 +41,25 @@ export const login = async (username: string, password: string): Promise<User | 
 
 // --- WORKERS ---
 
-export const fetchWorkers = async (): Promise<Worker[]> => {
+export const fetchWorkers = async (excludePhotos: boolean = false): Promise<Worker[]> => {
     if (USE_MOCK_DATA) {
         await delay(300);
         return INITIAL_DATA.workers;
     }
-    const response = await fetch(`${API_BASE}/workers`);
+    const response = await fetch(`${API_BASE}/workers?excludePhotos=${excludePhotos}`);
     if (!response.ok) throw new Error('Failed to fetch workers');
     return response.json();
 };
+
+export const fetchWorkerDetails = async (id: string): Promise<Worker> => {
+    if (USE_MOCK_DATA) {
+        await delay(300);
+        return INITIAL_DATA.workers.find(w => w.id === id) as Worker;
+    }
+    const response = await fetch(`${API_BASE}/workers?id=${id}`);
+    if (!response.ok) throw new Error('Failed to fetch worker details');
+    return response.json();
+}
 
 export const createWorker = async (worker: Partial<Worker>): Promise<Worker> => {
     if (USE_MOCK_DATA) {
@@ -82,7 +92,7 @@ export const updateWorkerStatus = async (workerId: string, updates: Partial<Work
     const response = await fetch(`${API_BASE}/workers?id=${workerId}`, { // Query param for ID if using single file
         method: 'PATCH',
         headers,
-        body: JSON.stringify(updates)
+        body: JSON.stringify({ id: workerId, ...updates }) // Ensure ID is in body too
     });
     // If not implemented, we log warning
     if (response.status === 405 || response.status === 404) {
@@ -172,12 +182,18 @@ export const deleteSite = async (siteId: string) => {
 
 // --- ATTENDANCE ---
 
-export const fetchAttendance = async (): Promise<AttendanceRecord[]> => {
+export const fetchAttendance = async (startDate?: string, endDate?: string): Promise<AttendanceRecord[]> => {
     if (USE_MOCK_DATA) {
         await delay(300);
         return INITIAL_DATA.attendance;
     }
-    const response = await fetch(`${API_BASE}/attendance`);
+
+    let url = `${API_BASE}/attendance`;
+    if (startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+    }
+
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch attendance');
     return response.json();
 };
@@ -208,12 +224,18 @@ export const deleteAttendance = async (id: string) => {
 
 // --- ADVANCES ---
 
-export const fetchAdvances = async (): Promise<AdvancePayment[]> => {
+export const fetchAdvances = async (startDate?: string, endDate?: string): Promise<AdvancePayment[]> => {
     if (USE_MOCK_DATA) {
         await delay(300);
         return INITIAL_DATA.advances;
     }
-    const response = await fetch(`${API_BASE}/advances`);
+
+    let url = `${API_BASE}/advances`;
+    if (startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+    }
+
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch advances');
     return response.json();
 };

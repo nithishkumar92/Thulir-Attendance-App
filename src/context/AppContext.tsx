@@ -83,14 +83,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const loadSupabaseData = async () => {
         setState(prev => ({ ...prev, isLoading: true }));
         try {
-            const [teams, workers, sites, attendance, advances, dbUsers] = await Promise.all([
+            // Calculate date range for bandwidth optimization (last 14 days)
+            // This covers almost all active usage scenarios (current week + overlap)
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - 14);
+
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+
+            // 1. Fetch metadata (workers without photos) and other light resources
+            const [teams, workersMetadata, sites, attendance, advances, dbUsers] = await Promise.all([
                 api.fetchTeams(),
-                api.fetchWorkers(),
+                api.fetchWorkers(true), // true = exclude photos
                 api.fetchSites(),
-                api.fetchAttendance(),
-                api.fetchAdvances(),
+                api.fetchAttendance(startDateStr, endDateStr),
+                api.fetchAdvances(startDateStr, endDateStr),
                 api.fetchAppUsers()
             ]);
+
+            // 2. Smart Image Sync for Workers
+            // Check cache for photos. If missing, fetch individually.
+            const { getCachedImages, cacheWorkerImages, clearExpiredCache } = await import('../utils/imageCache');
+            await clearExpiredCache();
+
+            const workerIds = workersMetadata.map(w => w.id);
+            const cachedImagesMap = await getCachedImages(workerIds);
+
+            const workersWithPhotos = await Promise.all(workersMetadata.map(async (worker) => {
+                const cached = cachedImagesMap.get(worker.id);
+
+                if (cached) {
+                    return {
+                        ...worker,
+                        photoUrl: cached.photoUrl || worker.photoUrl,
+                        aadhaarPhotoUrl: cached.aadhaarPhotoUrl || worker.aadhaarPhotoUrl
+                    };
+                } else {
+                    // Cache miss - fetch details for this worker to get photo
+                    try {
+                        const detailedWorker = await api.fetchWorkerDetails(worker.id);
+                        if (detailedWorker.photoUrl || detailedWorker.aadhaarPhotoUrl) {
+                            await cacheWorkerImages([{
+                                workerId: detailedWorker.id,
+                                photoUrl: detailedWorker.photoUrl || '',
+                                aadhaarPhotoUrl: detailedWorker.aadhaarPhotoUrl || '',
+                                timestamp: Date.now()
+                            }]);
+                        }
+                        return detailedWorker;
+                    } catch (e) {
+                        console.error(`Failed to fetch details for worker ${worker.id}`, e);
+                        return worker;
+                    }
+                }
+            }));
 
             const freshUsers = dbUsers.length > 0 ? dbUsers : INITIAL_DATA.users;
 
@@ -113,7 +160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 return {
                     ...prev,
                     teams,
-                    workers,
+                    workers: workersWithPhotos,
                     sites,
                     attendance,
                     missingPunchOuts: derivedMissingPunchOuts,
