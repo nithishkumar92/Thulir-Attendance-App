@@ -20,6 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { startDate, endDate } = req.query;
 
         try {
+            // Cache for 10 seconds to handle bursts (e.g. multiple users opening dashboard)
+            // But allow SWR for 1 minute.
+            res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=60');
+
             let queryText = `SELECT *, date::TEXT as date_str FROM attendance`;
             const values: any[] = [];
 
