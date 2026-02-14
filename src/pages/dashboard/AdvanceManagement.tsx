@@ -96,18 +96,18 @@ export const AdvanceManagement: React.FC = () => {
         const openingBalance = previousEntries.reduce((acc, curr) => {
             // Debit (Advance given) increases balance (Worker owes Owner)
             // Credit (Settlement/Labor) decreases balance (Owner owes Worker)
-            // Wait, usually Ledger is "Worker's Account in Owner's Books":
-            // - Debit: Owner gives money -> Balance increases (Worker owes more)
-            // - Credit: Worker does work -> Balance decreases (Worker owes less)
-            return acc + (curr.type === 'DEBIT' ? curr.amount : -curr.amount);
+            const amt = typeof curr.amount === 'string' ? parseFloat(curr.amount) : curr.amount;
+            return acc + (curr.type === 'DEBIT' ? amt : -amt);
         }, 0);
 
         // 5. Build Ledger Entries with Running Balance
         let runningBalance = openingBalance;
         const entries = currentEntries.map(e => {
-            runningBalance += (e.type === 'DEBIT' ? e.amount : -e.amount);
+            const amt = typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount;
+            runningBalance += (e.type === 'DEBIT' ? amt : -amt);
             return {
                 ...e,
+                amount: amt,
                 runningBalance
             };
         });
@@ -115,11 +115,17 @@ export const AdvanceManagement: React.FC = () => {
         // 6. Totals for the period
         const periodAdvance = currentEntries
             .filter(e => e.type === 'DEBIT')
-            .reduce((sum, e) => sum + e.amount, 0);
+            .reduce((sum, e) => {
+                const amt = typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount;
+                return sum + amt;
+            }, 0);
 
         const periodSettlement = currentEntries
             .filter(e => e.type === 'CREDIT')
-            .reduce((sum, e) => sum + e.amount, 0);
+            .reduce((sum, e) => {
+                const amt = typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount;
+                return sum + amt;
+            }, 0);
 
         return {
             entries,
