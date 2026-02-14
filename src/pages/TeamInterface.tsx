@@ -440,7 +440,8 @@ export const TeamInterface: React.FC = () => {
                 });
 
                 // Icon mapping (simple generic fallback if not strictly defined)
-                const icon = role.toLowerCase().includes('mason') ? '🧱' : (role.toLowerCase().includes('helper') ? '🛠️' : '👷');
+                const safeRole = role || '';
+                const icon = safeRole.toLowerCase().includes('mason') ? '🧱' : (safeRole.toLowerCase().includes('helper') ? '🛠️' : '👷');
 
                 return {
                     role_name: role + (role.endsWith('s') ? '' : 'S'), // Pluralize lazily
