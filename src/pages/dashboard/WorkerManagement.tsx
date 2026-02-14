@@ -136,8 +136,9 @@ export const WorkerManagement: React.FC = () => {
     const pendingCount = pendingWorkers.length;
 
     const filteredWorkers = workers.filter(w => {
-        const matchesSearch = w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            w.role.toLowerCase().includes(searchTerm.toLowerCase());
+        const nameMatch = (w.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const roleMatch = (w.role || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = nameMatch || roleMatch;
 
         if (showPendingOnly) {
             return matchesSearch && !w.approved;

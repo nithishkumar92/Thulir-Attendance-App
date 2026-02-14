@@ -444,7 +444,7 @@ export const TeamInterface: React.FC = () => {
                 const icon = safeRole.toLowerCase().includes('mason') ? '🧱' : (safeRole.toLowerCase().includes('helper') ? '🛠️' : '👷');
 
                 return {
-                    role_name: role + (role.endsWith('s') ? '' : 'S'), // Pluralize lazily
+                    role_name: (safeRole || 'Unknown') + ((safeRole || '').endsWith('s') ? '' : 's'), // Pluralize lazily
                     icon,
                     count: groupedWorkers.length,
                     workers: groupedWorkers
