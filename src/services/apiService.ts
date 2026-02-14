@@ -41,12 +41,14 @@ export const login = async (username: string, password: string): Promise<User | 
 
 // --- WORKERS ---
 
-export const fetchWorkers = async (excludePhotos: boolean = false): Promise<Worker[]> => {
+export const fetchWorkers = async (): Promise<Worker[]> => {
     if (USE_MOCK_DATA) {
         await delay(300);
         return INITIAL_DATA.workers;
     }
-    const response = await fetch(`${API_BASE}/workers?excludePhotos=${excludePhotos}`);
+    // Added no-store to force browser to drop the cached "excludePhotos" response
+    // ensuring the user gets the full worker object.
+    const response = await fetch(`${API_BASE}/workers`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch workers');
     return response.json();
 };
