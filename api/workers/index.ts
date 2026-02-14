@@ -32,20 +32,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } 
             */
 
+            // Disable caching to debug "missing details" issue and force fresh fetch
+            res.setHeader('Cache-Control', 'no-store, max-age=0');
+
             const result = await query(queryText);
+
+            // Debugging: Log the first row to check column keys
+            if (result.rows.length > 0) {
+                console.log('DEBUG WORKER ROW KEYS:', Object.keys(result.rows[0]));
+                console.log('DEBUG WORKER ROW SAMPLE:', result.rows[0]);
+            }
+
             const workers = result.rows.map(w => ({
-                id: w.id,
-                name: w.name,
-                role: w.role,
-                teamId: w.team_id,
-                dailyWage: Number(w.daily_wage),
-                wageType: w.wage_type,
-                phoneNumber: w.phone_number,
-                photoUrl: (excludePhotos === 'true') ? undefined : (w.photo_url || undefined),
-                aadhaarPhotoUrl: (excludePhotos === 'true') ? undefined : (w.aadhaar_photo_url || undefined),
-                approved: w.approved,
-                isActive: w.is_active,
-                isLocked: w.is_locked
+                id: w.id || w.ID,
+                name: w.name || w.Name || w.NAME,
+                role: w.role || w.Role || w.ROLE,
+                teamId: w.team_id || w.team_Id || w.Team_Id,
+                dailyWage: Number(w.daily_wage || w.Daily_Wage || 0),
+                wageType: w.wage_type || w.Wage_Type,
+                phoneNumber: w.phone_number || w.Phone_Number,
+                photoUrl: (excludePhotos === 'true') ? undefined : (w.photo_url || w.Photo_Url || undefined),
+                aadhaarPhotoUrl: (excludePhotos === 'true') ? undefined : (w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined),
+                approved: w.approved !== undefined ? w.approved : (w.Approved !== undefined ? w.Approved : false),
+                isActive: w.is_active !== undefined ? w.is_active : (w.Is_Active !== undefined ? w.Is_Active : true),
+                isLocked: w.is_locked !== undefined ? w.is_locked : (w.Is_Locked !== undefined ? w.Is_Locked : false)
             }));
             return res.status(200).json(workers);
         } catch (error) {
