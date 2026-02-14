@@ -223,7 +223,7 @@ export const WorkerManagement: React.FC = () => {
                                             {worker.photoUrl ? (
                                                 <img src={worker.photoUrl} alt={worker.name} className="w-full h-full object-cover" />
                                             ) : (
-                                                worker.name.charAt(0)
+                                                (worker.name || '?').charAt(0)
                                             )}
                                         </div>
                                         <div className="ml-4">
@@ -296,7 +296,7 @@ export const WorkerManagement: React.FC = () => {
                                         {worker.photoUrl ? (
                                             <img src={worker.photoUrl} alt={worker.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            worker.name.charAt(0)
+                                            (worker.name || '?').charAt(0)
                                         )}
                                     </div>
                                     <div>
