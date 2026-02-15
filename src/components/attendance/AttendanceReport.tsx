@@ -35,29 +35,10 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
 }) => {
     const { attendance, teams, advances } = useApp();
     const navigate = useNavigate();
-    const [selectedTeamId, setSelectedTeamId] = React.useState<string>(teamId || 'ALL');
-
-    // Update selectedTeamId if prop changes
-    React.useEffect(() => {
-        if (teamId) setSelectedTeamId(teamId);
-    }, [teamId]);
+    const navigate = useNavigate();
 
     // Use shared week navigation hook
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
-
-    // Use shared worker filtering hook
-    const allWorkers = useFilteredWorkers({
-        teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
-    });
-
-    // Filter attendance by week and site
-    // This variable is now used for the WorkerReportCard, not for filtering visible workers
-    // The filtering for visible workers, totalDutyDays, and totalEarned is done directly on the full attendance array
-    // with siteId check.
-    const filteredWeekAttendanceForCards = filterAttendanceBySite(
-        filterAttendanceByDateRange(attendance, weekStart, weekEnd),
-        siteId
-    );
 
     // Use shared worker filtering hook
     const allWorkers = useFilteredWorkers({
