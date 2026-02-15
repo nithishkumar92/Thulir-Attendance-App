@@ -247,8 +247,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             <WeekNav
                 label="Payment Summary"
                 sub={weekLabel}
-                onPrev={handlePrevWeek}
-                onNext={handleNextWeek}
+                onPrev={internalNav.handlePrevWeek}
+                onNext={internalNav.handleNextWeek}
             />
 
             {/* Net Payable Balance */}
