@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { format, isSameDay } from 'date-fns';
-import { Download, Share2, LayoutGrid, LayoutList } from 'lucide-react';
+import { format, isSameDay } from 'date-fns';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { calculateShifts } from '../../utils/attendanceUtils';
@@ -307,13 +307,25 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                         onClick={() => setViewMode('card')}
                         className={`w-9 h-9 flex items-center justify-center transition-colors ${viewMode === 'card' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-50'}`}
                     >
-                        <LayoutGrid size={16} />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="7" height="7" x="3" y="3" rx="1" />
+                            <rect width="7" height="7" x="14" y="3" rx="1" />
+                            <rect width="7" height="7" x="14" y="14" rx="1" />
+                            <rect width="7" height="7" x="3" y="14" rx="1" />
+                        </svg>
                     </button>
                     <button
                         onClick={() => setViewMode('table')}
                         className={`w-9 h-9 flex items-center justify-center transition-colors ${viewMode === 'table' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-50'}`}
                     >
-                        <LayoutList size={16} />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="7" height="7" x="3" y="3" rx="1" />
+                            <rect width="7" height="7" x="3" y="14" rx="1" />
+                            <path d="M14 4h7" />
+                            <path d="M14 9h7" />
+                            <path d="M14 15h7" />
+                            <path d="M14 20h7" />
+                        </svg>
                     </button>
                 </div>
 
@@ -323,7 +335,11 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                         onClick={handleDownload}
                         className="h-9 px-3 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-center gap-2 text-gray-800 shadow-sm hover:bg-gray-100 shrink-0"
                     >
-                        <Download size={18} />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" x2="12" y1="15" y2="3" />
+                        </svg>
                         <span className="text-xs font-bold">PDF</span>
                     </button>
                 )}
