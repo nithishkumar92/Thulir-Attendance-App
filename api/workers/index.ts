@@ -45,9 +45,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dailyWage: Number(w.daily_wage || w.Daily_Wage || 0),
                 wageType: w.wage_type || w.Wage_Type,
                 phoneNumber: w.phone_number || w.Phone_Number,
-                // TEMP: Restore all photos (even Base64) until B2 Auth is fixed.
-                photoUrl: w.photo_url || w.Photo_Url || undefined,
-                aadhaarPhotoUrl: w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined,
+                // Only include photos if explicitly requested OR if they are external URLs (not Base64)
+                photoUrl: (shouldIncludePhotos || (w.photo_url && !w.photo_url.startsWith('data:'))) ? (w.photo_url || w.Photo_Url || undefined) : undefined,
+                aadhaarPhotoUrl: (shouldIncludePhotos || (w.aadhaar_photo_url && !w.aadhaar_photo_url.startsWith('data:'))) ? (w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined) : undefined,
                 approved: w.approved !== undefined ? w.approved : (w.Approved !== undefined ? w.Approved : false),
                 isActive: w.is_active !== undefined ? w.is_active : (w.Is_Active !== undefined ? w.Is_Active : true),
                 isLocked: w.is_locked !== undefined ? w.is_locked : (w.Is_Locked !== undefined ? w.Is_Locked : false)

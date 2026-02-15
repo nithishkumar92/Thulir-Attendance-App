@@ -1,37 +1,52 @@
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
 
-// Credentials provided by user
-const B2_KEY_ID = '0054e11912d30745b1d31dca3c74da83e122c891c4'; // Application Key
-const B2_KEY_NAME_ID = '24b12a36228d'; // Key ID
-const B2_ENDPOINT = 'https://s3.us-east-005.backblazeb2.com';
-const B2_REGION = 'us-east-005';
+// New Credentials
+const B2_KEY_ID = '24b12a36228d';
+const B2_APPLICATION_KEY = '005d38614c310b62710bac7bed628d225aecda711f';
+
+const REGIONS = [
+    { id: 'us-west-000', endpoint: 'https://s3.us-west-000.backblazeb2.com' },
+    { id: 'us-west-001', endpoint: 'https://s3.us-west-001.backblazeb2.com' },
+    { id: 'us-west-002', endpoint: 'https://s3.us-west-002.backblazeb2.com' },
+    { id: 'us-east-003', endpoint: 'https://s3.us-east-003.backblazeb2.com' }, // Sometimes exists?
+    { id: 'us-east-004', endpoint: 'https://s3.us-east-004.backblazeb2.com' },
+    { id: 'us-east-005', endpoint: 'https://s3.us-east-005.backblazeb2.com' },
+    { id: 'eu-central-003', endpoint: 'https://s3.eu-central-003.backblazeb2.com' }
+];
 
 async function findBucket() {
-    console.log(`Connecting to B2 at ${B2_ENDPOINT}...`);
+    console.log("Searching for correct B2 Region...");
 
-    const s3 = new S3Client({
-        endpoint: B2_ENDPOINT,
-        region: B2_REGION,
-        credentials: {
-            accessKeyId: B2_KEY_NAME_ID,
-            secretAccessKey: B2_KEY_ID
-        }
-    });
+    for (const region of REGIONS) {
+        console.log(`Testing ${region.id}...`);
 
-    try {
-        const data = await s3.send(new ListBucketsCommand({}));
-        console.log("Success! Connected.");
-        console.log("Buckets found:", data.Buckets?.length);
-        if (data.Buckets && data.Buckets.length > 0) {
-            data.Buckets.forEach(b => {
-                console.log(`- Name: ${b.Name}`);
-            });
-        } else {
-            console.log("No buckets found in this account.");
+        const s3 = new S3Client({
+            endpoint: region.endpoint,
+            region: region.id,
+            credentials: {
+                accessKeyId: B2_KEY_ID,
+                secretAccessKey: B2_APPLICATION_KEY
+            }
+        });
+
+        try {
+            const data = await s3.send(new ListBucketsCommand({}));
+            console.log(`SUCCESS! Found valid region: ${region.id}`);
+            console.log(`Endpoint: ${region.endpoint}`);
+            if (data.Buckets) {
+                console.log("Buckets:", data.Buckets.map(b => b.Name).join(", "));
+            }
+            return; // Stop after success
+        } catch (err: any) {
+            // console.log(`Failed ${region.id}: ${err.name} - ${err.message}`);
+            if (err.name === 'InvalidAccessKeyId') {
+                console.log(`- ${region.id}: Invalid Key (Wrong Cluster)`);
+            } else {
+                console.log(`- ${region.id}: Error ${err.name} ${err.message}`);
+            }
         }
-    } catch (err: any) {
-        console.error("Connection Failed:", err);
     }
+    console.log("All regions failed.");
 }
 
 findBucket();
