@@ -102,8 +102,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 );
 
                 if (record) {
-                    const shifts = calculateShifts(record);
-                    const wage = worker.dailyWage || 0;
+                    const shifts = Number(calculateShifts(record));
+                    const wage = Number(worker.dailyWage || 0);
                     const cost = shifts * wage;
 
                     dailyTotal += cost;
@@ -129,7 +129,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                         (!siteId || a.siteId === siteId) &&
                         !a.notes?.includes('[SETTLEMENT]');
                 })
-                .reduce((sum, adv) => sum + adv.amount, 0);
+                .reduce((sum, adv) => sum + Number(adv.amount || 0), 0);
 
             const daySettlements = advances
                 .filter(a => {
@@ -139,7 +139,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                         (!siteId || a.siteId === siteId) &&
                         a.notes?.includes('[SETTLEMENT]');
                 })
-                .reduce((sum, adv) => sum + adv.amount, 0);
+                .reduce((sum, adv) => sum + Number(adv.amount || 0), 0);
 
             return {
                 date: day,
