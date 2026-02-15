@@ -35,7 +35,6 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
 }) => {
     const { attendance, teams, advances } = useApp();
     const navigate = useNavigate();
-    const navigate = useNavigate();
 
     // Use shared week navigation hook
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
