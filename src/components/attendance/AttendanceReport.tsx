@@ -19,6 +19,12 @@ interface AttendanceReportProps {
     showAddButton?: boolean;
     onAddAttendance?: () => void;
     onDownloadReady?: (downloadFn: () => void) => void;
+    // Optional controlled date state (if provided, internal nav is disabled)
+    dateRange?: {
+        weekStart: Date;
+        weekEnd: Date;
+        weekDays: Date[];
+    };
 }
 
 /**
@@ -31,13 +37,17 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     siteId,
     showAddButton = false,
     onAddAttendance,
-    onDownloadReady
+    onDownloadReady,
+    dateRange
 }) => {
     const { attendance, teams, advances } = useApp();
     const navigate = useNavigate();
 
-    // Use shared week navigation hook
-    const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
+    // Use internal hook if dateRange prop is not provided
+    const internalNav = useWeekNavigation();
+
+    // Determine which date state to use
+    const { weekStart, weekEnd, weekDays } = dateRange || internalNav;
 
     // Use shared worker filtering hook
     const allWorkers = useFilteredWorkers({
@@ -135,12 +145,15 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
 
     return (
         <div className="space-y-4">
-            <WeekNav
-                label={weekLabel}
-                sub="Weekly Attendance"
-                onPrev={handlePrevWeek}
-                onNext={handleNextWeek}
-            />
+            {/* Show internal WeekNav ONLY if dateRange is NOT provided (Uncontrolled mode) */}
+            {!dateRange && (
+                <WeekNav
+                    label={weekLabel}
+                    sub="Weekly Attendance"
+                    onPrev={internalNav.handlePrevWeek}
+                    onNext={internalNav.handleNextWeek}
+                />
+            )}
 
             {/* Summary Strip */}
             <div className="grid grid-cols-3 gap-2 my-3">

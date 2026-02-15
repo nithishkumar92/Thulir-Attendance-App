@@ -17,6 +17,12 @@ interface PaymentSummaryProps {
     siteId?: string;
     showExportButton?: boolean;
     onDownloadReady?: (downloadFn: () => void) => void;
+    // Optional controlled date state
+    dateRange?: {
+        weekStart: Date;
+        weekEnd: Date;
+        weekDays: Date[];
+    };
 }
 
 /**
@@ -28,7 +34,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     teamId,
     siteId,
     showExportButton = false,
-    onDownloadReady
+    onDownloadReady,
+    dateRange
 }) => {
     const { attendance, teams, advances } = useApp();
     const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'ALL');
@@ -40,15 +47,18 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         if (teamId) setSelectedTeamId(teamId);
     }, [teamId]);
 
-    // Use shared week navigation hook
-    const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
+    // Use internal hook if dateRange is not provided
+    const internalNav = useWeekNavigation();
+
+    // Determine which date state to use
+    const { weekStart, weekEnd, weekDays } = dateRange || internalNav;
 
     // Use shared worker filtering hook
     const allWorkers = useFilteredWorkers({
         teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
     });
 
-    // Filter visible workers logic
+    // Filter visible workers logic (kept for PDF generation and potential future use, though not directly used in new financial calcs)
     const visibleWorkers = useMemo(() => {
         return allWorkers.filter(worker => {
             const hasAnyAttendance = weekDays.some(day => {
@@ -76,29 +86,37 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         });
     }, [allWorkers, weekDays, attendance, siteId]);
 
-    const uniqueRoles = useMemo(
-        () => Array.from(new Set(visibleWorkers.map(w => w.role))).sort(),
-        [visibleWorkers]
-    );
-
-    const dailyFinancials: DailyFinancials[] = useMemo(() => {
+    const computedFinancials = useMemo(() => {
         return weekDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
 
-            const roleStats: Record<string, { count: number, cost: number }> = {};
-            uniqueRoles.forEach(role => roleStats[role] = { count: 0, cost: 0 });
+            let dailyTotal = 0;
+            const roleBreakdown: Record<string, { count: number; cost: number }> = {};
 
-            visibleWorkers.forEach(worker => {
+            allWorkers.forEach(worker => {
                 const record = attendance.find(a =>
                     a.workerId === worker.id &&
                     a.date === dateStr &&
                     (!siteId || a.siteId === siteId)
                 );
-                const shiftCount = record ? calculateShifts(record) : 0;
 
-                if (uniqueRoles.includes(worker.role)) {
-                    roleStats[worker.role].count += shiftCount;
-                    roleStats[worker.role].cost += (worker.dailyWage || 0) * shiftCount;
+                if (record) {
+                    const shifts = calculateShifts(record);
+                    const wage = worker.dailyWage || 0;
+                    const cost = shifts * wage;
+
+                    dailyTotal += cost;
+
+                    // Update Breakdown
+                    if (shifts > 0) {
+                        const role = worker.role;
+                        if (!roleBreakdown[role]) {
+                            roleBreakdown[role] = { count: 0, cost: 0 };
+                        }
+                        roleBreakdown[role].count += shifts; // sum shifts not just people count? Or people? User likely wants 'headcount' or 'effort'.
+                        // For construction, 'count' usually means duty count (e.g. 1.5).
+                        roleBreakdown[role].cost += cost;
+                    }
                 }
             });
 
@@ -122,21 +140,24 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 })
                 .reduce((sum, adv) => sum + adv.amount, 0);
 
-            const totalWorkers = Object.values(roleStats).reduce((sum, stat) => sum + stat.count, 0);
-            const dailyTotal = Object.values(roleStats).reduce((sum, stat) => sum + stat.cost, 0);
-
             return {
                 date: day,
-                roleStats,
+                roleStats: roleBreakdown, // Renamed to roleStats to match PaymentDayCard prop
                 advance: dayAdvances,
                 settlement: daySettlements,
-                totalWorkers,
-                dailyTotal
+                totalWorkers: Object.values(roleBreakdown).reduce((sum, stat) => sum + stat.count, 0), // Calculate total workers/shifts for the day
+                dailyTotal: dailyTotal
             };
         });
-    }, [weekDays, visibleWorkers, attendance, advances, uniqueRoles, selectedTeamId, siteId]);
+    }, [weekDays, allWorkers, attendance, siteId, advances, selectedTeamId]);
 
-    // Sort daily financials based on sort order (for card view)
+    // Derived totals
+    const totalRoleCost = computedFinancials.reduce((acc, curr) => acc + curr.dailyTotal, 0);
+    const totalAdvance = computedFinancials.reduce((sum, day) => sum + day.advance, 0);
+    const totalSettlement = computedFinancials.reduce((sum, day) => sum + (day.settlement || 0), 0);
+    const balanceToPay = totalRoleCost - totalAdvance - totalSettlement;
+
+    // Sorting for card view
     const sortedDailyFinancials = useMemo(() => {
         if (viewMode === 'table') return dailyFinancials;
         return sortOrder === 'newest'

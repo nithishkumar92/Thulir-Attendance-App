@@ -1,8 +1,12 @@
+```typescript
 import React, { useState } from 'react';
+import { useApp } from '../../context/AppContext';
 import { AttendanceReport } from '../../components/attendance/AttendanceReport';
 import { PaymentSummary } from '../../components/attendance/PaymentSummary';
-import { useApp } from '../../context/AppContext';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
+import { useWeekNavigation } from '../../hooks/useWeekNavigation';
+import { WeekNav } from '../../components/common/WeekNav';
+import { format } from 'date-fns';
 
 type ReportSubTab = 'ATTENDANCE' | 'PAYMENT';
 
@@ -11,6 +15,10 @@ export const OwnerReportPage: React.FC = () => {
     const [reportSubTab, setReportSubTab] = useState<ReportSubTab>('ATTENDANCE');
     const [selectedSiteId, setSelectedSiteId] = useState<string>(''); // Empty string = All Sites
     const [selectedTeamId, setSelectedTeamId] = useState<string>('ALL');
+
+    // Lifted Week Navigation State
+    const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
+    const weekLabel = `${ format(weekStart, 'MMM d') } – ${ format(weekEnd, 'MMM d, yyyy') } `;
 
     return (
         <div className="space-y-4">
@@ -46,6 +54,14 @@ export const OwnerReportPage: React.FC = () => {
                 </div>
             </div>
 
+            {/* Date Filter (Week Navigation) - Moved Below Filters */}
+            <WeekNav
+                label={weekLabel}
+                sub="Select Week"
+                onPrev={handlePrevWeek}
+                onNext={handleNextWeek}
+            />
+
             {/* Sub-tab Navigation */}
             <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
                 <div className="flex border-b">
@@ -73,7 +89,7 @@ export const OwnerReportPage: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Sub-tab Content - Now using unified components */}
+                {/* Sub-tab Content - Passing Date Range Props */}
                 <div>
                     {reportSubTab === 'ATTENDANCE' && (
                         <AttendanceReport
@@ -81,6 +97,7 @@ export const OwnerReportPage: React.FC = () => {
                             siteId={selectedSiteId || undefined}
                             teamId={selectedTeamId === 'ALL' ? undefined : selectedTeamId}
                             showAddButton={true}
+                            dateRange={{ weekStart, weekEnd, weekDays }}
                         />
                     )}
                     {reportSubTab === 'PAYMENT' && (
@@ -89,6 +106,7 @@ export const OwnerReportPage: React.FC = () => {
                             siteId={selectedSiteId || undefined}
                             teamId={selectedTeamId === 'ALL' ? undefined : selectedTeamId}
                             showExportButton={true}
+                            dateRange={{ weekStart, weekEnd, weekDays }}
                         />
                     )}
                 </div>
