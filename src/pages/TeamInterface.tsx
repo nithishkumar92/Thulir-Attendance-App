@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { LazyWorkerImage } from '../components/common/LazyWorkerImage';
 import { getCurrentLocation, calculateDistance } from '../utils/geo'; // Assuming this utility exists or is imported correctly
 import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Site, Worker } from '../types';
@@ -608,10 +609,11 @@ export const TeamInterface: React.FC = () => {
                                                         ? 'border-green-500 ring-4 ring-green-100'
                                                         : 'border-gray-200'
                                                     }`}>
-                                                    <img
-                                                        src={worker.photoUrl || `https://ui-avatars.com/api/?name=${worker.name}&background=random&size=128`}
+                                                    <LazyWorkerImage
+                                                        src={worker.photoUrl}
                                                         alt={worker.name}
-                                                        className="w-full h-full object-cover"
+                                                        className="w-full h-full"
+                                                        fallbackText={worker.name.substring(0, 2).toUpperCase()}
                                                     />
                                                     {isSelected && !isAlreadyPunchedIn && (
                                                         <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">

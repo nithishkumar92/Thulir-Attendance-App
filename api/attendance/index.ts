@@ -32,30 +32,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             queryText += ` ORDER BY date DESC, check_in_time DESC LIMIT 1000`; // Increased limit slightly, but date filter is primary
 
             const result = await query(queryText, values);
-            const attendance = result.rows.map(a => ({
-                id: a.id,
-                workerId: a.worker_id,
-                date: a.date_str, // Use the string directly from DB to avoid timezone shifting
-                status: a.status,
-                siteId: a.site_id,
-                punchInTime: a.check_in_time,
-                punchOutTime: a.check_out_time,
-                punchInLocation: a.check_in_location,
-                punchOutLocation: a.check_out_location,
-                dutyPoints: a.duty_points,
-                verified: a.location_verified,
-                // Optional: We could also exclude photos here if needed, but attendance photos are usually needed for the report.
-                // However, they are heavy. For list views (not reports), we might not need them.
-                // But keeping them for now as user only complained about workers list caching.
-                // Actually, attendance list has thumbnails too.
-                // NOTE: If bandwidth is still high, consider stripping photos from attendance list too.
-                punchInPhoto: a.check_in_location?.photo || undefined, // Wait, where is photo stored? 
-                // DB schema says check_in_location is JSONB, does it have photo?
-                // Wait, Schema check: `check_in_time`... wait, where is photo?
-                // The TYPE definition says `punchInPhoto?: string`.
-                // Let's re-read the attendance schema in a second if I can.
-                // Assuming standard mapping for now.
-            }));
+            const attendance = result.rows.map(a => {
+                // Strip photos from location JSON to save bandwidth
+                const safeCheckIn = a.check_in_location || {};
+                const safeCheckOut = a.check_out_location || {};
+                if (safeCheckIn.photo) delete safeCheckIn.photo;
+                if (safeCheckOut.photo) delete safeCheckOut.photo;
+
+                return {
+                    id: a.id,
+                    workerId: a.worker_id,
+                    date: a.date_str,
+                    status: a.status,
+                    siteId: a.site_id,
+                    punchInTime: a.check_in_time,
+                    punchOutTime: a.check_out_time,
+                    punchInLocation: safeCheckIn,
+                    punchOutLocation: safeCheckOut,
+                    dutyPoints: a.duty_points,
+                    verified: a.location_verified
+                };
+            });
 
             // Wait, I missed the photo mapping in the original code. 
             // Original code:

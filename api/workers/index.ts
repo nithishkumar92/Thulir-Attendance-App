@@ -1,11 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query } from '../_db.js';
+import { uploadImageToB2 } from '../_b2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PATCH,DELETE');
     res.setHeader(
         'Access-Control-Allow-Headers',
         'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
@@ -25,23 +26,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Or we select them but don't return them. SQL optimization is better.
 
             let queryText = `SELECT * FROM workers WHERE is_active = true ORDER BY name ASC`;
-            // Reverted explicit select due to missing columns issue. Will filter in map.
-            /* 
-            if (excludePhotos === 'true') {
-                 queryText = `SELECT id, name, role, team_id, daily_wage, wage_type, phone_number, approved, is_active, is_locked FROM workers WHERE is_active = true ORDER BY name ASC`;
-            } 
-            */
 
             // Disable caching to debug "missing details" issue and force fresh fetch
             res.setHeader('Cache-Control', 'no-store, max-age=0');
 
             const result = await query(queryText);
 
-            // Debugging: Log the first row to check column keys
-            if (result.rows.length > 0) {
-                console.log('DEBUG WORKER ROW KEYS:', Object.keys(result.rows[0]));
-                console.log('DEBUG WORKER ROW SAMPLE:', result.rows[0]);
-            }
+            // Base64 photos are huge (30-50KB each). 
+            // We exclude them by default to save bandwidth.
+            // Client must request `?includePhotos=true` or query by `?id` to get them.
+            const shouldIncludePhotos = req.query.includePhotos === 'true' || req.query.id;
 
             const workers = result.rows.map(w => ({
                 id: w.id || w.ID,
@@ -51,8 +45,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dailyWage: Number(w.daily_wage || w.Daily_Wage || 0),
                 wageType: w.wage_type || w.Wage_Type,
                 phoneNumber: w.phone_number || w.Phone_Number,
-                photoUrl: (excludePhotos === 'true') ? undefined : (w.photo_url || w.Photo_Url || undefined),
-                aadhaarPhotoUrl: (excludePhotos === 'true') ? undefined : (w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined),
+                // Only include photos if explicitly requested
+                photoUrl: shouldIncludePhotos ? (w.photo_url || w.Photo_Url || undefined) : undefined,
+                aadhaarPhotoUrl: shouldIncludePhotos ? (w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined) : undefined,
                 approved: w.approved !== undefined ? w.approved : (w.Approved !== undefined ? w.Approved : false),
                 isActive: w.is_active !== undefined ? w.is_active : (w.Is_Active !== undefined ? w.Is_Active : true),
                 isLocked: w.is_locked !== undefined ? w.is_locked : (w.Is_Locked !== undefined ? w.Is_Locked : false)
@@ -68,6 +63,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { name, role, teamId, dailyWage, wageType, phoneNumber, photoUrl, aadhaarPhotoUrl, approved, isLocked } = req.body;
 
         try {
+            // Process images - Upload to B2 if Base64
+            let finalPhotoUrl = photoUrl;
+            let finalAadhaarUrl = aadhaarPhotoUrl;
+
+            if (photoUrl && photoUrl.startsWith('data:image')) {
+                const uploaded = await uploadImageToB2(photoUrl, 'workers');
+                if (uploaded) finalPhotoUrl = uploaded;
+            }
+
+            if (aadhaarPhotoUrl && aadhaarPhotoUrl.startsWith('data:image')) {
+                const uploaded = await uploadImageToB2(aadhaarPhotoUrl, 'workers/aadhaar');
+                if (uploaded) finalAadhaarUrl = uploaded;
+            }
+
             const result = await query(
                 `INSERT INTO workers (
                     name, role, team_id, daily_wage, wage_type, phone_number, 
@@ -76,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 RETURNING *`,
                 [
                     name, role, teamId || null, dailyWage || 0, wageType || 'DAILY', phoneNumber,
-                    photoUrl, aadhaarPhotoUrl, approved || false, isLocked || false
+                    finalPhotoUrl, finalAadhaarUrl, approved || false, isLocked || false
                 ]
             );
             const w = result.rows[0];
@@ -116,14 +125,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const values: any[] = [];
             let paramIndex = 1;
 
+            // Handle Photo Uploads for Updates
+            let finalPhotoUrl = photoUrl;
+            let finalAadhaarUrl = aadhaarPhotoUrl;
+
+            if (photoUrl && photoUrl.startsWith('data:image')) {
+                const uploaded = await uploadImageToB2(photoUrl, 'workers');
+                if (uploaded) finalPhotoUrl = uploaded;
+            }
+
+            if (aadhaarPhotoUrl && aadhaarPhotoUrl.startsWith('data:image')) {
+                const uploaded = await uploadImageToB2(aadhaarPhotoUrl, 'workers/aadhaar');
+                if (uploaded) finalAadhaarUrl = uploaded;
+            }
+
             if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
             if (role !== undefined) { updates.push(`role = $${paramIndex++}`); values.push(role); }
             if (teamId !== undefined) { updates.push(`team_id = $${paramIndex++}`); values.push(teamId); }
             if (dailyWage !== undefined) { updates.push(`daily_wage = $${paramIndex++}`); values.push(dailyWage); }
             if (wageType !== undefined) { updates.push(`wage_type = $${paramIndex++}`); values.push(wageType); }
             if (phoneNumber !== undefined) { updates.push(`phone_number = $${paramIndex++}`); values.push(phoneNumber); }
-            if (photoUrl !== undefined) { updates.push(`photo_url = $${paramIndex++}`); values.push(photoUrl); }
-            if (aadhaarPhotoUrl !== undefined) { updates.push(`aadhaar_photo_url = $${paramIndex++}`); values.push(aadhaarPhotoUrl); }
+            if (finalPhotoUrl !== undefined) { updates.push(`photo_url = $${paramIndex++}`); values.push(finalPhotoUrl); }
+            if (finalAadhaarUrl !== undefined) { updates.push(`aadhaar_photo_url = $${paramIndex++}`); values.push(finalAadhaarUrl); }
             if (approved !== undefined) { updates.push(`approved = $${paramIndex++}`); values.push(approved); }
             if (isLocked !== undefined) { updates.push(`is_locked = $${paramIndex++}`); values.push(isLocked); }
             if (isActive !== undefined) { updates.push(`is_active = $${paramIndex++}`); values.push(isActive); }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
+import { LazyWorkerImage } from './common/LazyWorkerImage';
 
 export interface GroupedWorker {
     id: string;
@@ -78,11 +79,12 @@ export const SiteAttendanceCard: React.FC<SiteAttendanceCardProps> = ({ data, on
                                                     worker.status === 'absent' ? "border-gray-200 bg-gray-100 text-gray-400 grayscale" :
                                                         "border-white bg-blue-50 text-blue-600 ring-2 ring-blue-50"
                                             )}>
-                                                {worker.avatar ? (
-                                                    <img src={worker.avatar} alt={worker.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-xs font-bold">{worker.name.substring(0, 2).toUpperCase()}</span>
-                                                )}
+                                                <LazyWorkerImage
+                                                    src={worker.avatar}
+                                                    alt={worker.name}
+                                                    className="w-full h-full"
+                                                    fallbackText={worker.name.substring(0, 2).toUpperCase()}
+                                                />
                                             </div>
                                             {/* Status Dot */}
                                             {worker.status === 'issue' && (

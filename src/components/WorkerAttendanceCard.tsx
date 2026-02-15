@@ -1,6 +1,7 @@
 import React from 'react';
 import { Worker, AttendanceRecord } from '../types';
 import { format } from 'date-fns';
+import { LazyWorkerImage } from './common/LazyWorkerImage';
 import clsx from 'clsx';
 import { calculateShifts, getShiftSymbol } from '../utils/attendanceUtils';
 
@@ -43,20 +44,12 @@ export const WorkerAttendanceCard: React.FC<WorkerAttendanceCardProps> = ({ work
             {/* Header with Photo and Name */}
             <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 ring-2 ring-blue-50">
-                    {worker.photoUrl ? (
-                        <img
-                            src={worker.photoUrl}
-                            alt={worker.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${worker.name}&background=4F46E5&color=fff&size=128`;
-                            }}
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-blue-500 text-white font-bold text-lg">
-                            {worker.name.substring(0, 2).toUpperCase()}
-                        </div>
-                    )}
+                    <LazyWorkerImage
+                        src={worker.photoUrl}
+                        alt={worker.name}
+                        className="w-full h-full"
+                        fallbackText={worker.name.substring(0, 2).toUpperCase()}
+                    />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 truncate">{worker.name}</h3>
