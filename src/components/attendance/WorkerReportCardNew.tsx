@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Avatar } from '../common/Avatar';
-import { StatusChip, StatusLegend } from '../common/StatusChip';
+import { StatusChip, StatusLegend } from '../common/AttendanceStatusChip';
 import { format } from 'date-fns';
 import { Worker } from '../../types';
 import { AttendanceRecord } from '../../types';
