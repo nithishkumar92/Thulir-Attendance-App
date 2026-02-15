@@ -1,4 +1,4 @@
-```typescript
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AttendanceReport } from '../../components/attendance/AttendanceReport';
@@ -18,7 +18,7 @@ export const OwnerReportPage: React.FC = () => {
 
     // Lifted Week Navigation State
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
-    const weekLabel = `${ format(weekStart, 'MMM d') } – ${ format(weekEnd, 'MMM d, yyyy') } `;
+    const weekLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')} `;
 
     return (
         <div className="space-y-4">

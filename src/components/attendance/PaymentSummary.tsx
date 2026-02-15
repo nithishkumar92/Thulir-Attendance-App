@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { Download, Share2, LayoutGrid, LayoutList } from 'lucide-react';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
@@ -86,7 +86,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         });
     }, [allWorkers, weekDays, attendance, siteId]);
 
-    const computedFinancials = useMemo(() => {
+    // Calculate Daily Financials
+    const dailyFinancials = useMemo(() => {
         return weekDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
 
@@ -113,85 +114,96 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                         if (!roleBreakdown[role]) {
                             roleBreakdown[role] = { count: 0, cost: 0 };
                         }
-                        roleBreakdown[role].count += shifts; // sum shifts not just people count? Or people? User likely wants 'headcount' or 'effort'.
-                        // For construction, 'count' usually means duty count (e.g. 1.5).
+                        roleBreakdown[role].count += shifts;
                         roleBreakdown[role].cost += cost;
                     }
                 }
             });
 
+            // Calculate daily advance and settlement
             const dayAdvances = advances
-                .filter(adv => {
-                    const isDateMatch = adv.date === dateStr;
-                    const isTypeMatch = !adv.notes?.includes('[SETTLEMENT]');
-                    const isTeamMatch = selectedTeamId === 'ALL' || adv.teamId === selectedTeamId;
-                    const isSiteMatch = !siteId || adv.siteId === siteId;
-                    return isDateMatch && isTypeMatch && isTeamMatch && isSiteMatch;
+                .filter(a => {
+                    const d = new Date(a.date);
+                    return isSameDay(d, day) &&
+                        (!selectedTeamId || selectedTeamId === 'ALL' || a.teamId === selectedTeamId) &&
+                        (!siteId || a.siteId === siteId) &&
+                        !a.notes?.includes('[SETTLEMENT]');
                 })
                 .reduce((sum, adv) => sum + adv.amount, 0);
 
             const daySettlements = advances
-                .filter(adv => {
-                    const isDateMatch = adv.date === dateStr;
-                    const isTypeMatch = adv.notes?.includes('[SETTLEMENT]');
-                    const isTeamMatch = selectedTeamId === 'ALL' || adv.teamId === selectedTeamId;
-                    const isSiteMatch = !siteId || adv.siteId === siteId;
-                    return isDateMatch && isTypeMatch && isTeamMatch && isSiteMatch;
+                .filter(a => {
+                    const d = new Date(a.date);
+                    return isSameDay(d, day) &&
+                        (!selectedTeamId || selectedTeamId === 'ALL' || a.teamId === selectedTeamId) &&
+                        (!siteId || a.siteId === siteId) &&
+                        a.notes?.includes('[SETTLEMENT]');
                 })
                 .reduce((sum, adv) => sum + adv.amount, 0);
 
             return {
                 date: day,
-                roleStats: roleBreakdown, // Renamed to roleStats to match PaymentDayCard prop
+                dailyTotal,
+                roleStats: roleBreakdown,
                 advance: dayAdvances,
                 settlement: daySettlements,
-                totalWorkers: Object.values(roleBreakdown).reduce((sum, stat) => sum + stat.count, 0), // Calculate total workers/shifts for the day
-                dailyTotal: dailyTotal
+                totalWorkers: Object.values(roleBreakdown).reduce((sum, start) => sum + start.count, 0)
             };
         });
     }, [weekDays, allWorkers, attendance, siteId, advances, selectedTeamId]);
 
+
     // Derived totals
-    const totalRoleCost = computedFinancials.reduce((acc, curr) => acc + curr.dailyTotal, 0);
-    const totalAdvance = computedFinancials.reduce((sum, day) => sum + day.advance, 0);
-    const totalSettlement = computedFinancials.reduce((sum, day) => sum + (day.settlement || 0), 0);
+    const totalRoleCost = dailyFinancials.reduce((acc, curr) => acc + curr.dailyTotal, 0);
+    const totalAdvance = dailyFinancials.reduce((sum, day) => sum + day.advance, 0);
+    const totalSettlement = dailyFinancials.reduce((sum, day) => sum + (day.settlement || 0), 0);
     const balanceToPay = totalRoleCost - totalAdvance - totalSettlement;
 
     // Sorting for card view
     const sortedDailyFinancials = useMemo(() => {
-        if (viewMode === 'table') return dailyFinancials;
-        return sortOrder === 'newest'
-            ? [...dailyFinancials].reverse()
-            : dailyFinancials;
-    }, [dailyFinancials, sortOrder, viewMode]);
+        return [...dailyFinancials].sort((a, b) => {
+            return sortOrder === 'newest'
+                ? b.date.getTime() - a.date.getTime()
+                : a.date.getTime() - b.date.getTime();
+        });
+    }, [dailyFinancials, sortOrder]);
 
-    const roleTotals: Record<string, { count: number, cost: number }> = {};
-    uniqueRoles.forEach(role => {
-        roleTotals[role] = dailyFinancials.reduce((acc, day) => {
-            const stat = day.roleStats[role] || { count: 0, cost: 0 };
-            return {
-                count: acc.count + stat.count,
-                cost: acc.cost + stat.cost
-            };
-        }, { count: 0, cost: 0 });
-    });
+    const uniqueRoles = useMemo(() => {
+        const roles = new Set<string>();
+        dailyFinancials.forEach(d => {
+            Object.keys(d.roleStats).forEach(r => roles.add(r));
+        });
+        return Array.from(roles).sort();
+    }, [dailyFinancials]);
 
-    const totalAdvance = dailyFinancials.reduce((sum, day) => sum + day.advance, 0);
-    const totalSettlement = dailyFinancials.reduce((sum, day) => sum + (day.settlement || 0), 0);
-    const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
-    const balanceToPay = totalRoleCost - totalAdvance - totalSettlement;
+    const roleTotals = useMemo(() => {
+        const totals: Record<string, { count: number; cost: number }> = {};
+        uniqueRoles.forEach(role => {
+            totals[role] = { count: 0, cost: 0 };
+            dailyFinancials.forEach(d => {
+                if (d.roleStats[role]) {
+                    totals[role].count += d.roleStats[role].count;
+                    totals[role].cost += d.roleStats[role].cost;
+                }
+            });
+        });
+        return totals;
+    }, [dailyFinancials, uniqueRoles]);
 
     // Helper function to generate PDF
     const generatePDF = () => {
         return generateWeeklyReportPDF(
             weekStart,
             weekEnd,
-            visibleWorkers,
+            // We pass allWorkers as visibleWorkers for now, or filter them if needed
+            // The generateWeeklyReportPDF might expect a specific list.
+            // Using allWorkers seems consistent with the new logic.
+            allWorkers,
             attendance,
             teams,
             advances,
             siteId,
-            selectedTeamId
+            selectedTeamId === 'ALL' ? undefined : selectedTeamId
         );
     };
 
