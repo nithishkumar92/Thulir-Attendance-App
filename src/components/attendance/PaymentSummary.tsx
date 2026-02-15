@@ -244,12 +244,15 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
     return (
         <div className="space-y-4">
-            <WeekNav
-                label="Payment Summary"
-                sub={weekLabel}
-                onPrev={internalNav.handlePrevWeek}
-                onNext={internalNav.handleNextWeek}
-            />
+            {/* Show internal WeekNav ONLY if dateRange is NOT provided */}
+            {!dateRange && (
+                <WeekNav
+                    label="Payment Summary"
+                    sub={weekLabel}
+                    onPrev={internalNav.handlePrevWeek}
+                    onNext={internalNav.handleNextWeek}
+                />
+            )}
 
             {/* Net Payable Balance */}
             <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 my-3 shadow-sm">
@@ -272,8 +275,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 
             {/* Controls Row */}
             <div className="flex items-center gap-2 mb-3">
-                {/* Team Filter (Owner only) */}
-                {userRole === 'OWNER' && !teamId && (
+                {/* Team Filter (Owner only - Hide if dateRange is present as parent handles it) */}
+                {userRole === 'OWNER' && !teamId && !dateRange && (
                     <select
                         value={selectedTeamId}
                         onChange={(e) => setSelectedTeamId(e.target.value)}
@@ -318,9 +321,9 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 {showExportButton && (
                     <button
                         onClick={handleDownload}
-                        className="w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-600 shadow-sm hover:bg-gray-50 shrink-0"
+                        className="w-9 h-9 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-center text-gray-800 shadow-sm hover:bg-gray-100 shrink-0"
                     >
-                        <Download size={16} />
+                        <Download size={18} strokeWidth={2.5} />
                     </button>
                 )}
             </div>
