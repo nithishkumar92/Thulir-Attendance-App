@@ -321,9 +321,10 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 {showExportButton && (
                     <button
                         onClick={handleDownload}
-                        className="w-9 h-9 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-center text-gray-800 shadow-sm hover:bg-gray-100 shrink-0"
+                        className="h-9 px-3 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-center gap-2 text-gray-800 shadow-sm hover:bg-gray-100 shrink-0"
                     >
-                        <Download size={18} strokeWidth={2.5} />
+                        <Download size={18} />
+                        <span className="text-xs font-bold">PDF</span>
                     </button>
                 )}
             </div>
