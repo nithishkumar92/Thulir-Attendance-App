@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Share2, LayoutGrid, LayoutList } from 'lucide-react';
+import { Download, Share2, LayoutGrid, LayoutList } from 'lucide-react';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
-import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
+import { calculateShifts } from '../../utils/attendanceUtils';
 import { generateWeeklyReportPDF } from '../../utils/pdfGenerator';
 import * as pdfMake from 'pdfmake/build/pdfmake';
+import { WeekNav } from '../common/WeekNav';
+import { PaymentDayCard, DailyFinancials } from './PaymentDayCard';
+import { PaymentTable } from './PaymentTable';
 
 interface PaymentSummaryProps {
     userRole: 'OWNER' | 'TEAM_REP';
@@ -18,9 +21,7 @@ interface PaymentSummaryProps {
 
 /**
  * Unified Payment Summary Component
- * Works for both Owner Portal and Worker Portal (Team Rep)
- * Uses role-based access control to show/hide features
- * Supports both Card View (mobile-friendly) and Table View
+ * Refactored to use new Card-based UI
  */
 export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     userRole,
@@ -31,8 +32,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
 }) => {
     const { attendance, teams, advances } = useApp();
     const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'ALL');
-    const [viewMode, setViewMode] = useState<'card' | 'table'>('card'); // Default to card view
-    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // Sorting for card view
+    const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
     // Update selectedTeamId if prop changes
     React.useEffect(() => {
@@ -47,11 +48,9 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
     });
 
-    // Filter to show only workers with at least 0.5 duty points in the selected week
-    // OR workers who have any attendance record (including incomplete punches)
+    // Filter visible workers logic
     const visibleWorkers = useMemo(() => {
         return allWorkers.filter(worker => {
-            // Check if worker has ANY attendance record in the week
             const hasAnyAttendance = weekDays.some(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 return attendance.some(a =>
@@ -61,10 +60,8 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 );
             });
 
-            // If they have any attendance record, show them
             if (hasAnyAttendance) return true;
 
-            // Otherwise, calculate total duty points
             const totalDuty = weekDays.reduce((sum, day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const record = attendance.find(a =>
@@ -75,7 +72,6 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 return sum + (record ? calculateShifts(record) : 0);
             }, 0);
 
-            // Show only workers with at least 0.5 duty points
             return totalDuty >= 0.5;
         });
     }, [allWorkers, weekDays, attendance, siteId]);
@@ -85,7 +81,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         [visibleWorkers]
     );
 
-    const dailyFinancials = useMemo(() => {
+    const dailyFinancials: DailyFinancials[] = useMemo(() => {
         return weekDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
 
@@ -164,7 +160,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     const totalRoleCost = Object.values(roleTotals).reduce((sum, val) => sum + val.cost, 0);
     const balanceToPay = totalRoleCost - totalAdvance - totalSettlement;
 
-    // Helper function to generate PDF using pdfmake
+    // Helper function to generate PDF
     const generatePDF = () => {
         return generateWeeklyReportPDF(
             weekStart,
@@ -178,7 +174,6 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         );
     };
 
-    // Download PDF function
     const handleDownload = () => {
         const docDefinition = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
@@ -192,308 +187,126 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         }
     }, [onDownloadReady, weekStart]);
 
-    // WhatsApp share function
+    // WhatsApp share function (same as before)
     const handleWhatsAppShare = async () => {
         const docDefinition = generatePDF();
         const fileName = `weekly-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
-
         (pdfMake as any).createPdf(docDefinition).getBlob((blob: Blob) => {
             const file = new File([blob], fileName, { type: 'application/pdf' });
-
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 navigator.share({
                     files: [file],
                     title: 'Weekly Attendance Report',
                     text: `Shared via Thulir ERP app`,
-                }).catch((error) => {
-                    console.log('Sharing failed', error);
-                });
+                }).catch((error) => console.log('Sharing failed', error));
             } else {
-                // Fallback: Download and alert
                 (pdfMake as any).createPdf(docDefinition).download(fileName);
-                alert("File sharing is not supported on this browser. The PDF has been downloaded instead. Please open WhatsApp and attach the file manually.");
+                alert("File sharing is not supported on this browser. The PDF has been downloaded instead.");
             }
         });
     };
 
+    // Week Label
+    const weekLabel = `${format(weekStart, 'd')} – ${format(weekEnd, 'd MMM, yyyy')}`;
+
     return (
         <div className="space-y-4">
-            {/* Header Controls */}
-            <div className="flex flex-col gap-3">
-                {/* Week Navigation */}
-                <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-2">
-                    <button onClick={handlePrevWeek} className="p-2 hover:bg-gray-100 rounded transition-colors">
-                        <ChevronLeft size={20} />
-                    </button>
-                    <div className="flex-1 text-center">
-                        <div className="font-bold text-gray-800 text-sm">Payment Summary</div>
-                        <div className="text-xs text-gray-600">
-                            {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+            <WeekNav
+                label="Payment Summary"
+                sub={weekLabel}
+                onPrev={handlePrevWeek}
+                onNext={handleNextWeek}
+            />
+
+            {/* Net Payable Balance */}
+            <div className="bg-gray-900 text-white rounded-2xl p-4 my-3 shadow-md">
+                <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Net Payable Balance</div>
+                <div className="text-3xl font-black -tracking-wide mb-3">₹{balanceToPay.toLocaleString()}</div>
+
+                <div className="flex border-t border-gray-800 pt-3">
+                    {[
+                        { label: "Days", val: weekDays.length.toString() },
+                        { label: "Advance", val: `₹${totalAdvance.toLocaleString()}` },
+                        { label: "Settlement", val: `₹${totalSettlement.toLocaleString()}` },
+                    ].map(({ label, val }, i, arr) => (
+                        <div key={label} className={`flex-1 text-center ${i < arr.length - 1 ? 'border-r border-gray-800' : ''}`}>
+                            <div className="text-[10px] text-gray-500">{label}</div>
+                            <div className="text-[13px] font-extrabold text-white mt-0.5">{val}</div>
                         </div>
-                    </div>
-                    <button onClick={handleNextWeek} className="p-2 hover:bg-gray-100 rounded transition-colors">
-                        <ChevronRight size={20} />
+                    ))}
+                </div>
+            </div>
+
+            {/* Controls Row */}
+            <div className="flex items-center gap-2 mb-3">
+                {/* Team Filter (Owner only) */}
+                {userRole === 'OWNER' && !teamId && (
+                    <select
+                        value={selectedTeamId}
+                        onChange={(e) => setSelectedTeamId(e.target.value)}
+                        className="flex-1 min-w-0 p-2 border border-gray-200 rounded-xl bg-white text-xs font-bold shadow-sm"
+                    >
+                        <option value="ALL">All Teams</option>
+                        {teams.map(team => (
+                            <option key={team.id} value={team.id}>{team.name}</option>
+                        ))}
+                    </select>
+                )}
+
+                {/* Sort Order (Card View Only) */}
+                {viewMode === 'card' && (
+                    <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                        className="flex-1 min-w-0 p-2 border border-gray-200 rounded-xl bg-white text-xs font-bold shadow-sm"
+                    >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                    </select>
+                )}
+
+                {/* View Toggle */}
+                <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm shrink-0">
+                    <button
+                        onClick={() => setViewMode('card')}
+                        className={`w-9 h-9 flex items-center justify-center transition-colors ${viewMode === 'card' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-50'}`}
+                    >
+                        <LayoutGrid size={16} />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('table')}
+                        className={`w-9 h-9 flex items-center justify-center transition-colors ${viewMode === 'table' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-50'}`}
+                    >
+                        <LayoutList size={16} />
                     </button>
                 </div>
 
-                {/* Controls Row */}
-                <div className="flex items-center gap-2">
-                    {/* Team Filter (Owner only) */}
-                    {userRole === 'OWNER' && !teamId && (
-                        <select
-                            value={selectedTeamId}
-                            onChange={(e) => setSelectedTeamId(e.target.value)}
-                            className="flex-1 p-2 border rounded-lg bg-white shadow-sm text-sm"
-                        >
-                            <option value="ALL">All Teams</option>
-                            {teams.map(team => (
-                                <option key={team.id} value={team.id}>{team.name}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    {/* Sort Order (Card View Only) */}
-                    {viewMode === 'card' && (
-                        <select
-                            value={sortOrder}
-                            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                            className="flex-1 p-2 border rounded-lg bg-white shadow-sm text-sm"
-                        >
-                            <option value="newest">Newest First</option>
-                            <option value="oldest">Oldest First</option>
-                        </select>
-                    )}
-
-                    {/* View Toggle */}
-                    <div className="flex bg-white border rounded-lg shadow-sm overflow-hidden">
-                        <button
-                            onClick={() => setViewMode('card')}
-                            className={`p-2 transition-colors ${viewMode === 'card' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                            title="Card View"
-                        >
-                            <LayoutGrid size={20} />
-                        </button>
-                        <button
-                            onClick={() => setViewMode('table')}
-                            className={`p-2 transition-colors ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                            title="Table View"
-                        >
-                            <LayoutList size={20} />
-                        </button>
-                    </div>
-
-                    {/* Export Buttons */}
-                    {showExportButton && (
-                        <>
-                            <button
-                                onClick={handleDownload}
-                                className="p-2 bg-white border rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-                                title="Download PDF"
-                            >
-                                <Download size={20} className="text-gray-700" />
-                            </button>
-                            <button
-                                onClick={handleWhatsAppShare}
-                                className="p-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 transition-colors"
-                                title="Share on WhatsApp"
-                            >
-                                <Share2 size={20} />
-                            </button>
-                        </>
-                    )}
-                </div>
+                {/* Export Button */}
+                {showExportButton && (
+                    <button
+                        onClick={handleDownload}
+                        className="w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-600 shadow-sm hover:bg-gray-50 shrink-0"
+                    >
+                        <Download size={16} />
+                    </button>
+                )}
             </div>
 
-            {/* Net Payable Balance - Always visible at top */}
-            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-xl shadow-lg">
-                <div className="text-xs font-medium uppercase tracking-wider opacity-90 mb-1">Net Payable Balance</div>
-                <div className="text-3xl font-bold">₹{balanceToPay.toLocaleString()}</div>
-            </div>
-
-            {/* Card View */}
-            {viewMode === 'card' && (
-                <div className="space-y-3">
-                    {sortedDailyFinancials.map((dayStat, idx) => {
-                        const hasData = dayStat.totalWorkers > 0 || dayStat.advance > 0 || dayStat.settlement > 0;
-
-                        return (
-                            <div key={idx} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                                {/* Date Header */}
-                                <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-between">
-                                    <div>
-                                        <div className="font-bold text-sm">{format(dayStat.date, 'MMM d (EEE)')}</div>
-                                    </div>
-                                    {!hasData && (
-                                        <div className="flex items-center gap-1 text-xs opacity-90">
-                                            <span>No Duties Recorded</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Card Content */}
-                                {hasData ? (
-                                    <div className="p-4 space-y-3">
-                                        {/* Role Stats */}
-                                        {uniqueRoles.map(role => {
-                                            const stat = dayStat.roleStats[role];
-                                            if (stat.count === 0) return null;
-
-                                            return (
-                                                <div key={role} className="flex justify-between items-center">
-                                                    <div className="text-sm text-gray-700">
-                                                        <span className="font-medium">{stat.count}</span> {role}
-                                                        <span className="text-xs text-gray-500 ml-1">
-                                                            (₹{(stat.cost / stat.count).toLocaleString(undefined, { maximumFractionDigits: 0 })})
-                                                        </span>
-                                                    </div>
-                                                    <div className="font-bold text-gray-900">
-                                                        ₹{stat.cost.toLocaleString()}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-
-                                        {/* Summary Line */}
-                                        <div className="pt-2 border-t border-gray-200">
-                                            <div className="text-xs text-gray-600 mb-1">
-                                                Total Workers: {dayStat.totalWorkers} | Daily Total: ₹{dayStat.dailyTotal.toLocaleString()}
-                                            </div>
-                                        </div>
-
-                                        {/* Advances & Settlements */}
-                                        {(dayStat.advance > 0 || dayStat.settlement > 0) && (
-                                            <div className="pt-2 border-t border-gray-200 space-y-1">
-                                                {dayStat.advance > 0 && (
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-red-600">Advance</span>
-                                                        <span className="font-bold text-red-600">- ₹{dayStat.advance.toLocaleString()}</span>
-                                                    </div>
-                                                )}
-                                                {dayStat.settlement > 0 && (
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-green-600">Settlement</span>
-                                                        <span className="font-bold text-green-600">+ ₹{dayStat.settlement.toLocaleString()}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="p-4 text-center text-gray-400 text-sm">
-                                        No attendance recorded
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
+            {/* Content */}
+            {viewMode === 'card' ? (
+                <div>
+                    {sortedDailyFinancials.map((d, i) => (
+                        <PaymentDayCard key={i} dayStat={d} uniqueRoles={uniqueRoles} />
+                    ))}
                 </div>
-            )}
-
-            {/* Table View */}
-            {viewMode === 'table' && (
-                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                    <div className="overflow-x-auto rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-gray-200">
-                        <table className="w-full text-sm text-left border-collapse">
-                            <thead className="bg-gray-50/50 text-gray-500 font-semibold text-xs uppercase tracking-wider border-b border-gray-200">
-                                <tr>
-                                    <th className="px-6 py-4 font-medium sticky left-0 bg-gray-50 z-10 border-r border-gray-200">Date</th>
-                                    <th className="px-6 py-4 font-medium hidden md:table-cell">Weekday</th>
-                                    {uniqueRoles.map(role => (
-                                        <th key={role} className="px-6 py-4 text-right font-medium">{role}</th>
-                                    ))}
-                                    <th className="px-6 py-4 text-right font-medium">Advance</th>
-                                    <th className="px-6 py-4 text-right font-medium">Settlement</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 bg-white">
-                                {dailyFinancials.map((dayStat, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
-                                        <td className="px-6 py-3.5 text-gray-900 font-medium sticky left-0 bg-white z-10 border-r border-gray-100">
-                                            {format(dayStat.date, 'dd-MM-yyyy')}
-                                        </td>
-                                        <td className="px-6 py-3.5 text-gray-500 hidden md:table-cell">{format(dayStat.date, 'EEEE')}</td>
-                                        {uniqueRoles.map(role => (
-                                            <td key={role} className="px-6 py-3.5 text-right font-medium text-gray-700">
-                                                {dayStat.roleStats[role].count > 0 ? (
-                                                    <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                                                        {dayStat.roleStats[role].count}
-                                                    </span>
-                                                ) : '-'}
-                                            </td>
-                                        ))}
-                                        <td className="px-6 py-3.5 text-right font-medium">
-                                            {dayStat.advance > 0 ? (
-                                                <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded text-xs font-bold">
-                                                    ₹{dayStat.advance.toLocaleString()}
-                                                </span>
-                                            ) : '-'}
-                                        </td>
-                                        <td className="px-6 py-3.5 text-right font-medium">
-                                            {dayStat.settlement > 0 ? (
-                                                <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs font-bold">
-                                                    ₹{dayStat.settlement.toLocaleString()}
-                                                </span>
-                                            ) : '-'}
-                                        </td>
-                                    </tr>
-                                ))}
-
-                                {/* Total Duty Row */}
-                                <tr className="bg-gray-50/50 border-t border-gray-200">
-                                    <td className="px-6 py-3.5 sticky left-0 bg-gray-50 z-10 border-r border-gray-200" colSpan={1}>
-                                        <span className="font-semibold text-gray-700 uppercase text-xs tracking-wide pl-2 border-l-4 border-blue-500">Total Duty</span>
-                                    </td>
-                                    <td className="px-6 py-3.5 hidden md:table-cell"></td>
-                                    {uniqueRoles.map(role => (
-                                        <td key={role} className="px-6 py-3.5 text-right font-bold text-gray-900">
-                                            {roleTotals[role].count}
-                                        </td>
-                                    ))}
-                                    <td className="px-6 py-3.5"></td>
-                                    <td className="px-6 py-3.5"></td>
-                                </tr>
-
-                                {/* Rate Row */}
-                                <tr className="bg-gray-50/50">
-                                    <td className="px-6 py-3 sticky left-0 bg-gray-50 z-10 border-r border-gray-200" colSpan={1}>
-                                        <span className="font-semibold text-gray-500 uppercase text-xs tracking-wide pl-2">Rate</span>
-                                    </td>
-                                    <td className="px-6 py-3 hidden md:table-cell"></td>
-                                    {uniqueRoles.map(role => {
-                                        const total = roleTotals[role];
-                                        const rate = total.count > 0 ? (total.cost / total.count) : 0;
-                                        return (
-                                            <td key={role} className="px-6 py-3 text-right text-gray-500 text-xs">
-                                                {rate > 0 ? `₹${rate.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
-                                            </td>
-                                        );
-                                    })}
-                                    <td className="px-6 py-3"></td>
-                                    <td className="px-6 py-3"></td>
-                                </tr>
-
-                                {/* Amount Row */}
-                                <tr className="bg-blue-50/30 border-t border-blue-100">
-                                    <td className="px-6 py-4 sticky left-0 bg-blue-50 z-10 border-r border-blue-100" colSpan={1}>
-                                        <span className="font-bold text-blue-900 uppercase text-xs tracking-wide pl-2 border-l-4 border-blue-600">Total Amount</span>
-                                    </td>
-                                    <td className="px-6 py-4 hidden md:table-cell"></td>
-                                    {uniqueRoles.map(role => (
-                                        <td key={role} className="px-6 py-4 text-right font-bold text-gray-900">
-                                            ₹{roleTotals[role].cost.toLocaleString()}
-                                        </td>
-                                    ))}
-                                    <td className="px-6 py-4 text-right text-red-600 font-bold">
-                                        {totalAdvance > 0 ? `- ₹${totalAdvance.toLocaleString()}` : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-right text-green-600 font-bold">
-                                        {totalSettlement > 0 ? `+ ₹${totalSettlement.toLocaleString()}` : '-'}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            ) : (
+                <PaymentTable
+                    dailyFinancials={dailyFinancials}
+                    uniqueRoles={uniqueRoles}
+                    roleTotals={roleTotals}
+                    totalAdvance={totalAdvance}
+                    totalSettlement={totalSettlement}
+                />
             )}
         </div>
     );

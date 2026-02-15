@@ -1,13 +1,14 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { WorkerAttendanceCard } from '../WorkerAttendanceCard';
+import { Plus } from 'lucide-react';
+import { WorkerReportCard } from './WorkerReportCard';
+import { WeekNav } from '../common/WeekNav';
 import { useNavigate } from 'react-router-dom';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { filterAttendanceByDateRange, filterAttendanceBySite } from '../../utils/filterUtils';
-import { calculateShifts, getShiftSymbol } from '../../utils/attendanceUtils';
+import { calculateShifts } from '../../utils/attendanceUtils';
 import { generateWeeklyReportPDF } from '../../utils/pdfGenerator';
 import * as pdfMake from 'pdfmake/build/pdfmake';
 
@@ -22,8 +23,7 @@ interface AttendanceReportProps {
 
 /**
  * Unified Attendance Report Component
- * Works for both Owner Portal and Worker Portal (Team Rep)
- * Uses role-based access control to show/hide features
+ * Refactored to use new Card-based UI
  */
 export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     userRole,
@@ -56,11 +56,9 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         siteId
     );
 
-    // Filter to show only workers with at least 0.5 duty points in the selected week
-    // OR workers who have any attendance record (including incomplete punches)
+    // Filter visible workers logic (same as before)
     const visibleWorkers = React.useMemo(() => {
         return allWorkers.filter(worker => {
-            // Check if worker has ANY attendance record in the week
             const hasAnyAttendance = weekDays.some(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 return weekAttendance.some(a =>
@@ -69,10 +67,8 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 );
             });
 
-            // If they have any attendance record, show them
             if (hasAnyAttendance) return true;
 
-            // Otherwise, calculate total duty points
             const totalDuty = weekDays.reduce((sum, day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const record = weekAttendance.find(a =>
@@ -82,10 +78,28 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 return sum + (record ? calculateShifts(record) : 0);
             }, 0);
 
-            // Show only workers with at least 0.5 duty points
             return totalDuty >= 0.5;
         });
     }, [allWorkers, weekDays, weekAttendance]);
+
+    // Calculate Summary Stats
+    const totalWorkers = visibleWorkers.length;
+    const totalDutyDays = visibleWorkers.reduce((sum, worker) => {
+        return sum + weekDays.reduce((dSum, day) => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            const record = weekAttendance.find(a => a.workerId === worker.id && a.date === dateStr);
+            return dSum + (record ? calculateShifts(record) : 0);
+        }, 0);
+    }, 0);
+    const totalEarned = visibleWorkers.reduce((sum, worker) => {
+        const workerDuty = weekDays.reduce((dSum, day) => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            const record = weekAttendance.find(a => a.workerId === worker.id && a.date === dateStr);
+            return dSum + (record ? calculateShifts(record) : 0);
+        }, 0);
+        return sum + (workerDuty * (worker.dailyWage || 0));
+    }, 0);
+
 
     const handleAddClick = () => {
         if (onAddAttendance) {
@@ -95,7 +109,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
     };
 
-    // Generate PDF for Attendance Report with Payment Summary using pdfmake
+    // Generate PDF for Attendance Report  (same as before)
     const generatePDF = () => {
         return generateWeeklyReportPDF(
             weekStart,
@@ -109,7 +123,6 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         );
     };
 
-    // Download PDF function
     const handleDownload = () => {
         const docDefinition = generatePDF();
         const fileName = `attendance-report-${format(weekStart, 'yyyy-MM-dd')}.pdf`;
@@ -123,37 +136,40 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
     }, [onDownloadReady, weekStart, visibleWorkers, weekAttendance]);
 
+    // Week Label
+    const weekLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`;
+
 
     return (
-        <div className="space-y-4 p-4">
-            {/* Header with Week Navigation */}
-            <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-2">
-                <button
-                    onClick={handlePrevWeek}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Previous week"
-                >
-                    <ChevronLeft size={20} />
-                </button>
-                <span className="font-bold text-gray-800 flex-1 text-center">
-                    {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-                </span>
-                <button
-                    onClick={handleNextWeek}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Next week"
-                >
-                    <ChevronRight size={20} />
-                </button>
+        <div className="space-y-4">
+            <WeekNav
+                label={weekLabel}
+                sub="Weekly Attendance"
+                onPrev={handlePrevWeek}
+                onNext={handleNextWeek}
+            />
+
+            {/* Summary Strip */}
+            <div className="grid grid-cols-3 gap-2 my-3">
+                {[
+                    { label: "Workers", val: totalWorkers, color: "text-gray-900" },
+                    { label: "Duty Days", val: totalDutyDays, color: "text-gray-900" },
+                    { label: "Earned", val: `₹${(totalEarned / 1000).toFixed(1)}k`, color: "text-green-600" },
+                ].map(({ label, val, color }) => (
+                    <div key={label} className="bg-white border border-gray-200 rounded-xl p-3 text-center shadow-sm">
+                        <div className={`text-lg font-black ${color}`}>{val}</div>
+                        <div className="text-[9px] text-gray-400 mt-1 font-bold uppercase tracking-wider">{label}</div>
+                    </div>
+                ))}
             </div>
 
             {/* Team Filter (Owner only) */}
             {userRole === 'OWNER' && !teamId && (
-                <div className="bg-white p-3 rounded-lg shadow-sm border">
+                <div className="bg-white p-2 border rounded-xl shadow-sm mb-3">
                     <select
                         value={selectedTeamId}
                         onChange={(e) => setSelectedTeamId(e.target.value)}
-                        className="w-full p-2 border rounded-lg bg-white text-sm"
+                        className="w-full p-2 border-none bg-transparent text-sm font-semibold focus:ring-0"
                     >
                         <option value="ALL">All Teams</option>
                         {teams.map(team => (
@@ -163,26 +179,36 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 </div>
             )}
 
-            {/* Add Attendance Button (Owner only) */}
+            {/* Add Attendance Button */}
             {showAddButton && userRole === 'OWNER' && (
                 <button
                     onClick={handleAddClick}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+                    className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm mb-4 text-sm"
                 >
-                    <Plus size={20} />
+                    <Plus size={18} />
                     Add Attendance
                 </button>
             )}
 
-            {/* Worker Attendance Cards */}
-            <div className="space-y-3">
+            {/* Day Header Legend */}
+            <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 mb-2 grid grid-cols-[auto_1fr] gap-3">
+                <div className="w-10"></div> {/* Spacer for Avatar */}
+                <div className="grid grid-cols-7 gap-1.5">
+                    {weekDays.map((d, i) => (
+                        <div key={i} className="text-center text-[10px] font-bold text-gray-400">{format(d, 'EEEEE')}</div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Worker List */}
+            <div>
                 {visibleWorkers.length === 0 ? (
-                    <div className="bg-white rounded-lg shadow-sm border p-8 text-center text-gray-500">
+                    <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-300 text-sm">
                         No workers found
                     </div>
                 ) : (
                     visibleWorkers.map(worker => (
-                        <WorkerAttendanceCard
+                        <WorkerReportCard
                             key={worker.id}
                             worker={worker}
                             weekDays={weekDays}
