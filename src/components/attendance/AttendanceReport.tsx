@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
-import { WorkerReportCard } from './WorkerReportCard';
+import { WorkerReportCard } from './WorkerReportCardNew';
 import { WeekNav } from '../common/WeekNav';
 import { useNavigate } from 'react-router-dom';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
