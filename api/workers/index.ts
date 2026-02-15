@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query } from '../_db.js';
-import { uploadImageToB2 } from '../_b2.js';
+import { uploadImageToB2, signB2Url } from '../_b2.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS
@@ -37,20 +37,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Client must request `?includePhotos=true` or query by `?id` to get them.
             const shouldIncludePhotos = req.query.includePhotos === 'true' || req.query.id;
 
-            const workers = result.rows.map(w => ({
-                id: w.id || w.ID,
-                name: w.name || w.Name || w.NAME,
-                role: w.role || w.Role || w.ROLE,
-                teamId: w.team_id || w.team_Id || w.Team_Id,
-                dailyWage: Number(w.daily_wage || w.Daily_Wage || 0),
-                wageType: w.wage_type || w.Wage_Type,
-                phoneNumber: w.phone_number || w.Phone_Number,
-                // Only include photos if explicitly requested OR if they are external URLs (not Base64)
-                photoUrl: (shouldIncludePhotos || (w.photo_url && !w.photo_url.startsWith('data:'))) ? (w.photo_url || w.Photo_Url || undefined) : undefined,
-                aadhaarPhotoUrl: (shouldIncludePhotos || (w.aadhaar_photo_url && !w.aadhaar_photo_url.startsWith('data:'))) ? (w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined) : undefined,
-                approved: w.approved !== undefined ? w.approved : (w.Approved !== undefined ? w.Approved : false),
-                isActive: w.is_active !== undefined ? w.is_active : (w.Is_Active !== undefined ? w.Is_Active : true),
-                isLocked: w.is_locked !== undefined ? w.is_locked : (w.Is_Locked !== undefined ? w.Is_Locked : false)
+            const workers = await Promise.all(result.rows.map(async w => {
+                let photoUrl = (shouldIncludePhotos || (w.photo_url && !w.photo_url.startsWith('data:'))) ? (w.photo_url || w.Photo_Url || undefined) : undefined;
+                let aadhaarPhotoUrl = (shouldIncludePhotos || (w.aadhaar_photo_url && !w.aadhaar_photo_url.startsWith('data:'))) ? (w.aadhaar_photo_url || w.Aadhaar_Photo_Url || undefined) : undefined;
+
+                // Sign B2 URLs if present (Private Bucket logic)
+                if (photoUrl && !photoUrl.startsWith('data:')) {
+                    photoUrl = await signB2Url(photoUrl);
+                }
+                if (aadhaarPhotoUrl && !aadhaarPhotoUrl.startsWith('data:')) {
+                    aadhaarPhotoUrl = await signB2Url(aadhaarPhotoUrl);
+                }
+
+                return {
+                    id: w.id || w.ID,
+                    name: w.name || w.Name || w.NAME,
+                    role: w.role || w.Role || w.ROLE,
+                    teamId: w.team_id || w.team_Id || w.Team_Id,
+                    dailyWage: Number(w.daily_wage || w.Daily_Wage || 0),
+                    wageType: w.wage_type || w.Wage_Type,
+                    phoneNumber: w.phone_number || w.Phone_Number,
+                    photoUrl,
+                    aadhaarPhotoUrl,
+                    approved: w.approved !== undefined ? w.approved : (w.Approved !== undefined ? w.Approved : false),
+                    isActive: w.is_active !== undefined ? w.is_active : (w.Is_Active !== undefined ? w.Is_Active : true),
+                    isLocked: w.is_locked !== undefined ? w.is_locked : (w.Is_Locked !== undefined ? w.Is_Locked : false)
+                };
             }));
             return res.status(200).json(workers);
         } catch (error) {

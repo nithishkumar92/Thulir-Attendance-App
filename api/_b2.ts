@@ -78,3 +78,29 @@ export const deleteImageFromB2 = async (fileUrl: string) => {
         console.error('B2 Delete Error:', error);
     }
 };
+
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+export const signB2Url = async (fileUrl: string): Promise<string> => {
+    try {
+        if (!fileUrl || !fileUrl.includes(B2_BUCKET_NAME)) return fileUrl;
+
+        // Extract Key
+        const urlParts = fileUrl.split(B2_BUCKET_NAME + '/');
+        if (urlParts.length < 2) return fileUrl;
+        const key = urlParts[1];
+
+        const command = new GetObjectCommand({
+            Bucket: B2_BUCKET_NAME,
+            Key: key
+        });
+
+        // Sign for 1 hour (3600 seconds)
+        const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        return signedUrl;
+    } catch (error) {
+        console.error('Signing Error:', error);
+        return fileUrl; // Fallback to original if signing fails
+    }
+};
