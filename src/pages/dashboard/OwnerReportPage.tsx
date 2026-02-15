@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AttendanceReport } from '../../components/attendance/AttendanceReport';
 import { PaymentSummary } from '../../components/attendance/PaymentSummary';
+import { AddAttendanceModal } from '../../components/attendance/AddAttendanceModal';
 import { clsx } from 'clsx';
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { WeekNav } from '../../components/common/WeekNav';
@@ -19,6 +20,9 @@ export const OwnerReportPage: React.FC = () => {
     // Lifted Week Navigation State
     const { weekStart, weekEnd, weekDays, handlePrevWeek, handleNextWeek } = useWeekNavigation();
     const weekLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')} `;
+
+    // Add Attendance Modal State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     return (
         <div className="space-y-4">
@@ -97,6 +101,7 @@ export const OwnerReportPage: React.FC = () => {
                             siteId={selectedSiteId || undefined}
                             teamId={selectedTeamId === 'ALL' ? undefined : selectedTeamId}
                             showAddButton={true}
+                            onAddAttendance={() => setIsAddModalOpen(true)}
                             dateRange={{ weekStart, weekEnd, weekDays }}
                         />
                     )}
@@ -111,6 +116,13 @@ export const OwnerReportPage: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* Add Attendance Modal */}
+            <AddAttendanceModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                initialDate={new Date()} // Or use current weekStart? new Date() is safer for general use.
+            />
         </div>
     );
 };
