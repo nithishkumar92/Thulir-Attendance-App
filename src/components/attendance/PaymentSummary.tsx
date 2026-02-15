@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { format, isSameDay } from 'date-fns';
-import { format, isSameDay } from 'date-fns';
+
 import { useWeekNavigation } from '../../hooks/useWeekNavigation';
 import { useFilteredWorkers } from '../../hooks/useFilteredWorkers';
 import { calculateShifts } from '../../utils/attendanceUtils';
