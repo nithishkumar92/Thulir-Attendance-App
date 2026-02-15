@@ -51,54 +51,67 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     });
 
     // Filter attendance by week and site
-    const weekAttendance = filterAttendanceBySite(
+    // This variable is now used for the WorkerReportCard, not for filtering visible workers
+    // The filtering for visible workers, totalDutyDays, and totalEarned is done directly on the full attendance array
+    // with siteId check.
+    const filteredWeekAttendanceForCards = filterAttendanceBySite(
         filterAttendanceByDateRange(attendance, weekStart, weekEnd),
         siteId
     );
 
-    // Filter visible workers logic (same as before)
+    // Use shared worker filtering hook
+    const allWorkers = useFilteredWorkers({
+        teamId: teamId === 'ALL' ? undefined : teamId
+    });
+
+    // Determine visible workers based on attendance in the current week
     const visibleWorkers = React.useMemo(() => {
         return allWorkers.filter(worker => {
-            const hasAnyAttendance = weekDays.some(day => {
+            // Check if worker has attendance in the current week
+            return weekDays.some(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
-                return weekAttendance.some(a =>
+                return attendance.some(a =>
                     a.workerId === worker.id &&
-                    a.date === dateStr
+                    a.date === dateStr &&
+                    (!siteId || a.siteId === siteId)
                 );
             });
-
-            if (hasAnyAttendance) return true;
-
-            const totalDuty = weekDays.reduce((sum, day) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const record = weekAttendance.find(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr
-                );
-                return sum + (record ? calculateShifts(record) : 0);
-            }, 0);
-
-            return totalDuty >= 0.5;
         });
-    }, [allWorkers, weekDays, weekAttendance]);
+    }, [allWorkers, weekDays, attendance, siteId]);
 
-    // Calculate Summary Stats
+    // Calculate summary stats
     const totalWorkers = visibleWorkers.length;
+
     const totalDutyDays = visibleWorkers.reduce((sum, worker) => {
         return sum + weekDays.reduce((dSum, day) => {
             const dateStr = format(day, 'yyyy-MM-dd');
-            const record = weekAttendance.find(a => a.workerId === worker.id && a.date === dateStr);
+            const record = attendance.find(a =>
+                a.workerId === worker.id &&
+                a.date === dateStr &&
+                (!siteId || a.siteId === siteId) // Filter attendance by site if selected
+            );
             return dSum + (record ? calculateShifts(record) : 0);
         }, 0);
     }, 0);
+
     const totalEarned = visibleWorkers.reduce((sum, worker) => {
         const workerDuty = weekDays.reduce((dSum, day) => {
             const dateStr = format(day, 'yyyy-MM-dd');
-            const record = weekAttendance.find(a => a.workerId === worker.id && a.date === dateStr);
+            const record = attendance.find(a =>
+                a.workerId === worker.id &&
+                a.date === dateStr &&
+                (!siteId || a.siteId === siteId)
+            );
             return dSum + (record ? calculateShifts(record) : 0);
         }, 0);
         return sum + (workerDuty * (worker.dailyWage || 0));
     }, 0);
+
+    // Prepare data for PDF
+    const weekAttendance = attendance.filter(a => {
+        const date = new Date(a.date);
+        return date >= weekStart && date <= weekEnd && (!siteId || a.siteId === siteId);
+    });
 
 
     const handleAddClick = () => {
@@ -109,7 +122,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         }
     };
 
-    // Generate PDF for Attendance Report  (same as before)
+    // Generate PDF for Attendance Report
     const generatePDF = () => {
         return generateWeeklyReportPDF(
             weekStart,
@@ -119,7 +132,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
             teams,
             advances,
             siteId,
-            selectedTeamId
+            teamId
         );
     };
 
@@ -162,22 +175,6 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                     </div>
                 ))}
             </div>
-
-            {/* Team Filter (Owner only) */}
-            {userRole === 'OWNER' && !teamId && (
-                <div className="bg-white p-2 border rounded-xl shadow-sm mb-3">
-                    <select
-                        value={selectedTeamId}
-                        onChange={(e) => setSelectedTeamId(e.target.value)}
-                        className="w-full p-2 border-none bg-transparent text-sm font-semibold focus:ring-0"
-                    >
-                        <option value="ALL">All Teams</option>
-                        {teams.map(team => (
-                            <option key={team.id} value={team.id}>{team.name}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
 
             {/* Add Attendance Button */}
             {showAddButton && userRole === 'OWNER' && (

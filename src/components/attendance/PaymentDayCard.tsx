@@ -21,13 +21,13 @@ export const PaymentDayCard: React.FC<PaymentDayCardProps> = ({ dayStat, uniqueR
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-3">
             {/* Date Header */}
-            <div className="bg-gray-900 text-white px-3.5 py-2.5 flex items-center justify-between">
+            <div className="bg-gray-100 border-b border-gray-200 px-3.5 py-2.5 flex items-center justify-between">
                 <div>
-                    <span className="text-[13px] font-extrabold">{format(dayStat.date, 'MMM d')}</span>
-                    <span className="text-[11px] text-gray-400 ml-2 font-medium">({format(dayStat.date, 'EEE')})</span>
+                    <span className="text-[13px] font-extrabold text-gray-900">{format(dayStat.date, 'MMM d')}</span>
+                    <span className="text-[11px] text-gray-500 ml-2 font-medium">({format(dayStat.date, 'EEE')})</span>
                 </div>
                 {hasData && (
-                    <span className="text-[13px] font-extrabold">₹{dayStat.dailyTotal.toLocaleString()}</span>
+                    <span className="text-[13px] font-extrabold text-gray-900">₹{dayStat.dailyTotal.toLocaleString()}</span>
                 )}
             </div>
 

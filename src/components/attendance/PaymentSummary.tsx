@@ -219,19 +219,19 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
             />
 
             {/* Net Payable Balance */}
-            <div className="bg-gray-900 text-white rounded-2xl p-4 my-3 shadow-md">
-                <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Net Payable Balance</div>
-                <div className="text-3xl font-black -tracking-wide mb-3">₹{balanceToPay.toLocaleString()}</div>
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 my-3 shadow-sm">
+                <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1.5">Net Payable Balance</div>
+                <div className="text-3xl font-black -tracking-wide mb-3 text-gray-900">₹{balanceToPay.toLocaleString()}</div>
 
-                <div className="flex border-t border-gray-800 pt-3">
+                <div className="flex border-t border-gray-200 pt-3">
                     {[
                         { label: "Days", val: weekDays.length.toString() },
                         { label: "Advance", val: `₹${totalAdvance.toLocaleString()}` },
                         { label: "Settlement", val: `₹${totalSettlement.toLocaleString()}` },
                     ].map(({ label, val }, i, arr) => (
-                        <div key={label} className={`flex-1 text-center ${i < arr.length - 1 ? 'border-r border-gray-800' : ''}`}>
+                        <div key={label} className={`flex-1 text-center ${i < arr.length - 1 ? 'border-r border-gray-200' : ''}`}>
                             <div className="text-[10px] text-gray-500">{label}</div>
-                            <div className="text-[13px] font-extrabold text-white mt-0.5">{val}</div>
+                            <div className="text-[13px] font-extrabold text-gray-900 mt-0.5">{val}</div>
                         </div>
                     ))}
                 </div>
