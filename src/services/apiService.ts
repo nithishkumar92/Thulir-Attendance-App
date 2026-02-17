@@ -323,13 +323,13 @@ export const deleteAppUser = async (userId: string) => {
 // --- CLIENTS ---
 
 export const fetchClients = async (): Promise<Client[]> => {
-    const response = await fetch(`${API_BASE}/clients`);
+    const response = await fetch(`${API_BASE}/client-portal?resource=clients`);
     if (!response.ok) throw new Error('Failed to fetch clients');
     return response.json();
 };
 
 export const createClient = async (client: Partial<Client>): Promise<Client> => {
-    const response = await fetch(`${API_BASE}/clients`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=clients`, {
         method: 'POST',
         headers,
         body: JSON.stringify(client)
@@ -339,7 +339,7 @@ export const createClient = async (client: Partial<Client>): Promise<Client> => 
 };
 
 export const updateClient = async (clientId: string, updates: Partial<Client>) => {
-    const response = await fetch(`${API_BASE}/clients`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=clients`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ id: clientId, ...updates })
@@ -350,15 +350,15 @@ export const updateClient = async (clientId: string, updates: Partial<Client>) =
 // --- CONTRACTS ---
 
 export const fetchContracts = async (clientId?: string): Promise<Contract[]> => {
-    let url = `${API_BASE}/contracts`;
-    if (clientId) url += `?clientId=${clientId}`;
+    let url = `${API_BASE}/client-portal?resource=contracts`;
+    if (clientId) url += `&clientId=${clientId}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch contracts');
     return response.json();
 };
 
 export const createContract = async (contract: Partial<Contract>): Promise<Contract> => {
-    const response = await fetch(`${API_BASE}/contracts`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=contracts`, {
         method: 'POST',
         headers,
         body: JSON.stringify(contract)
@@ -368,7 +368,7 @@ export const createContract = async (contract: Partial<Contract>): Promise<Contr
 };
 
 export const updateContract = async (contractId: string, updates: Partial<Contract>) => {
-    const response = await fetch(`${API_BASE}/contracts`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=contracts`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ id: contractId, ...updates })
@@ -379,13 +379,13 @@ export const updateContract = async (contractId: string, updates: Partial<Contra
 // --- MILESTONES ---
 
 export const fetchMilestones = async (contractId: string): Promise<Milestone[]> => {
-    const response = await fetch(`${API_BASE}/milestones?contractId=${contractId}`);
+    const response = await fetch(`${API_BASE}/client-portal?resource=milestones&contractId=${contractId}`);
     if (!response.ok) throw new Error('Failed to fetch milestones');
     return response.json();
 };
 
 export const createMilestone = async (milestone: Partial<Milestone>): Promise<Milestone> => {
-    const response = await fetch(`${API_BASE}/milestones`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=milestones`, {
         method: 'POST',
         headers,
         body: JSON.stringify(milestone)
@@ -395,7 +395,7 @@ export const createMilestone = async (milestone: Partial<Milestone>): Promise<Mi
 };
 
 export const updateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
-    const response = await fetch(`${API_BASE}/milestones`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=milestones`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ id: milestoneId, ...updates })
@@ -406,13 +406,13 @@ export const updateMilestone = async (milestoneId: string, updates: Partial<Mile
 // --- ESTIMATE ITEMS ---
 
 export const fetchEstimateItems = async (contractId: string): Promise<EstimateItem[]> => {
-    const response = await fetch(`${API_BASE}/estimate-items?contractId=${contractId}`);
+    const response = await fetch(`${API_BASE}/client-portal?resource=estimate-items&contractId=${contractId}`);
     if (!response.ok) throw new Error('Failed to fetch estimate items');
     return response.json();
 };
 
 export const createEstimateItem = async (item: Partial<EstimateItem>): Promise<EstimateItem> => {
-    const response = await fetch(`${API_BASE}/estimate-items`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=estimate-items`, {
         method: 'POST',
         headers,
         body: JSON.stringify(item)
@@ -422,7 +422,7 @@ export const createEstimateItem = async (item: Partial<EstimateItem>): Promise<E
 };
 
 export const updateEstimateItem = async (itemId: string, updates: Partial<EstimateItem>) => {
-    const response = await fetch(`${API_BASE}/estimate-items`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=estimate-items`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ id: itemId, ...updates })
@@ -431,7 +431,7 @@ export const updateEstimateItem = async (itemId: string, updates: Partial<Estima
 };
 
 export const deleteEstimateItem = async (itemId: string) => {
-    const response = await fetch(`${API_BASE}/estimate-items?id=${itemId}`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=estimate-items&id=${itemId}`, {
         method: 'DELETE',
         headers
     });
@@ -441,7 +441,7 @@ export const deleteEstimateItem = async (itemId: string) => {
 // --- CLIENT PAYMENTS ---
 
 export const fetchClientPayments = async (contractId: string, clientView: boolean = false): Promise<ClientPayment[]> => {
-    let url = `${API_BASE}/client-payments?contractId=${contractId}`;
+    let url = `${API_BASE}/client-portal?resource=client-payments&contractId=${contractId}`;
     if (clientView) url += '&status=RECEIVED'; // Clients only see received payments
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch client payments');
@@ -449,7 +449,7 @@ export const fetchClientPayments = async (contractId: string, clientView: boolea
 };
 
 export const createClientPayment = async (payment: Partial<ClientPayment>): Promise<ClientPayment> => {
-    const response = await fetch(`${API_BASE}/client-payments`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=client-payments`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payment)
@@ -459,7 +459,7 @@ export const createClientPayment = async (payment: Partial<ClientPayment>): Prom
 };
 
 export const updateClientPayment = async (paymentId: string, updates: Partial<ClientPayment>) => {
-    const response = await fetch(`${API_BASE}/client-payments`, {
+    const response = await fetch(`${API_BASE}/client-portal?resource=client-payments`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ id: paymentId, ...updates })
