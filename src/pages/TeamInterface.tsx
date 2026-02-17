@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { LazyWorkerImage } from '../components/common/LazyWorkerImage';
+import { ImageCropper } from '../components/common/ImageCropper';
 import { getCurrentLocation, calculateDistance } from '../utils/geo'; // Assuming this utility exists or is imported correctly
 import { CheckCircle, XCircle, MapPin, Camera, User as UserIcon, LogOut, FileText, CreditCard, Plus, X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Site, Worker } from '../types';
@@ -83,6 +84,7 @@ export const TeamInterface: React.FC = () => {
     const [newWorkerRole, setNewWorkerRole] = useState('');
     const [newWorkerPhoto, setNewWorkerPhoto] = useState<string>('');
     const [newWorkerAadhaar, setNewWorkerAadhaar] = useState<string>('');
+    const [croppingPhoto, setCroppingPhoto] = useState<string | null>(null);
 
     const handleAddWorker = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,9 +122,14 @@ export const TeamInterface: React.FC = () => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = () => setNewWorkerPhoto(reader.result as string);
+            reader.onloadend = () => setCroppingPhoto(reader.result as string);
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleCropComplete = (croppedImage: string) => {
+        setNewWorkerPhoto(croppedImage);
+        setCroppingPhoto(null);
     };
 
     // Pull to Refresh State
@@ -1389,6 +1396,16 @@ export const TeamInterface: React.FC = () => {
                 )
             }
 
+            {/* Image Cropper Modal */}
+            {croppingPhoto && (
+                <ImageCropper
+                    imageSrc={croppingPhoto}
+                    onCropComplete={handleCropComplete}
+                    onCancel={() => setCroppingPhoto(null)}
+                    circular={true}
+                />
+            )}
+
             {/* Processing Overlay */}
             {isSubmitting && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[100]">
@@ -1405,7 +1422,9 @@ export const TeamInterface: React.FC = () => {
                 <NavButton icon={<LogOut className="rotate-180" />} label="Punch In" active={activeTab === 'PUNCH_IN'} onClick={() => setActiveTab('PUNCH_IN')} />
                 <NavButton icon={<LogOut />} label="Punch Out" active={activeTab === 'PUNCH_OUT'} onClick={() => setActiveTab('PUNCH_OUT')} />
                 <NavButton icon={<CreditCard />} label="Advance" active={activeTab === 'ADVANCE'} onClick={() => setActiveTab('ADVANCE')} />
-                <NavButton icon={<FileText />} label="Report" active={activeTab === 'REPORT'} onClick={() => setActiveTab('REPORT')} />
+                {currentUser?.role !== 'WORKER' && (
+                    <NavButton icon={<FileText />} label="Report" active={activeTab === 'REPORT'} onClick={() => setActiveTab('REPORT')} />
+                )}
             </div>
         </div >
     );

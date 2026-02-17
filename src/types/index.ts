@@ -1,4 +1,4 @@
-export type Role = 'OWNER' | 'TEAM_REP' | 'WORKER';
+export type Role = 'OWNER' | 'TEAM_REP' | 'WORKER' | 'CLIENT';
 
 export interface User {
     id: string;
@@ -74,4 +74,60 @@ export interface AdvancePayment {
     date: string;
     notes?: string;
     siteId?: string; // Optional for backward compatibility, but should be populated going forward
+}
+
+// Client Portal Types
+export interface Client {
+    id: string;
+    name: string;
+    companyName?: string;
+    email: string;
+    phone?: string;
+}
+
+export interface Contract {
+    id: string;
+    clientId: string;
+    siteId: string;
+    contractNumber: string;
+    totalAmount: number;
+    startDate?: string;
+    endDate?: string;
+    status: 'ACTIVE' | 'COMPLETED' | 'ON_HOLD';
+}
+
+export interface Milestone {
+    id: string;
+    contractId: string;
+    name: string;
+    description?: string;
+    budgetedAmount: number;
+    completedAmount: number;
+    orderIndex: number;
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+}
+
+export interface EstimateItem {
+    id: string;
+    contractId: string;
+    date?: string;
+    description: string;
+    unit?: string;
+    quantity?: number;
+    rate?: number;
+    amount: number;
+    remarks?: string;
+    orderIndex: number;
+}
+
+export interface ClientPayment {
+    id: string;
+    contractId: string;
+    milestoneId?: string;
+    amount: number;
+    paymentDate: string;
+    status: 'PENDING' | 'RECEIVED' | 'REJECTED';
+    paymentMethod?: string;
+    transactionReference?: string;
+    notes?: string;
 }

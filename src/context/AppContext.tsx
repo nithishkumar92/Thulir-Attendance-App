@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Team, Site, Worker, AttendanceRecord, AdvancePayment, Role } from '../types';
+import { User, Team, Site, Worker, AttendanceRecord, AdvancePayment, Role, Client, Contract, Milestone, EstimateItem, ClientPayment } from '../types';
 import { loadData, INITIAL_DATA } from '../services/mockData';
 import * as api from '../services/apiService';
 import { calculateDutyPoints } from '../utils/wageUtils';
@@ -14,6 +14,11 @@ interface AppState {
     attendance: AttendanceRecord[];
     missingPunchOuts: AttendanceRecord[];
     advances: AdvancePayment[];
+    clients: Client[];
+    contracts: Contract[];
+    milestones: Milestone[];
+    estimateItems: EstimateItem[];
+    clientPayments: ClientPayment[];
     isLoading: boolean;
 }
 
@@ -41,6 +46,19 @@ interface AppContextType extends AppState {
     deleteWorker: (workerId: string) => void;
     deleteTeam: (teamId: string) => void;
     refreshData: () => Promise<void>;
+    // Client Portal Methods
+    addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+    updateClient: (id: string, client: Partial<Client>) => Promise<void>;
+    addContract: (contract: Omit<Contract, 'id'>) => Promise<void>;
+    updateContract: (id: string, contract: Partial<Contract>) => Promise<void>;
+    addMilestone: (milestone: Omit<Milestone, 'id'>) => Promise<void>;
+    updateMilestone: (id: string, milestone: Partial<Milestone>) => Promise<void>;
+    addEstimateItem: (item: Omit<EstimateItem, 'id'>) => Promise<void>;
+    updateEstimateItem: (id: string, item: Partial<EstimateItem>) => Promise<void>;
+    deleteEstimateItem: (id: string) => Promise<void>;
+    addClientPayment: (payment: Omit<ClientPayment, 'id'>) => Promise<void>;
+    updateClientPayment: (id: string, payment: Partial<ClientPayment>) => Promise<void>;
+    fetchClientData: (contractId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -75,6 +93,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             attendance: [],
             missingPunchOuts: [],
             advances: [],
+            clients: [],
+            contracts: [],
+            milestones: [],
+            estimateItems: [],
+            clientPayments: [],
             isLoading: true,
         };
     });
@@ -486,6 +509,182 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     };
 
+    // Client Portal Methods
+    const addClient = async (client: Omit<Client, 'id'>) => {
+        try {
+            const newClient = await api.createClient(client);
+            setState(prev => ({
+                ...prev,
+                clients: [...prev.clients, newClient]
+            }));
+        } catch (error) {
+            console.error("Error adding client:", error);
+            alert("Failed to add client.");
+            throw error;
+        }
+    };
+
+    const updateClient = async (id: string, updates: Partial<Client>) => {
+        try {
+            await api.updateClient(id, updates);
+            setState(prev => ({
+                ...prev,
+                clients: prev.clients.map(c => c.id === id ? { ...c, ...updates } : c)
+            }));
+        } catch (error) {
+            console.error("Error updating client:", error);
+            alert("Failed to update client.");
+            throw error;
+        }
+    };
+
+    const addContract = async (contract: Omit<Contract, 'id'>) => {
+        try {
+            const newContract = await api.createContract(contract);
+            setState(prev => ({
+                ...prev,
+                contracts: [...prev.contracts, newContract]
+            }));
+        } catch (error) {
+            console.error("Error adding contract:", error);
+            alert("Failed to add contract.");
+            throw error;
+        }
+    };
+
+    const updateContract = async (id: string, updates: Partial<Contract>) => {
+        try {
+            await api.updateContract(id, updates);
+            setState(prev => ({
+                ...prev,
+                contracts: prev.contracts.map(c => c.id === id ? { ...c, ...updates } : c)
+            }));
+        } catch (error) {
+            console.error("Error updating contract:", error);
+            alert("Failed to update contract.");
+            throw error;
+        }
+    };
+
+    const addMilestone = async (milestone: Omit<Milestone, 'id'>) => {
+        try {
+            const newMilestone = await api.createMilestone(milestone);
+            setState(prev => ({
+                ...prev,
+                milestones: [...prev.milestones, newMilestone]
+            }));
+        } catch (error) {
+            console.error("Error adding milestone:", error);
+            alert("Failed to add milestone.");
+            throw error;
+        }
+    };
+
+    const updateMilestone = async (id: string, updates: Partial<Milestone>) => {
+        try {
+            await api.updateMilestone(id, updates);
+            setState(prev => ({
+                ...prev,
+                milestones: prev.milestones.map(m => m.id === id ? { ...m, ...updates } : m)
+            }));
+        } catch (error) {
+            console.error("Error updating milestone:", error);
+            alert("Failed to update milestone.");
+            throw error;
+        }
+    };
+
+    const addEstimateItem = async (item: Omit<EstimateItem, 'id'>) => {
+        try {
+            const newItem = await api.createEstimateItem(item);
+            setState(prev => ({
+                ...prev,
+                estimateItems: [...prev.estimateItems, newItem]
+            }));
+        } catch (error) {
+            console.error("Error adding estimate item:", error);
+            alert("Failed to add estimate item.");
+            throw error;
+        }
+    };
+
+    const updateEstimateItem = async (id: string, updates: Partial<EstimateItem>) => {
+        try {
+            await api.updateEstimateItem(id, updates);
+            setState(prev => ({
+                ...prev,
+                estimateItems: prev.estimateItems.map(i => i.id === id ? { ...i, ...updates } : i)
+            }));
+        } catch (error) {
+            console.error("Error updating estimate item:", error);
+            alert("Failed to update estimate item.");
+            throw error;
+        }
+    };
+
+    const deleteEstimateItem = async (id: string) => {
+        try {
+            await api.deleteEstimateItem(id);
+            setState(prev => ({
+                ...prev,
+                estimateItems: prev.estimateItems.filter(i => i.id !== id)
+            }));
+        } catch (error) {
+            console.error("Error deleting estimate item:", error);
+            alert("Failed to delete estimate item.");
+            throw error;
+        }
+    };
+
+    const addClientPayment = async (payment: Omit<ClientPayment, 'id'>) => {
+        try {
+            const newPayment = await api.createClientPayment(payment);
+            setState(prev => ({
+                ...prev,
+                clientPayments: [...prev.clientPayments, newPayment]
+            }));
+        } catch (error) {
+            console.error("Error adding client payment:", error);
+            alert("Failed to add client payment.");
+            throw error;
+        }
+    };
+
+    const updateClientPayment = async (id: string, updates: Partial<ClientPayment>) => {
+        try {
+            await api.updateClientPayment(id, updates);
+            setState(prev => ({
+                ...prev,
+                clientPayments: prev.clientPayments.map(p => p.id === id ? { ...p, ...updates } : p)
+            }));
+        } catch (error) {
+            console.error("Error updating client payment:", error);
+            alert("Failed to update client payment.");
+            throw error;
+        }
+    };
+
+    const fetchClientData = async (contractId: string) => {
+        try {
+            const [milestones, estimateItems, clientPayments] = await Promise.all([
+                api.fetchMilestones(contractId),
+                api.fetchEstimateItems(contractId),
+                api.fetchClientPayments(contractId, true) // true = client view (RECEIVED only)
+            ]);
+            setState(prev => ({
+                ...prev,
+                milestones,
+                estimateItems,
+                clientPayments
+            }));
+        } catch (error) {
+            console.error("Error fetching client data:", error);
+            alert("Failed to load client data.");
+            throw error;
+        }
+    };
+
+
     return (
         <AppContext.Provider value={{
             ...state,
@@ -511,7 +710,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             deleteSite,
             deleteWorker,
             deleteTeam,
-            refreshData
+            refreshData,
+            // Client Portal Methods
+            addClient,
+            updateClient,
+            addContract,
+            updateContract,
+            addMilestone,
+            updateMilestone,
+            addEstimateItem,
+            updateEstimateItem,
+            deleteEstimateItem,
+            addClientPayment,
+            updateClientPayment,
+            fetchClientData
         }}>
             {children}
         </AppContext.Provider>

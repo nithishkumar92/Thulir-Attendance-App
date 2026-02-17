@@ -18,7 +18,7 @@ CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     email TEXT,
     name TEXT,
-    role TEXT CHECK (role IN ('OWNER', 'TEAM_REP')),
+    role TEXT CHECK (role IN ('OWNER', 'TEAM_REP', 'CLIENT')),
     team_id UUID REFERENCES teams(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -123,3 +123,97 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- 7. CLIENTS TABLE
+CREATE TABLE clients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    company_name TEXT,
+    email TEXT UNIQUE NOT NULL,
+    phone TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 8. CONTRACTS TABLE
+CREATE TABLE contracts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_id UUID REFERENCES clients(id),
+    site_id UUID REFERENCES sites(id),
+    contract_number TEXT UNIQUE NOT NULL,
+    total_amount NUMERIC NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    status TEXT CHECK (status IN ('ACTIVE', 'COMPLETED', 'ON_HOLD')) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 9. ESTIMATE ITEMS TABLE
+CREATE TABLE estimate_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
+    date DATE,
+    description TEXT NOT NULL,
+    unit TEXT,
+    quantity NUMERIC,
+    rate NUMERIC,
+    amount NUMERIC NOT NULL,
+    remarks TEXT,
+    order_index INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 10. MILESTONES TABLE
+CREATE TABLE milestones (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    budgeted_amount NUMERIC NOT NULL,
+    completed_amount NUMERIC DEFAULT 0,
+    order_index INTEGER DEFAULT 0,
+    status TEXT CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED')) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 11. CLIENT PAYMENTS TABLE
+CREATE TABLE client_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
+    milestone_id UUID REFERENCES milestones(id),
+    amount NUMERIC NOT NULL,
+    payment_date DATE NOT NULL,
+    status TEXT CHECK (status IN ('PENDING', 'RECEIVED', 'REJECTED')) DEFAULT 'PENDING',
+    payment_method TEXT,
+    transaction_reference TEXT,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS Policies for Client Portal Tables
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE estimate_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE milestones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_payments ENABLE ROW LEVEL SECURITY;
+
+-- Public access policies (for development)
+CREATE POLICY "Public Read Access Clients" ON clients FOR SELECT USING (true);
+CREATE POLICY "Public Insert Access Clients" ON clients FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Access Clients" ON clients FOR UPDATE USING (true);
+
+CREATE POLICY "Public Read Access Contracts" ON contracts FOR SELECT USING (true);
+CREATE POLICY "Public Insert Access Contracts" ON contracts FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Access Contracts" ON contracts FOR UPDATE USING (true);
+
+CREATE POLICY "Public Read Access Estimate Items" ON estimate_items FOR SELECT USING (true);
+CREATE POLICY "Public Insert Access Estimate Items" ON estimate_items FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Access Estimate Items" ON estimate_items FOR UPDATE USING (true);
+CREATE POLICY "Public Delete Access Estimate Items" ON estimate_items FOR DELETE USING (true);
+
+CREATE POLICY "Public Read Access Milestones" ON milestones FOR SELECT USING (true);
+CREATE POLICY "Public Insert Access Milestones" ON milestones FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Access Milestones" ON milestones FOR UPDATE USING (true);
+
+CREATE POLICY "Public Read Access Client Payments" ON client_payments FOR SELECT USING (true);
+CREATE POLICY "Public Insert Access Client Payments" ON client_payments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Access Client Payments" ON client_payments FOR UPDATE USING (true);

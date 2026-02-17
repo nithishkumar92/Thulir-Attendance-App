@@ -13,6 +13,7 @@ import { TeamManagement } from './pages/dashboard/TeamManagement';
 import { AdvanceManagement } from './pages/dashboard/AdvanceManagement';
 import { UserManagement } from './pages/dashboard/UserManagement';
 import { OwnerReportPage } from './pages/dashboard/OwnerReportPage';
+import { ClientPortal } from './pages/ClientPortal';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, roles?: string[] }> = ({ children, roles }) => {
     const { currentUser } = useApp();
@@ -56,8 +57,16 @@ function App() {
                     <Route
                         path="/team/*"
                         element={
-                            <ProtectedRoute roles={['TEAM_REP']}>
+                            <ProtectedRoute roles={['TEAM_REP', 'WORKER']}>
                                 <TeamInterface />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/client"
+                        element={
+                            <ProtectedRoute roles={['CLIENT']}>
+                                <ClientPortal />
                             </ProtectedRoute>
                         }
                     />

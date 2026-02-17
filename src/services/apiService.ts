@@ -1,4 +1,4 @@
-import { User, Worker, Team, Site, AttendanceRecord, AdvancePayment } from '../types';
+import { User, Worker, Team, Site, AttendanceRecord, AdvancePayment, Client, Contract, Milestone, EstimateItem, ClientPayment } from '../types';
 import { INITIAL_DATA } from './mockData';
 
 const API_BASE = '/api'; // Vercel routes /api -> api/ folder
@@ -318,4 +318,151 @@ export const deleteAppUser = async (userId: string) => {
         headers
     });
     if (!response.ok) throw new Error('Failed to delete user');
+};
+
+// --- CLIENTS ---
+
+export const fetchClients = async (): Promise<Client[]> => {
+    const response = await fetch(`${API_BASE}/clients`);
+    if (!response.ok) throw new Error('Failed to fetch clients');
+    return response.json();
+};
+
+export const createClient = async (client: Partial<Client>): Promise<Client> => {
+    const response = await fetch(`${API_BASE}/clients`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(client)
+    });
+    if (!response.ok) throw new Error('Failed to create client');
+    return response.json();
+};
+
+export const updateClient = async (clientId: string, updates: Partial<Client>) => {
+    const response = await fetch(`${API_BASE}/clients`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id: clientId, ...updates })
+    });
+    if (!response.ok) throw new Error('Failed to update client');
+};
+
+// --- CONTRACTS ---
+
+export const fetchContracts = async (clientId?: string): Promise<Contract[]> => {
+    let url = `${API_BASE}/contracts`;
+    if (clientId) url += `?clientId=${clientId}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch contracts');
+    return response.json();
+};
+
+export const createContract = async (contract: Partial<Contract>): Promise<Contract> => {
+    const response = await fetch(`${API_BASE}/contracts`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(contract)
+    });
+    if (!response.ok) throw new Error('Failed to create contract');
+    return response.json();
+};
+
+export const updateContract = async (contractId: string, updates: Partial<Contract>) => {
+    const response = await fetch(`${API_BASE}/contracts`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id: contractId, ...updates })
+    });
+    if (!response.ok) throw new Error('Failed to update contract');
+};
+
+// --- MILESTONES ---
+
+export const fetchMilestones = async (contractId: string): Promise<Milestone[]> => {
+    const response = await fetch(`${API_BASE}/milestones?contractId=${contractId}`);
+    if (!response.ok) throw new Error('Failed to fetch milestones');
+    return response.json();
+};
+
+export const createMilestone = async (milestone: Partial<Milestone>): Promise<Milestone> => {
+    const response = await fetch(`${API_BASE}/milestones`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(milestone)
+    });
+    if (!response.ok) throw new Error('Failed to create milestone');
+    return response.json();
+};
+
+export const updateMilestone = async (milestoneId: string, updates: Partial<Milestone>) => {
+    const response = await fetch(`${API_BASE}/milestones`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id: milestoneId, ...updates })
+    });
+    if (!response.ok) throw new Error('Failed to update milestone');
+};
+
+// --- ESTIMATE ITEMS ---
+
+export const fetchEstimateItems = async (contractId: string): Promise<EstimateItem[]> => {
+    const response = await fetch(`${API_BASE}/estimate-items?contractId=${contractId}`);
+    if (!response.ok) throw new Error('Failed to fetch estimate items');
+    return response.json();
+};
+
+export const createEstimateItem = async (item: Partial<EstimateItem>): Promise<EstimateItem> => {
+    const response = await fetch(`${API_BASE}/estimate-items`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(item)
+    });
+    if (!response.ok) throw new Error('Failed to create estimate item');
+    return response.json();
+};
+
+export const updateEstimateItem = async (itemId: string, updates: Partial<EstimateItem>) => {
+    const response = await fetch(`${API_BASE}/estimate-items`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id: itemId, ...updates })
+    });
+    if (!response.ok) throw new Error('Failed to update estimate item');
+};
+
+export const deleteEstimateItem = async (itemId: string) => {
+    const response = await fetch(`${API_BASE}/estimate-items?id=${itemId}`, {
+        method: 'DELETE',
+        headers
+    });
+    if (!response.ok) throw new Error('Failed to delete estimate item');
+};
+
+// --- CLIENT PAYMENTS ---
+
+export const fetchClientPayments = async (contractId: string, clientView: boolean = false): Promise<ClientPayment[]> => {
+    let url = `${API_BASE}/client-payments?contractId=${contractId}`;
+    if (clientView) url += '&status=RECEIVED'; // Clients only see received payments
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch client payments');
+    return response.json();
+};
+
+export const createClientPayment = async (payment: Partial<ClientPayment>): Promise<ClientPayment> => {
+    const response = await fetch(`${API_BASE}/client-payments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payment)
+    });
+    if (!response.ok) throw new Error('Failed to create client payment');
+    return response.json();
+};
+
+export const updateClientPayment = async (paymentId: string, updates: Partial<ClientPayment>) => {
+    const response = await fetch(`${API_BASE}/client-payments`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id: paymentId, ...updates })
+    });
+    if (!response.ok) throw new Error('Failed to update client payment');
 };
