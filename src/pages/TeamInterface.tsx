@@ -351,6 +351,7 @@ export const TeamInterface: React.FC = () => {
                 punchInTime: now,
                 punchInLocation: currentLocation || selectedSite.location, // Fallback
                 status: 'PRESENT',
+                dutyPoints: 0, // Initialize duty points, will be calculated on punch-out
                 verified: true,
                 punchInPhoto: photo || undefined
             });
