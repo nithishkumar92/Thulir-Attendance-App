@@ -7,11 +7,13 @@ export const ClientPortal: React.FC = () => {
     const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // For demo purposes, we'll assume the client has contracts
-    // In production, you'd fetch contracts for the logged-in client
+    // Initial load - check if we have contracts
     useEffect(() => {
         if (contracts.length > 0 && !selectedContract) {
             setSelectedContract(contracts[0]);
+        } else if (contracts.length === 0) {
+            // No contracts available, stop loading
+            setLoading(false);
         }
     }, [contracts, selectedContract]);
 
@@ -38,6 +40,19 @@ export const ClientPortal: React.FC = () => {
         return (
             <div className="min-h-screen bg-[#0f1419] flex items-center justify-center">
                 <div className="text-white text-xl">Loading...</div>
+            </div>
+        );
+    }
+
+    if (contracts.length === 0) {
+        return (
+            <div className="min-h-screen bg-[#0f1419] flex items-center justify-center p-4">
+                <div className="bg-[#1a1f37] rounded-xl p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-bold text-white mb-4">No Contracts Found</h2>
+                    <p className="text-gray-400">
+                        You don't have any contracts assigned yet. Please contact the administrator to set up your contracts.
+                    </p>
+                </div>
             </div>
         );
     }
