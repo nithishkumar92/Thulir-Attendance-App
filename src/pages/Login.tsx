@@ -33,8 +33,10 @@ export const Login: React.FC = () => {
             if (user) {
                 if (user.role === 'OWNER') {
                     navigate('/dashboard');
+                } else if (user.role === 'CLIENT') {
+                    navigate('/client');
                 } else {
-                    navigate('/team'); // or wherever team reps go
+                    navigate('/team'); // TEAM_REP and WORKER
                 }
             } else {
                 setError('Invalid credentials');
