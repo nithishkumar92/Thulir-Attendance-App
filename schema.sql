@@ -18,7 +18,7 @@ CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     email TEXT,
     name TEXT,
-    role TEXT CHECK (role IN ('OWNER', 'TEAM_REP', 'CLIENT')),
+    role TEXT CHECK (role IN ('OWNER', 'TEAM_REP', 'CLIENT', 'WORKER')),
     team_id UUID REFERENCES teams(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
