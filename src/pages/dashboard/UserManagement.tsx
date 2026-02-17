@@ -4,9 +4,10 @@ import { User, Role } from '../../types';
 import { Plus, Edit, Trash2, Key, Save, X, Lock, Unlock } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
-    const { users, teams, addUser, updateUserPassword, deleteUser, updateUserStatus } = useApp();
+    const { users, teams, addUser, updateUserPassword, updateUser, deleteUser, updateUserStatus } = useApp();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
     // Form States
@@ -15,6 +16,10 @@ export const UserManagement: React.FC = () => {
     const [newName, setNewName] = useState('');
     const [newRole, setNewRole] = useState<Role>('TEAM_REP');
     const [newTeamId, setNewTeamId] = useState('');
+
+    // Edit Form States
+    const [editRole, setEditRole] = useState<Role>('TEAM_REP');
+    const [editTeamId, setEditTeamId] = useState('');
 
     const [passwordUpdate, setPasswordUpdate] = useState('');
 
@@ -39,6 +44,15 @@ export const UserManagement: React.FC = () => {
             updateUserPassword(selectedUser.id, passwordUpdate);
             setIsPasswordModalOpen(false);
             setPasswordUpdate('');
+            setSelectedUser(null);
+        }
+    };
+
+    const handleEditUser = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedUser) {
+            updateUser(selectedUser.id, editRole, editTeamId || undefined);
+            setIsEditModalOpen(false);
             setSelectedUser(null);
         }
     };
@@ -95,6 +109,18 @@ export const UserManagement: React.FC = () => {
                                     {/* Displaying plain text as requested for full control */}
                                 </td>
                                 <td className="px-6 py-4 text-right space-x-2">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedUser(user);
+                                            setEditRole(user.role);
+                                            setEditTeamId(user.teamId || '');
+                                            setIsEditModalOpen(true);
+                                        }}
+                                        className="text-gray-400 hover:text-blue-600"
+                                        title="Edit User"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
                                     <button
                                         onClick={() => {
                                             setSelectedUser(user);
@@ -207,6 +233,55 @@ export const UserManagement: React.FC = () => {
                             <div className="flex justify-end gap-3 pt-4">
                                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
                                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create User</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit User Modal */}
+            {isEditModalOpen && selectedUser && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Edit User: {selectedUser.name}</h3>
+                            <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleEditUser} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={editRole}
+                                    onChange={e => setEditRole(e.target.value as Role)}
+                                >
+                                    <option value="TEAM_REP">Team Representative</option>
+                                    <option value="WORKER">Worker</option>
+                                    <option value="CLIENT">Client</option>
+                                    <option value="OWNER">Owner (Admin)</option>
+                                </select>
+                            </div>
+                            {(editRole === 'TEAM_REP' || editRole === 'WORKER') && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign Team</label>
+                                    <select
+                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={editTeamId}
+                                        onChange={e => setEditTeamId(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">Select a team...</option>
+                                        {teams.map(team => (
+                                            <option key={team.id} value={team.id}>{team.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Changes</button>
                             </div>
                         </form>
                     </div>

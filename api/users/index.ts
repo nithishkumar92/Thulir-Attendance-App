@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PATCH: Update user (password or status)
     if (req.method === 'PATCH') {
-        const { id, password, isLocked, name, teamId } = req.body;
+        const { id, password, isLocked, name, teamId, role } = req.body;
         if (!id) return res.status(400).json({ error: 'User ID required' });
 
         try {
@@ -100,6 +100,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (name) {
                 fields.push(`name = $${idx++}`);
                 values.push(name);
+            }
+            if (role) {
+                fields.push(`role = $${idx++}`);
+                values.push(role);
             }
             if (teamId !== undefined) {
                 fields.push(`team_id = $${idx++}`);

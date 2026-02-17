@@ -38,6 +38,7 @@ interface AppContextType extends AppState {
     updateTeam: (team: Team) => void;
     addUser: (user: User) => void;
     updateUserPassword: (userId: string, newPassword: string) => void;
+    updateUser: (userId: string, role: Role, teamId?: string) => void;
     updateUserStatus: (userId: string, isLocked: boolean) => void;
     deleteUser: (userId: string) => void;
     deleteAttendance: (id: string) => void;
@@ -456,6 +457,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     };
 
+    const updateUser = async (userId: string, role: Role, teamId?: string) => {
+        try {
+            await api.updateAppUser(userId, { role, teamId: teamId || undefined });
+            setState(prev => ({
+                ...prev,
+                users: prev.users.map(u => u.id === userId ? { ...u, role, teamId } : u)
+            }));
+            alert("User updated successfully");
+        } catch (error: any) {
+            console.error("Error updating user:", error);
+            alert(`Failed to update user: ${error.message}`);
+        }
+    };
+
     const deleteUser = async (userId: string) => {
         try {
             await api.deleteAppUser(userId);
@@ -703,6 +718,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updateTeam,
             addUser,
             updateUserPassword,
+            updateUser,
             updateUserStatus,
             deleteUser,
             deleteAttendance,
