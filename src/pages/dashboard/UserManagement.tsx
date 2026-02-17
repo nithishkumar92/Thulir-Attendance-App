@@ -26,7 +26,7 @@ export const UserManagement: React.FC = () => {
             password: newPassword,
             name: newName,
             role: newRole,
-            teamId: newRole === 'TEAM_REP' ? newTeamId : undefined
+            teamId: (newRole === 'TEAM_REP' || newRole === 'WORKER') ? newTeamId : undefined
         };
         addUser(newUser);
         setIsAddModalOpen(false);
@@ -183,10 +183,12 @@ export const UserManagement: React.FC = () => {
                                     onChange={e => setNewRole(e.target.value as Role)}
                                 >
                                     <option value="TEAM_REP">Team Representative</option>
+                                    <option value="WORKER">Worker</option>
+                                    <option value="CLIENT">Client</option>
                                     <option value="OWNER">Owner (Admin)</option>
                                 </select>
                             </div>
-                            {newRole === 'TEAM_REP' && (
+                            {(newRole === 'TEAM_REP' || newRole === 'WORKER') && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Assign Team</label>
                                     <select
