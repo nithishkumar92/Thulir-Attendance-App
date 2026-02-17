@@ -23,6 +23,20 @@ CREATE TABLE profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+
+-- 2a. USERS TABLE (Custom Auth)
+-- This table stores application users with passwords (bcrypted).
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT CHECK (role IN ('OWNER', 'TEAM_REP', 'CLIENT', 'WORKER')),
+    team_id UUID REFERENCES teams(id),
+    is_locked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 3. SITES TABLE
 CREATE TABLE sites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
