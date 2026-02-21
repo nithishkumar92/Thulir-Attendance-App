@@ -88,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     status = EXCLUDED.status,
                     check_in_time = EXCLUDED.check_in_time,
                     check_out_time = EXCLUDED.check_out_time,
+                    check_out_location = EXCLUDED.check_out_location,
                     duty_points = EXCLUDED.duty_points,
                     location_verified = EXCLUDED.location_verified
                 RETURNING *, date::TEXT as date_str`,

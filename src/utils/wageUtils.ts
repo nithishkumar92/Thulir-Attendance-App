@@ -12,7 +12,8 @@ const SLOTS: TimeSlot[] = [
     { name: 'Early Morning', startHour: 6, endHour: 9, points: 0.5 },
     { name: 'Morning', startHour: 9, endHour: 13, points: 0.5 }, // 9 AM - 1 PM
     // Lunch 1 PM - 2 PM is ignored
-    { name: 'Afternoon', startHour: 14, endHour: 18, points: 0.5 } // 2 PM - 6 PM
+    { name: 'Afternoon', startHour: 14, endHour: 18, points: 0.5 }, // 2 PM - 6 PM
+    { name: 'Evening', startHour: 18, endHour: 22, points: 0.5 }   // 6 PM - 10 PM
 ];
 
 export const calculateDutyPoints = (checkInTime: Date, checkOutTime: Date): number => {

@@ -313,16 +313,20 @@ export const AttendanceCorrections: React.FC = () => {
                                                         value={editForm.status}
                                                         onChange={e => setEditForm({ ...editForm, status: e.target.value as any })}
                                                     >
-                                                        <option value="PRESENT">Present</option>
-                                                        <option value="ABSENT">Absent</option>
-                                                        <option value="HALF_DAY">Half Day</option>
+                                                        <option value="PRESENT">X — Present (1 Duty)</option>
+                                                        <option value="HALF_DAY">/ — Half Day (0.5)</option>
+                                                        <option value="OVERTIME">X/ — Overtime (1.5)</option>
+                                                        <option value="DOUBLE_SHIFT">X// — Double Shift (2)</option>
+                                                        <option value="ABSENT">A — Absent</option>
                                                     </select>
                                                 ) : (
                                                     <span className={clsx(
                                                         "px-2.5 py-0.5 rounded-full text-xs font-bold border",
                                                         record.status === 'PRESENT' ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800" :
                                                             record.status === 'ABSENT' ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800" :
-                                                                "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-800"
+                                                                record.status === 'OVERTIME' ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800" :
+                                                                    record.status === 'DOUBLE_SHIFT' ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800" :
+                                                                        "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-800"
                                                     )}>
                                                         {record.status}
                                                     </span>

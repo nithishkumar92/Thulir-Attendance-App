@@ -62,7 +62,7 @@ export interface AttendanceRecord {
     punchOutLocation?: { lat: number, lng: number };
     punchInPhoto?: string; // base64 or url
     punchOutPhoto?: string;
-    status: 'PRESENT' | 'ABSENT' | 'HALF_DAY';
+    status: 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'OVERTIME' | 'DOUBLE_SHIFT';
     dutyPoints?: number;
     verified: boolean; // Location verified
 }

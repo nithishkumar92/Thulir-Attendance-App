@@ -16,7 +16,7 @@ export const AddAttendanceModal: React.FC<AddAttendanceModalProps> = ({ isOpen, 
     const [workerId, setWorkerId] = useState('');
     const [siteId, setSiteId] = useState('');
     const [date, setDate] = useState(format(initialDate || new Date(), 'yyyy-MM-dd'));
-    const [status, setStatus] = useState<'PRESENT' | 'HALF_DAY' | 'ABSENT'>('PRESENT');
+    const [status, setStatus] = useState<'PRESENT' | 'HALF_DAY' | 'OVERTIME' | 'DOUBLE_SHIFT' | 'ABSENT'>('PRESENT');
 
     // Time State (Optional)
     const [useTime, setUseTime] = useState(false);
@@ -74,6 +74,8 @@ export const AddAttendanceModal: React.FC<AddAttendanceModalProps> = ({ isOpen, 
                 // Manual Duty Points mapping
                 if (status === 'PRESENT') record.dutyPoints = 1.0;
                 if (status === 'HALF_DAY') record.dutyPoints = 0.5;
+                if (status === 'OVERTIME') record.dutyPoints = 1.5;
+                if (status === 'DOUBLE_SHIFT') record.dutyPoints = 2.0;
                 if (status === 'ABSENT') record.dutyPoints = 0;
             }
 
@@ -207,9 +209,11 @@ export const AddAttendanceModal: React.FC<AddAttendanceModalProps> = ({ isOpen, 
                                 onChange={(e) => setStatus(e.target.value as any)}
                                 className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                             >
-                                <option value="PRESENT">Present (Full Day)</option>
-                                <option value="HALF_DAY">Half Day</option>
-                                <option value="ABSENT">Absent</option>
+                                <option value="PRESENT">X — Present (Full Day = 1 Duty)</option>
+                                <option value="HALF_DAY">/ — Half Day (0.5 Duty)</option>
+                                <option value="OVERTIME">X/ — Overtime (1.5 Duty)</option>
+                                <option value="DOUBLE_SHIFT">X// — Double Shift (2 Duty)</option>
+                                <option value="ABSENT">A — Absent</option>
                             </select>
                         </div>
                     )}

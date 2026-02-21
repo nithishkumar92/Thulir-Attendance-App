@@ -336,17 +336,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 const points = calculateDutyPoints(new Date(record.punchInTime), new Date(record.punchOutTime));
                 recordToSave.dutyPoints = points;
 
-                // Auto-update status based on points
-                if (points >= 1.0) {
+            // Auto-update status based on points
+                if (points >= 2.0) {
+                    recordToSave.status = 'DOUBLE_SHIFT';
+                } else if (points >= 1.5) {
+                    recordToSave.status = 'OVERTIME';
+                } else if (points >= 1.0) {
                     recordToSave.status = 'PRESENT';
                 } else if (points > 0) {
                     recordToSave.status = 'HALF_DAY';
                 } else {
-                    // Start with Present? Or Absent? If 0 points but worked, maybe still 'PRESENT' but 0 pay?
-                    // User said "prevent earning full day's wage". 
-                    // Let's default to HALF_DAY if checked out but 0 points? Or maybe 'PRESENT' but wage calculation uses points?
-                    // For now, let's trust the points.
-                    recordToSave.status = 'ABSENT'; // Or maybe leave as is?
+                    recordToSave.status = 'ABSENT';
                 }
             }
 

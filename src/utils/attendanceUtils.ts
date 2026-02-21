@@ -46,7 +46,7 @@ export const calculateShifts = (record: any): number => {
  * 
  * @param shift - Number of duty points
  * @param record - Optional attendance record for context
- * @returns Symbol string (A, /, X, X/, or -)
+ * @returns Symbol string (A, /, X, X/, X//, or -)
  */
 export const getShiftSymbol = (shift: number, record?: any): string => {
     // Special case: Pending (punched in but not out)
@@ -59,8 +59,9 @@ export const getShiftSymbol = (shift: number, record?: any): string => {
     if (shift === 0.5) return '/';    // Half day
     if (shift === 1) return 'X';      // Full day
     if (shift === 1.5) return 'X/';   // Overtime (1.5 shifts)
+    if (shift === 2) return 'X//';    // Double shift (2.0)
 
-    // Custom shift values (e.g., 2.0 for double shift)
+    // Custom shift values
     return shift.toString();
 };
 
@@ -122,6 +123,7 @@ export const getAttendanceStatusLabel = (record: any): string => {
     if (isAttendancePending(record)) return 'In Progress';
     if (isAttendanceComplete(record)) {
         const shifts = calculateShifts(record);
+        if (shifts >= 2) return 'Double Shift';
         if (shifts >= 1.5) return 'Overtime';
         if (shifts === 1) return 'Present';
         if (shifts === 0.5) return 'Half Day';
