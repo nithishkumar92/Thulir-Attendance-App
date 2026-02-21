@@ -114,9 +114,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 verified: a.location_verified
             };
             return res.status(200).json(savedRecord);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error recording attendance:', error);
-            return res.status(500).json({ error: 'Failed to record attendance' });
+            return res.status(500).json({ error: 'Failed to record attendance', detail: error?.message || String(error) });
         }
     }
 
