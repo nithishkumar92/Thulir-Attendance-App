@@ -1,14 +1,46 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Users, MapPin, ClipboardList } from 'lucide-react';
+import { Users, MapPin, ClipboardList, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { MissingPunchOutsModal } from '../../components/MissingPunchOutsModal';
+import { calculateDutyPoints } from '../../utils/wageUtils';
 
 export const DashboardOverview: React.FC = () => {
-    const { workers, sites, attendance, missingPunchOuts } = useApp();
+    const { workers, sites, attendance, missingPunchOuts, updateAttendance, refreshData } = useApp();
     const navigate = useNavigate();
     const [isMissingModalOpen, setIsMissingModalOpen] = React.useState(false);
+    const [isRecalculating, setIsRecalculating] = React.useState(false);
+    const [recalcProgress, setRecalcProgress] = React.useState({ done: 0, total: 0 });
+    const [recalcDone, setRecalcDone] = React.useState(false);
+
+    const handleRecalculate = async () => {
+        const eligible = attendance.filter(r => r.punchInTime && r.punchOutTime);
+        if (eligible.length === 0) { alert('No records with both punch-in and punch-out found.'); return; }
+
+        setIsRecalculating(true);
+        setRecalcDone(false);
+        setRecalcProgress({ done: 0, total: eligible.length });
+
+        for (let i = 0; i < eligible.length; i++) {
+            const record = eligible[i];
+            try {
+                const newPoints = calculateDutyPoints(
+                    new Date(record.punchInTime!),
+                    new Date(record.punchOutTime!)
+                );
+                await updateAttendance({ ...record, dutyPoints: newPoints });
+            } catch (e) {
+                console.warn('Failed to update:', record.id, e);
+            }
+            setRecalcProgress({ done: i + 1, total: eligible.length });
+        }
+
+        await refreshData();
+        setIsRecalculating(false);
+        setRecalcDone(true);
+        setTimeout(() => setRecalcDone(false), 4000);
+    };
 
     // Statistics
     const totalWorkers = workers.length;
@@ -155,6 +187,31 @@ export const DashboardOverview: React.FC = () => {
                         <div className="text-left md:text-center">
                             <span className="block font-semibold text-gray-900 dark:text-gray-100 text-sm">Correction Mode</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Fix manual punch errors</span>
+                        </div>
+                    </button>
+
+                    {/* Recalculate Duty Points */}
+                    <button
+                        onClick={handleRecalculate}
+                        disabled={isRecalculating}
+                        className="col-span-2 bg-white dark:bg-gray-800 p-4 border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-xl shadow-sm hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-md transition-all active:scale-95 flex flex-row items-center justify-center gap-3 text-center group disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
+                    >
+                        <div className="bg-purple-50 dark:bg-purple-900/40 p-2 rounded-full group-hover:bg-purple-100 dark:group-hover:bg-purple-900/60 transition-colors">
+                            <RefreshCw className={`h-6 w-6 text-purple-600 dark:text-purple-400 ${isRecalculating ? 'animate-spin' : ''}`} />
+                        </div>
+                        <div className="text-left">
+                            <span className="block font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                {isRecalculating
+                                    ? `Recalculating… ${recalcProgress.done} / ${recalcProgress.total}`
+                                    : recalcDone
+                                        ? '✓ Duty Points Updated!'
+                                        : 'Recalculate Duty Points'}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {isRecalculating
+                                    ? 'Please wait, updating records…'
+                                    : 'Fix duty symbols for all past records'}
+                            </span>
                         </div>
                     </button>
                 </div>
