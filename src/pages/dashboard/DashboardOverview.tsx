@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { Users, MapPin, ClipboardList, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { MissingPunchOutsModal } from '../../components/MissingPunchOutsModal';
 import { calculateDutyPoints } from '../../utils/wageUtils';
 
@@ -14,9 +14,30 @@ export const DashboardOverview: React.FC = () => {
     const [recalcProgress, setRecalcProgress] = React.useState({ done: 0, total: 0 });
     const [recalcDone, setRecalcDone] = React.useState(false);
 
+    // Generate last 8 weeks as options
+    const weekOptions = React.useMemo(() => {
+        const opts = [];
+        for (let i = 0; i < 8; i++) {
+            const anchor = subWeeks(new Date(), i);
+            const start = startOfWeek(anchor, { weekStartsOn: 0 }); // Sunday
+            const end = endOfWeek(anchor, { weekStartsOn: 0 });   // Saturday
+            opts.push({
+                label: `${format(start, 'dd MMM')} – ${format(end, 'dd MMM yyyy')}`,
+                startDate: format(start, 'yyyy-MM-dd'),
+                endDate: format(end, 'yyyy-MM-dd'),
+            });
+        }
+        return opts;
+    }, []);
+    const [selectedWeekIdx, setSelectedWeekIdx] = React.useState(0);
+
     const handleRecalculate = async () => {
-        const eligible = attendance.filter(r => r.punchInTime && r.punchOutTime);
-        if (eligible.length === 0) { alert('No records with both punch-in and punch-out found.'); return; }
+        const { startDate, endDate } = weekOptions[selectedWeekIdx];
+        const eligible = attendance.filter(r =>
+            r.punchInTime && r.punchOutTime &&
+            r.date >= startDate && r.date <= endDate
+        );
+        if (eligible.length === 0) { alert(`No completed records found for the week ${weekOptions[selectedWeekIdx].label}.`); return; }
 
         setIsRecalculating(true);
         setRecalcDone(false);
@@ -191,29 +212,34 @@ export const DashboardOverview: React.FC = () => {
                     </button>
 
                     {/* Recalculate Duty Points */}
-                    <button
-                        onClick={handleRecalculate}
-                        disabled={isRecalculating}
-                        className="col-span-2 bg-white dark:bg-gray-800 p-4 border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-xl shadow-sm hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-md transition-all active:scale-95 flex flex-row items-center justify-center gap-3 text-center group disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
-                    >
-                        <div className="bg-purple-50 dark:bg-purple-900/40 p-2 rounded-full group-hover:bg-purple-100 dark:group-hover:bg-purple-900/60 transition-colors">
-                            <RefreshCw className={`h-6 w-6 text-purple-600 dark:text-purple-400 ${isRecalculating ? 'animate-spin' : ''}`} />
+                    <div className="col-span-2 bg-white dark:bg-gray-800 border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-xl shadow-sm p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-purple-50 dark:bg-purple-900/40 p-2 rounded-full">
+                                <RefreshCw className={`h-5 w-5 text-purple-600 dark:text-purple-400 ${isRecalculating ? 'animate-spin' : ''}`} />
+                            </div>
+                            <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Recalculate Duty Points</span>
                         </div>
-                        <div className="text-left">
-                            <span className="block font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                                {isRecalculating
-                                    ? `Recalculating… ${recalcProgress.done} / ${recalcProgress.total}`
-                                    : recalcDone
-                                        ? '✓ Duty Points Updated!'
-                                        : 'Recalculate Duty Points'}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                {isRecalculating
-                                    ? 'Please wait, updating records…'
-                                    : 'Fix duty symbols for all past records'}
-                            </span>
-                        </div>
-                    </button>
+                        <select
+                            value={selectedWeekIdx}
+                            onChange={e => setSelectedWeekIdx(Number(e.target.value))}
+                            disabled={isRecalculating}
+                            className="w-full border border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-purple-50 dark:bg-purple-900/20 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
+                        >
+                            {weekOptions.map((w, i) => (
+                                <option key={i} value={i}>{i === 0 ? `This week (${w.label})` : w.label}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={handleRecalculate}
+                            disabled={isRecalculating}
+                            className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 dark:disabled:bg-purple-900 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isRecalculating ? 'animate-spin' : ''}`} />
+                            {isRecalculating
+                                ? `Recalculating… ${recalcProgress.done} / ${recalcProgress.total}`
+                                : recalcDone ? '✓ Duty Points Updated!' : 'Recalculate Selected Week'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
