@@ -71,12 +71,13 @@ export const AddAttendanceModal: React.FC<AddAttendanceModalProps> = ({ isOpen, 
                 // but we send the manual status as fallback or override if logic permits.
                 // However, Context logic overrides status if times are present.
             } else {
-                // Manual Duty Points mapping
-                if (status === 'PRESENT') record.dutyPoints = 1.0;
-                if (status === 'HALF_DAY') record.dutyPoints = 0.5;
-                if (status === 'OVERTIME') record.dutyPoints = 1.5;
-                if (status === 'DOUBLE_SHIFT') record.dutyPoints = 2.0;
-                if (status === 'ABSENT') record.dutyPoints = 0;
+                // Manual Duty Points mapping — status must be DB-safe (PRESENT/HALF_DAY/ABSENT)
+                // dutyPoints carries the exact duty value for display
+                if (status === 'PRESENT') { record.dutyPoints = 1.0; record.status = 'PRESENT'; }
+                if (status === 'HALF_DAY') { record.dutyPoints = 0.5; record.status = 'HALF_DAY'; }
+                if (status === 'OVERTIME') { record.dutyPoints = 1.5; record.status = 'PRESENT'; }
+                if (status === 'DOUBLE_SHIFT') { record.dutyPoints = 2.0; record.status = 'PRESENT'; }
+                if (status === 'ABSENT') { record.dutyPoints = 0; record.status = 'ABSENT'; }
             }
 
             await recordAttendance(record);

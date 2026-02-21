@@ -337,12 +337,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 recordToSave.dutyPoints = points;
 
             // Auto-update status based on points
-                if (points >= 2.0) {
-                    recordToSave.status = 'DOUBLE_SHIFT';
-                } else if (points >= 1.5) {
-                    recordToSave.status = 'OVERTIME';
-                } else if (points >= 1.0) {
-                    recordToSave.status = 'PRESENT';
+                // Note: DB only accepts PRESENT/HALF_DAY/ABSENT; duty points carry the real value
+                if (points >= 1.0) {
+                    recordToSave.status = 'PRESENT'; // Covers 1.0, 1.5, 2.0 - dutyPoints has exact value
                 } else if (points > 0) {
                     recordToSave.status = 'HALF_DAY';
                 } else {
