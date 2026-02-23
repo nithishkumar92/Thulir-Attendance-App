@@ -55,7 +55,7 @@ export const getShiftSymbol = (shift: number, record?: any): string => {
     }
 
     // Standard symbols
-    if (shift === 0) return 'A';      // Absent
+    if (shift === 0) return '-';      // Absent
     if (shift === 0.5) return '/';    // Half day
     if (shift === 1) return 'X';      // Full day
     if (shift === 1.5) return 'X/';   // Overtime (1.5 shifts)

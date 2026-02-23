@@ -26,7 +26,12 @@ export const generateWeeklyReportPDF = (
     const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     // Calculate unique roles and payment data
-    const uniqueRoles = Array.from(new Set(visibleWorkers.map(w => w.role))).sort();
+    // Mason comes first, then all other roles alphabetically
+    const uniqueRoles = Array.from(new Set(visibleWorkers.map(w => w.role))).sort((a, b) => {
+        if (a === 'Mason') return -1;
+        if (b === 'Mason') return 1;
+        return a.localeCompare(b);
+    });
 
     const dailyFinancials = weekDays.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -95,10 +100,17 @@ export const generateWeeklyReportPDF = (
     // --- PDF Construction ---
 
     // 1. Attendance Table
-    const attendanceHeaders = ['Worker', 'Team', ...weekDays.map(d => format(d, 'EEE d')), 'Total'];
+    const attendanceHeaders = ['Worker', 'Role', ...weekDays.map(d => format(d, 'EEE d')), 'Total'];
 
-    const attendanceRows = visibleWorkers.map(worker => {
-        const teamName = teams.find(t => t.id === worker.teamId)?.name || '-';
+    // Sort workers: Mason first, then other roles alphabetically, then by name
+    const sortedWorkers = [...visibleWorkers].sort((a, b) => {
+        if (a.role === 'Mason' && b.role !== 'Mason') return -1;
+        if (a.role !== 'Mason' && b.role === 'Mason') return 1;
+        if (a.role !== b.role) return a.role.localeCompare(b.role);
+        return a.name.localeCompare(b.name);
+    });
+
+    const attendanceRows = sortedWorkers.map(worker => {
         const dailyStatuses = weekDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             const record = attendance.find(a =>
@@ -118,7 +130,7 @@ export const generateWeeklyReportPDF = (
             );
             return sum + (record ? calculateShifts(record) : 0);
         }, 0);
-        return [worker.name, teamName, ...dailyStatuses, totalPresent.toString()];
+        return [worker.name, worker.role, ...dailyStatuses, totalPresent.toString()];
     });
 
     // 2. Payment Table
