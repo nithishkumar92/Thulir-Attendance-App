@@ -54,18 +54,19 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         teamId: teamId === 'ALL' ? undefined : teamId
     });
 
-    // Determine visible workers based on attendance in the current week
+    // Determine visible workers: only include those with at least 0.5 total duty this week
     const visibleWorkers = React.useMemo(() => {
         return allWorkers.filter(worker => {
-            // Check if worker has attendance in the current week
-            return weekDays.some(day => {
+            const totalDuty = weekDays.reduce((sum, day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
-                return attendance.some(a =>
+                const record = attendance.find(a =>
                     a.workerId === worker.id &&
                     a.date === dateStr &&
                     (!siteId || a.siteId === siteId)
                 );
-            });
+                return sum + (record ? calculateShifts(record) : 0);
+            }, 0);
+            return totalDuty >= 0.5;
         });
     }, [allWorkers, weekDays, attendance, siteId]);
 

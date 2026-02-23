@@ -58,20 +58,9 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         teamId: selectedTeamId === 'ALL' ? undefined : selectedTeamId
     });
 
-    // Filter visible workers logic (kept for PDF generation and potential future use, though not directly used in new financial calcs)
+    // Only include workers with at least 0.5 total duty this week
     const visibleWorkers = useMemo(() => {
         return allWorkers.filter(worker => {
-            const hasAnyAttendance = weekDays.some(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                return attendance.some(a =>
-                    a.workerId === worker.id &&
-                    a.date === dateStr &&
-                    (!siteId || a.siteId === siteId)
-                );
-            });
-
-            if (hasAnyAttendance) return true;
-
             const totalDuty = weekDays.reduce((sum, day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const record = attendance.find(a =>
@@ -81,7 +70,6 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
                 );
                 return sum + (record ? calculateShifts(record) : 0);
             }, 0);
-
             return totalDuty >= 0.5;
         });
     }, [allWorkers, weekDays, attendance, siteId]);
@@ -190,15 +178,12 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         return totals;
     }, [dailyFinancials, uniqueRoles]);
 
-    // Helper function to generate PDF
+    // Helper function to generate PDF — only workers with ≥0.5 duty are included
     const generatePDF = () => {
         return generateWeeklyReportPDF(
             weekStart,
             weekEnd,
-            // We pass allWorkers as visibleWorkers for now, or filter them if needed
-            // The generateWeeklyReportPDF might expect a specific list.
-            // Using allWorkers seems consistent with the new logic.
-            allWorkers,
+            visibleWorkers,
             attendance,
             teams,
             advances,
