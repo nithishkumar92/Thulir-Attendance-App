@@ -155,7 +155,7 @@ export const DashboardOverview: React.FC = () => {
 
                 {/* Today's Attendance - Spans full width on mobile row 2 */}
                 <div
-                    onClick={() => navigate('/dashboard/report')}
+                    onClick={() => navigate('/dashboard/attendance')}
                     className="col-span-2 lg:col-span-1 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-row lg:flex-col items-center justify-between lg:justify-center px-6 lg:px-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-all active:scale-95"
                 >
                     <div className="flex items-center gap-3 lg:gap-0 lg:flex-col lg:text-center">
