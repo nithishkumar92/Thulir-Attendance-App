@@ -35,6 +35,8 @@ export const Login: React.FC = () => {
                     navigate('/dashboard');
                 } else if (user.role === 'CLIENT') {
                     navigate('/client');
+                } else if (user.role === 'TILE_WORKER') {
+                    navigate('/tile-mason');
                 } else {
                     navigate('/team'); // TEAM_REP and WORKER
                 }

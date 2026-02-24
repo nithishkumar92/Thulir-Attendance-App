@@ -15,6 +15,7 @@ import { UserManagement } from './pages/dashboard/UserManagement';
 import { OwnerReportPage } from './pages/dashboard/OwnerReportPage';
 import { TileCalculator } from './pages/dashboard/TileCalculator';
 import { ClientPortal } from './pages/ClientPortal';
+import { TileMasonPortal } from './pages/TileMasonPortal';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, roles?: string[] }> = ({ children, roles }) => {
     const { currentUser } = useApp();
@@ -69,6 +70,14 @@ function App() {
                         element={
                             <ProtectedRoute roles={['CLIENT']}>
                                 <ClientPortal />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/tile-mason"
+                        element={
+                            <ProtectedRoute roles={['TILE_WORKER']}>
+                                <TileMasonPortal />
                             </ProtectedRoute>
                         }
                     />

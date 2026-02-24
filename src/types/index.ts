@@ -1,4 +1,4 @@
-export type Role = 'OWNER' | 'TEAM_REP' | 'WORKER' | 'CLIENT';
+export type Role = 'OWNER' | 'TEAM_REP' | 'WORKER' | 'CLIENT' | 'TILE_WORKER';
 
 export interface User {
     id: string;
@@ -7,6 +7,7 @@ export interface User {
     role: Role;
     name: string;
     teamId?: string; // If Rep or Worker
+    siteId?: string; // If Tile Worker
     isLocked?: boolean;
 }
 
