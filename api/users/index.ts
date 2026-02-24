@@ -17,6 +17,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
+    // Ensure TILE_WORKER is allowed as a role (add to constraint if missing)
+    try {
+        await query(`
+            ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+            ALTER TABLE users ADD CONSTRAINT users_role_check
+                CHECK (role IN ('OWNER','TEAM_REP','WORKER','CLIENT','TILE_WORKER'));
+        `);
+    } catch (_) {
+        // Ignore — constraint may already be correct or table uses different name
+    }
+
     // GET: List users
     if (req.method === 'GET') {
         try {
