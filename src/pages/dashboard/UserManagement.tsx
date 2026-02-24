@@ -33,8 +33,8 @@ export const UserManagement: React.FC = () => {
             password: newPassword,
             name: newName,
             role: newRole,
-            teamId: (newRole === 'TEAM_REP' || newRole === 'WORKER') ? newTeamId : undefined,
-            siteId: newRole === 'TILE_WORKER' ? newSiteId : undefined
+            teamId: (newRole === 'TEAM_REP' || newRole === 'WORKER' || newRole === 'TILE_WORKER') ? newTeamId : undefined,
+            siteId: undefined
         };
         addUser(newUser);
         setIsAddModalOpen(false);
@@ -219,7 +219,7 @@ export const UserManagement: React.FC = () => {
                                     <option value="OWNER">Owner (Admin)</option>
                                 </select>
                             </div>
-                            {(newRole === 'TEAM_REP' || newRole === 'WORKER') && (
+                            {(newRole === 'TEAM_REP' || newRole === 'WORKER' || newRole === 'TILE_WORKER') && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Assign Team</label>
                                     <select
@@ -231,22 +231,6 @@ export const UserManagement: React.FC = () => {
                                         <option value="">Select a team...</option>
                                         {teams.map(team => (
                                             <option key={team.id} value={team.id}>{team.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            {newRole === 'TILE_WORKER' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign Site</label>
-                                    <select
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={newSiteId}
-                                        onChange={e => setNewSiteId(e.target.value)}
-                                        required
-                                    >
-                                        <option value="">Select a site...</option>
-                                        {sites.map(site => (
-                                            <option key={site.id} value={site.id}>{site.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -285,7 +269,7 @@ export const UserManagement: React.FC = () => {
                                     <option value="OWNER">Owner (Admin)</option>
                                 </select>
                             </div>
-                            {(editRole === 'TEAM_REP' || editRole === 'WORKER') && (
+                            {(editRole === 'TEAM_REP' || editRole === 'WORKER' || editRole === 'TILE_WORKER') && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Assign Team</label>
                                     <select
@@ -297,22 +281,6 @@ export const UserManagement: React.FC = () => {
                                         <option value="">Select a team...</option>
                                         {teams.map(team => (
                                             <option key={team.id} value={team.id}>{team.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            {editRole === 'TILE_WORKER' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign Site</label>
-                                    <select
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={editSiteId}
-                                        onChange={e => setEditSiteId(e.target.value)}
-                                        required
-                                    >
-                                        <option value="">Select a site...</option>
-                                        {sites.map(site => (
-                                            <option key={site.id} value={site.id}>{site.name}</option>
                                         ))}
                                     </select>
                                 </div>

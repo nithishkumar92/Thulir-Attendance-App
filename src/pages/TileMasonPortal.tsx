@@ -63,7 +63,7 @@ function mapDbRoom(raw: any): Room {
 }
 
 export const TileMasonPortal: React.FC = () => {
-    const { currentUser, sites, advances, logout } = useApp();
+    const { currentUser, sites, teams, advances, logout } = useApp();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState<'work' | 'payments'>('work');
@@ -80,8 +80,9 @@ export const TileMasonPortal: React.FC = () => {
     const [shortagePieces, setShortagePieces] = useState('');
     const [shortageOtherItem, setShortageOtherItem] = useState('');
 
-    const siteId = (currentUser as any)?.siteId || '';
-    const siteName = sites.find(s => s.id === siteId)?.name || 'Your Site';
+    const assignedTeam = teams.find(t => t.id === currentUser?.teamId);
+    const siteId = assignedTeam?.permittedSiteIds?.[0] || '';
+    const siteName = sites.find(s => s.id === siteId)?.name || assignedTeam?.name || 'Your Site';
 
     // Load rooms from DB
     useEffect(() => {
