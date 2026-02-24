@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useApp } from '../../context/AppContext';
 
 // --- Types ---
 interface TileSize {
@@ -343,43 +344,29 @@ const DEFAULT_NEW_ROOM: Omit<Room, 'id'> = {
 
 // --- Main Page Component ---
 export const TileCalculator: React.FC = () => {
+    const { sites } = useApp();
     const [view, setView] = useState<'dashboard' | 'editRoom'>('dashboard');
     const [downloadModalVisible, setDownloadModalVisible] = useState(false);
     const [selectedRoomsToDownload, setSelectedRoomsToDownload] = useState<number[]>([]);
 
-    const [rooms, setRooms] = useState<Room[]>([
-        {
-            id: 1,
-            name: 'Kitchen',
-            tileName: 'Anti-skid Matte',
-            tileSize: '600x600 mm (2x2 ft)',
-            customTileLength: '',
-            customTileWidth: '',
-            customTileUnit: 'feet',
-            length: '10',
-            width: '10',
-            hasSkirting: true,
-            skirtingHeight: '4',
-            doors: '1',
-            doorWidth: '3',
-            deductions: [
-                { id: 101, name: 'Counter Base', length: '8', width: '2', perimeterDeduct: '8' },
-            ],
-            additions: [
-                { id: 102, name: 'Window Sill', length: '4', width: '1', perimeterAdd: '0' },
-            ],
-            totalArea: '90.7',
-            floorArea: '88.0',
-            skirtingArea: '2.7',
-            totalDeductedArea: '16.0',
-            totalAddedArea: '4.0',
-            wastage: '10',
-            reqQty: '25',
-            instructions:
-                'Do not tile under the counter. Finish counter base with cement and 2 inch skirting as per owner request. Tile the window sill.',
-            photos: [],
-        },
-    ]);
+    // selectedSiteId defaults to first site in list
+    const [selectedSiteId, setSelectedSiteId] = useState<string>(() => sites[0]?.id || '');
+
+    // Rooms stored per-site: { [siteId]: Room[] }
+    const [roomsBySite, setRoomsBySite] = useState<Record<string, Room[]>>({});
+
+    // Rooms for the currently selected site
+    const rooms: Room[] = roomsBySite[selectedSiteId] || [];
+
+    const setRooms = (updater: Room[] | ((prev: Room[]) => Room[])) => {
+        setRoomsBySite((prev) => {
+            const current = prev[selectedSiteId] || [];
+            const next = typeof updater === 'function' ? updater(current) : updater;
+            return { ...prev, [selectedSiteId]: next };
+        });
+    };
+
+    const selectedSite = sites.find((s) => s.id === selectedSiteId);
 
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
 
@@ -480,6 +467,7 @@ export const TileCalculator: React.FC = () => {
 
     // --- PDF Report ---
     const generatePDFReport = () => {
+        const siteName = selectedSite?.name || 'Site';
         const selectedRooms = rooms.filter((r) => selectedRoomsToDownload.includes(r.id));
         if (selectedRooms.length === 0) return alert('Please select at least one room');
 
@@ -573,7 +561,7 @@ export const TileCalculator: React.FC = () => {
         </head>
         <body>
           <h1>Tile Calculation Report</h1>
-          <p class="subtitle">Generated via Thulir ERP on ${new Date().toLocaleDateString()}</p>
+          <p class="subtitle">${siteName} &nbsp;|&nbsp; Generated via Thulir ERP on ${new Date().toLocaleDateString()}</p>
           <table>
             <thead>
               <tr>
@@ -613,34 +601,57 @@ export const TileCalculator: React.FC = () => {
         return (
             <div className="space-y-6">
                 {/* Page Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">🪟 Tile Calculator</h1>
                         <p className="text-sm text-gray-500 mt-1">Room-wise tile requirement setup & PDF report</p>
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => {
-                                setSelectedRoomsToDownload(rooms.map((r) => r.id));
-                                setDownloadModalVisible(true);
-                            }}
-                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-                        >
-                            📄 Report
-                        </button>
-                        <button
-                            onClick={handleAddNewRoom}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center gap-2"
-                        >
-                            <span className="text-lg leading-none">+</span> Add Room
-                        </button>
+                    <div className="flex flex-wrap gap-3 items-center">
+                        {/* Site Selector */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Site</label>
+                            <select
+                                value={selectedSiteId}
+                                onChange={(e) => {
+                                    setSelectedSiteId(e.target.value);
+                                    setView('dashboard');
+                                }}
+                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 min-w-[180px]"
+                            >
+                                {sites.length === 0 && (
+                                    <option value="">No sites found</option>
+                                )}
+                                {sites.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex gap-2 self-end">
+                            <button
+                                onClick={() => {
+                                    setSelectedRoomsToDownload(rooms.map((r) => r.id));
+                                    setDownloadModalVisible(true);
+                                }}
+                                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                                disabled={rooms.length === 0}
+                            >
+                                📄 Report
+                            </button>
+                            <button
+                                onClick={handleAddNewRoom}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center gap-2"
+                                disabled={!selectedSiteId}
+                            >
+                                <span className="text-lg leading-none">+</span> Add Room
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Total Rooms</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Rooms — {selectedSite?.name || '—'}</p>
                         <p className="text-3xl font-bold text-gray-800">{rooms.length}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -656,11 +667,16 @@ export const TileCalculator: React.FC = () => {
                 <div>
                     <h2 className="text-base font-bold text-gray-700 mb-3">Rooms Setup</h2>
 
-                    {rooms.length === 0 ? (
+                    {!selectedSiteId ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+                            <p className="text-5xl mb-3">🏗️</p>
+                            <p className="text-sm font-medium">Please select a site above to view or add rooms.</p>
+                        </div>
+                    ) : rooms.length === 0 ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
                             <p className="text-5xl mb-3">📭</p>
                             <p className="text-sm font-medium">
-                                No rooms created yet.
+                                No rooms for <strong>{selectedSite?.name}</strong> yet.
                                 <br />
                                 Click "Add Room" to get started.
                             </p>
