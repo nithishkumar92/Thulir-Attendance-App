@@ -112,11 +112,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'DB table init failed' });
     }
 
-    // ── GET /api/tile-rooms?siteId=xxx ──────────────────────────────────────
+    // ── GET /api/tile-rooms?siteId=xxx          → list, NO photos
+    // ── GET /api/tile-rooms?id=xxx              → single room, WITH signed photos
     if (req.method === 'GET') {
-        const { siteId } = req.query;
+        const { siteId, id } = req.query;
+
+        // ── Single room with full photos ──────────────────────────────────
+        if (id && typeof id === 'string') {
+            try {
+                const result = await query(
+                    `SELECT * FROM tile_rooms WHERE id = $1`,
+                    [id]
+                );
+                if (result.rowCount === 0) {
+                    return res.status(404).json({ error: 'Room not found' });
+                }
+                const room = rowToRoom(result.rows[0]);
+                room.photos = await signPhotos(room.photos);
+                return res.status(200).json(room);
+            } catch (error) {
+                console.error('Error fetching tile room:', error);
+                return res.status(500).json({ error: 'Failed to fetch tile room' });
+            }
+        }
+
+        // ── Room list (photos stripped for bandwidth) ─────────────────────
         if (!siteId || typeof siteId !== 'string') {
-            return res.status(400).json({ error: 'siteId is required' });
+            return res.status(400).json({ error: 'siteId or id is required' });
         }
 
         try {
@@ -125,13 +147,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 [siteId]
             );
 
-            const rooms = await Promise.all(
-                result.rows.map(async (r) => {
-                    const room = rowToRoom(r);
-                    room.photos = await signPhotos(room.photos);
-                    return room;
-                })
-            );
+            const rooms = result.rows.map((r) => {
+                const room = rowToRoom(r);
+                room.photos = []; // strip photos — load lazily on room open
+                return room;
+            });
 
             return res.status(200).json(rooms);
         } catch (error) {

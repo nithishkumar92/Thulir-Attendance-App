@@ -346,7 +346,7 @@ const DEFAULT_NEW_ROOM: Omit<Room, 'id'> = {
 // --- Main Page Component ---
 export const TileCalculator: React.FC = () => {
     const { sites } = useApp();
-    const [view, setView] = useState<'dashboard' | 'editRoom'>('dashboard');
+    const [view, setView] = useState<'dashboard' | 'editRoom' | 'roomDetail'>('dashboard');
     const [downloadModalVisible, setDownloadModalVisible] = useState(false);
     const [selectedRoomsToDownload, setSelectedRoomsToDownload] = useState<number[]>([]);
 
@@ -355,6 +355,8 @@ export const TileCalculator: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [viewingRoom, setViewingRoom] = useState<Room | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     const selectedSite = sites.find((s) => s.id === selectedSiteId);
 
@@ -386,6 +388,21 @@ export const TileCalculator: React.FC = () => {
     const handleAddNewRoom = () => {
         setEditingRoom({ id: Date.now(), ...DEFAULT_NEW_ROOM });
         setView('editRoom');
+    };
+
+    const handleViewRoom = async (room: Room) => {
+        // Show detail immediately with no photos, then lazy-load full room
+        setViewingRoom({ ...room, photos: [] });
+        setView('roomDetail');
+        setLoadingDetail(true);
+        try {
+            const full = await api.fetchTileRoom(String(room.id));
+            setViewingRoom(full);
+        } catch {
+            // keep showing the room without photos
+        } finally {
+            setLoadingDetail(false);
+        }
     };
 
     const handleEditRoom = (room: Room) => {
@@ -725,7 +742,8 @@ export const TileCalculator: React.FC = () => {
                             {rooms.map((room) => (
                                 <div
                                     key={room.id}
-                                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3"
+                                    onClick={() => handleViewRoom(room)}
+                                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all"
                                 >
                                     <div className="flex justify-between items-start">
                                         <div>
@@ -735,12 +753,14 @@ export const TileCalculator: React.FC = () => {
                                             </p>
                                             <p className="text-xs text-gray-400 mt-0.5">{room.tileSize}</p>
                                         </div>
-                                        <button
-                                            onClick={() => handleEditRoom(room)}
-                                            className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
-                                        >
-                                            Edit
-                                        </button>
+                                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={() => handleEditRoom(room)}
+                                                className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="flex gap-3 bg-gray-50 rounded-lg p-3">
@@ -776,11 +796,10 @@ export const TileCalculator: React.FC = () => {
 
                                     <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                                         <span className="text-xs text-gray-400">
-                                            📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸{' '}
-                                            {room.photos?.length || 0} photos
+                                            📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸 tap to view photos
                                         </span>
                                         <button
-                                            onClick={() => handleDeleteRoom(room.id)}
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
                                             className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors"
                                         >
                                             Delete
@@ -1298,6 +1317,164 @@ export const TileCalculator: React.FC = () => {
                     >
                         {saving ? '⏳ Saving…' : 'Save Room Setup'}
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    // ROOM DETAIL VIEW
+    // =====================================================================
+    if (view === 'roomDetail' && viewingRoom) {
+        const r = viewingRoom;
+        return (
+            <div className="space-y-5">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setView('dashboard')}
+                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600"
+                    >
+                        ←
+                    </button>
+                    <div className="flex-1">
+                        <h1 className="text-xl font-bold text-gray-900">{r.name}</h1>
+                        <p className="text-sm text-gray-500">{selectedSite?.name}</p>
+                    </div>
+                    <button
+                        onClick={() => { handleEditRoom(r); }}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                    >
+                        ✏️ Edit
+                    </button>
+                    <button
+                        onClick={() => { handleDeleteRoom(r.id); setView('dashboard'); }}
+                        className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                        🗑️
+                    </button>
+                </div>
+
+                {/* Tile Info */}
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Tile Information</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Tile Name</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileName || '—'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Tile Size</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileSize || '—'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Dimensions */}
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Room Dimensions</h2>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Length</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.length || '—'} ft</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Width</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.width || '—'} ft</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Skirting</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">
+                                {r.hasSkirting ? `${r.skirtingHeight}"` : 'None'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Calculated Results */}
+                <div className="bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm p-5">
+                    <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wide mb-4">Calculated Results</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Floor Area</p>
+                            <p className="text-lg font-extrabold text-gray-800 mt-1">{r.floorArea} <span className="text-xs font-medium text-gray-500">sq.ft</span></p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Skirting Area</p>
+                            <p className="text-lg font-extrabold text-gray-800 mt-1">{r.skirtingArea} <span className="text-xs font-medium text-gray-500">sq.ft</span></p>
+                        </div>
+                        <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-400 font-semibold uppercase">Net Total Area</p>
+                            <p className="text-lg font-extrabold text-indigo-700 mt-1">{r.totalArea} <span className="text-xs font-medium text-indigo-400">sq.ft</span></p>
+                        </div>
+                        <div className="bg-indigo-600 rounded-lg p-3">
+                            <p className="text-xs text-indigo-200 font-semibold uppercase">Tiles Required</p>
+                            <p className="text-lg font-extrabold text-white mt-1">{r.reqQty} <span className="text-xs font-medium text-indigo-200">nos (+{r.wastage}%)</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Deductions */}
+                {r.deductions && r.deductions.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                        <h2 className="text-xs font-bold text-red-400 uppercase tracking-wide mb-3">Deductions ({r.totalDeductedArea} sq.ft total)</h2>
+                        <div className="divide-y divide-gray-100">
+                            {r.deductions.map((d) => (
+                                <div key={d.id} className="py-2.5 flex justify-between items-center">
+                                    <span className="text-sm font-semibold text-gray-700">{d.name || 'Unnamed'}</span>
+                                    <span className="text-sm text-red-500 font-bold">{((parseFloat(d.length)||0)*(parseFloat(d.width)||0)).toFixed(2)} sq.ft</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Additions */}
+                {r.additions && r.additions.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                        <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-wide mb-3">Additions ({r.totalAddedArea} sq.ft total)</h2>
+                        <div className="divide-y divide-gray-100">
+                            {r.additions.map((a) => (
+                                <div key={a.id} className="py-2.5 flex justify-between items-center">
+                                    <span className="text-sm font-semibold text-gray-700">{a.name || 'Unnamed'}</span>
+                                    <span className="text-sm text-emerald-600 font-bold">+{((parseFloat(a.length)||0)*(parseFloat(a.width)||0)).toFixed(2)} sq.ft</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Notes */}
+                {r.instructions && (
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Laying Instructions</h2>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{r.instructions}</p>
+                    </div>
+                )}
+
+                {/* Photos — lazy loaded */}
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
+                        📸 Photos {loadingDetail && <span className="text-indigo-400 normal-case font-normal">(loading…)</span>}
+                    </h2>
+                    {loadingDetail ? (
+                        <p className="text-sm text-gray-400 text-center py-6">Fetching photos from cloud…</p>
+                    ) : (!r.photos || r.photos.length === 0) ? (
+                        <p className="text-sm text-gray-400 text-center py-6">No photos attached to this room.</p>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {r.photos.map((p) => (
+                                <img
+                                    key={p.id}
+                                    src={p.url}
+                                    alt="Room photo"
+                                    className="w-full aspect-square object-cover rounded-xl border border-gray-100 shadow-sm"
+                                    onClick={() => window.open(p.url, '_blank')}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         );

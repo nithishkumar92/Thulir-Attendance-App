@@ -476,6 +476,13 @@ export const fetchTileRooms = async (siteId: string): Promise<any[]> => {
     return response.json();
 };
 
+export const fetchTileRoom = async (id: string): Promise<any> => {
+    const response = await fetch(`${API_BASE}/tile-rooms?id=${id}`);
+    if (!response.ok) throw new Error('Failed to fetch tile room');
+    return response.json();
+};
+
+
 export const createTileRoom = async (room: any): Promise<any> => {
     const response = await fetch(`${API_BASE}/tile-rooms`, {
         method: 'POST',
