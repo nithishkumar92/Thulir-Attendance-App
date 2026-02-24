@@ -286,15 +286,17 @@ export const fetchAppUsers = async (): Promise<User[]> => {
     return response.json();
 };
 
-export const createAppUser = async (user: Partial<User>): Promise<User> => {
+export const createAppUser = async (user: Partial<User> & { siteId?: string }): Promise<User> => {
     if (USE_MOCK_DATA) {
         await delay(300);
         return { ...user, id: `u_${Date.now()}` } as User;
     }
+    // siteId is not stored in DB — strip it
+    const { siteId: _siteId, ...dbUser } = user;
     const response = await fetch(`${API_BASE}/users`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(user)
+        body: JSON.stringify(dbUser)
     });
     if (!response.ok) {
         const err = await response.json();
@@ -303,11 +305,13 @@ export const createAppUser = async (user: Partial<User>): Promise<User> => {
     return response.json();
 };
 
-export const updateAppUser = async (userId: string, updates: Partial<User>) => {
+export const updateAppUser = async (userId: string, updates: Partial<User> & { siteId?: string }) => {
+    // siteId is derived from the team on the frontend — not stored in DB
+    const { siteId: _siteId, ...dbUpdates } = updates;
     const response = await fetch(`${API_BASE}/users`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ id: userId, ...updates })
+        body: JSON.stringify({ id: userId, ...dbUpdates })
     });
     if (!response.ok) throw new Error('Failed to update user');
 };
