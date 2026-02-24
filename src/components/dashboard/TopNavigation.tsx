@@ -8,6 +8,7 @@ import {
     DollarSign,
     ClipboardList,
     Briefcase,
+    Grid,
     Menu,
     X,
     LogOut,
@@ -45,6 +46,7 @@ export const TopNavigation: React.FC = () => {
         { path: '/dashboard/attendance', label: 'Attendance', icon: AlertCircle },
         { path: '/dashboard/payments', label: 'Payments', icon: DollarSign },
         { path: '/dashboard/report', label: 'Reports', icon: ClipboardList },
+        { path: '/dashboard/tiles', label: 'Tiles', icon: Grid },
         { path: '/dashboard/users', label: 'Users', icon: Users },
     ];
 

@@ -13,6 +13,7 @@ import { TeamManagement } from './pages/dashboard/TeamManagement';
 import { AdvanceManagement } from './pages/dashboard/AdvanceManagement';
 import { UserManagement } from './pages/dashboard/UserManagement';
 import { OwnerReportPage } from './pages/dashboard/OwnerReportPage';
+import { TileCalculator } from './pages/dashboard/TileCalculator';
 import { ClientPortal } from './pages/ClientPortal';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, roles?: string[] }> = ({ children, roles }) => {
@@ -53,6 +54,7 @@ function App() {
                         <Route path="attendance" element={<AttendanceCorrections />} />
                         <Route path="payments" element={<AdvanceManagement />} />
                         <Route path="users" element={<UserManagement />} />
+                        <Route path="tiles" element={<TileCalculator />} />
                     </Route>
                     <Route
                         path="/team/*"
