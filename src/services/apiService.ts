@@ -458,6 +458,7 @@ export const createClientPayment = async (payment: Partial<ClientPayment>): Prom
     return response.json();
 };
 
+
 export const updateClientPayment = async (paymentId: string, updates: Partial<ClientPayment>) => {
     const response = await fetch(`${API_BASE}/client-portal?resource=client-payments`, {
         method: 'PATCH',
@@ -466,3 +467,40 @@ export const updateClientPayment = async (paymentId: string, updates: Partial<Cl
     });
     if (!response.ok) throw new Error('Failed to update client payment');
 };
+
+// --- TILE ROOMS ---
+
+export const fetchTileRooms = async (siteId: string): Promise<any[]> => {
+    const response = await fetch(`${API_BASE}/tile-rooms?siteId=${siteId}`);
+    if (!response.ok) throw new Error('Failed to fetch tile rooms');
+    return response.json();
+};
+
+export const createTileRoom = async (room: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/tile-rooms`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(room)
+    });
+    if (!response.ok) throw new Error('Failed to create tile room');
+    return response.json();
+};
+
+export const updateTileRoom = async (id: string, room: any): Promise<any> => {
+    const response = await fetch(`${API_BASE}/tile-rooms`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ id, ...room })
+    });
+    if (!response.ok) throw new Error('Failed to update tile room');
+    return response.json();
+};
+
+export const deleteTileRoom = async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE}/tile-rooms?id=${id}`, {
+        method: 'DELETE',
+        headers
+    });
+    if (!response.ok) throw new Error('Failed to delete tile room');
+};
+

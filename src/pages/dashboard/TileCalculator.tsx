@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import * as api from '../../services/apiService';
 
 // --- Types ---
 interface TileSize {
@@ -349,26 +350,37 @@ export const TileCalculator: React.FC = () => {
     const [downloadModalVisible, setDownloadModalVisible] = useState(false);
     const [selectedRoomsToDownload, setSelectedRoomsToDownload] = useState<number[]>([]);
 
-    // selectedSiteId defaults to first site in list
     const [selectedSiteId, setSelectedSiteId] = useState<string>(() => sites[0]?.id || '');
-
-    // Rooms stored per-site: { [siteId]: Room[] }
-    const [roomsBySite, setRoomsBySite] = useState<Record<string, Room[]>>({});
-
-    // Rooms for the currently selected site
-    const rooms: Room[] = roomsBySite[selectedSiteId] || [];
-
-    const setRooms = (updater: Room[] | ((prev: Room[]) => Room[])) => {
-        setRoomsBySite((prev) => {
-            const current = prev[selectedSiteId] || [];
-            const next = typeof updater === 'function' ? updater(current) : updater;
-            return { ...prev, [selectedSiteId]: next };
-        });
-    };
+    const [rooms, setRooms] = useState<Room[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const selectedSite = sites.find((s) => s.id === selectedSiteId);
 
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+
+    // Load rooms from API when site changes
+    const loadRooms = useCallback(async (siteId: string) => {
+        if (!siteId) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await api.fetchTileRooms(siteId);
+            // Map DB field id (string) to numeric id for local state compatibility
+            setRooms(data.map((r: any) => ({ ...r, id: r.id })));
+        } catch (err: any) {
+            setError('Failed to load rooms: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (selectedSiteId) loadRooms(selectedSiteId);
+        else setRooms([]);
+    }, [selectedSiteId, loadRooms]);
+
 
     // --- Handlers ---
     const handleAddNewRoom = () => {
@@ -386,26 +398,43 @@ export const TileCalculator: React.FC = () => {
         setView('editRoom');
     };
 
-    const handleDeleteRoom = (id: number) => {
-        if (window.confirm('Delete this room setup?')) {
-            setRooms(rooms.filter((r) => r.id !== id));
+    const handleDeleteRoom = async (id: number | string) => {
+        if (!window.confirm('Delete this room setup?')) return;
+        setSaving(true);
+        try {
+            await api.deleteTileRoom(String(id));
+            setRooms((prev) => prev.filter((r) => r.id !== id));
+        } catch (err: any) {
+            alert('Failed to delete room: ' + err.message);
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleSaveRoom = () => {
+    const handleSaveRoom = async () => {
         if (!editingRoom) return;
         if (!editingRoom.name) return alert('Please enter a room name');
         if (!editingRoom.tileSize || editingRoom.tileSize === 'Select Tile Size...')
             return alert('Please select a tile size');
 
-        setRooms((prev) => {
-            const exists = prev.find((r) => r.id === editingRoom.id);
-            if (exists) {
-                return prev.map((r) => (r.id === editingRoom.id ? editingRoom : r));
+        setSaving(true);
+        try {
+            const isNew = !rooms.find((r) => r.id === editingRoom.id);
+            const roomPayload = { ...editingRoom, siteId: selectedSiteId };
+
+            if (isNew) {
+                const saved = await api.createTileRoom(roomPayload);
+                setRooms((prev) => [...prev, { ...saved, id: saved.id }]);
+            } else {
+                const saved = await api.updateTileRoom(String(editingRoom.id), roomPayload);
+                setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? { ...saved, id: saved.id } : r)));
             }
-            return [...prev, editingRoom];
-        });
-        setView('dashboard');
+            setView('dashboard');
+        } catch (err: any) {
+            alert('Failed to save room: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const updateField = <K extends keyof Room>(field: K, value: Room[K]) => {
@@ -671,6 +700,16 @@ export const TileCalculator: React.FC = () => {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
                             <p className="text-5xl mb-3">🏗️</p>
                             <p className="text-sm font-medium">Please select a site above to view or add rooms.</p>
+                        </div>
+                    ) : loading ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+                            <p className="text-4xl mb-3 animate-spin">⏳</p>
+                            <p className="text-sm font-medium">Loading rooms…</p>
+                        </div>
+                    ) : error ? (
+                        <div className="bg-red-50 rounded-xl border border-red-200 p-6 text-center text-red-600">
+                            <p className="text-sm font-semibold">{error}</p>
+                            <button onClick={() => loadRooms(selectedSiteId)} className="mt-3 text-xs underline">Retry</button>
                         </div>
                     ) : rooms.length === 0 ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
@@ -1254,9 +1293,10 @@ export const TileCalculator: React.FC = () => {
                     {/* Save Button */}
                     <button
                         onClick={handleSaveRoom}
-                        className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-sm transition-colors shadow-md"
+                        disabled={saving}
+                        className="w-full py-3 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white rounded-xl font-bold text-sm transition-colors shadow-md"
                     >
-                        Save Room Setup
+                        {saving ? '⏳ Saving…' : 'Save Room Setup'}
                     </button>
                 </div>
             </div>
