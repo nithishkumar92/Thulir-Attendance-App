@@ -362,6 +362,7 @@ export const TileCalculator: React.FC = () => {
     const selectedSite = sites.find((s) => s.id === selectedSiteId);
 
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+    const [plannerError, setPlannerError] = useState<string>('');
 
     // Load rooms from API when site changes
     const loadRooms = useCallback(async (siteId: string) => {
@@ -463,9 +464,15 @@ export const TileCalculator: React.FC = () => {
 
     // --- Planner Save Handler ---
     const handleSavePlannerRoom = async (data: PlannerSaveData) => {
-        if (!editingRoom) return;
+        setPlannerError('');
+        console.log('[Planner Save] called, editingRoom:', editingRoom, 'selectedSiteId:', selectedSiteId);
+        if (!editingRoom) {
+            console.error('[Planner Save] editingRoom is null!');
+            return;
+        }
         if (!selectedSiteId) {
-            alert('Please select a site before saving a room.');
+            const msg = 'No site selected. Please go back, select a site, then try again.';
+            setPlannerError(msg);
             return;
         }
         setSaving(true);
@@ -473,6 +480,7 @@ export const TileCalculator: React.FC = () => {
             // A room is "new" if it doesn't exist in the rooms list yet
             const existingRoom = rooms.find((r) => r.id === editingRoom.id);
             const isNew = !existingRoom;
+            console.log('[Planner Save] isNew:', isNew, 'rooms count:', rooms.length);
 
             const roomPayload = {
                 siteId: selectedSiteId,
@@ -502,16 +510,22 @@ export const TileCalculator: React.FC = () => {
                 tilesConfig: data.tilesConfig,
             };
 
+            console.log('[Planner Save] payload:', JSON.stringify(roomPayload).slice(0, 200));
+
             if (isNew) {
                 const saved = await api.createTileRoom(roomPayload);
+                console.log('[Planner Save] created:', saved);
                 setRooms((prev) => [...prev, saved]);
             } else {
                 const saved = await api.updateTileRoom(String(editingRoom.id), roomPayload);
+                console.log('[Planner Save] updated:', saved);
                 setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? saved : r)));
             }
             setView('dashboard');
         } catch (err: any) {
-            alert('Failed to save room: ' + err.message);
+            console.error('[Planner Save] FAILED:', err);
+            const msg = 'Failed to save: ' + (err.message || String(err));
+            setPlannerError(msg);
         } finally {
             setSaving(false);
         }
@@ -953,11 +967,21 @@ export const TileCalculator: React.FC = () => {
     if (view === 'editRoom' && editingRoom) {
         return (
             <div>
+                {!selectedSiteId && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '12px 16px', borderRadius: 10, margin: '8px 0', color: '#dc2626', fontWeight: 700, fontSize: 13 }}>
+                        ⚠️ No site selected. Go back to the dashboard and select a site first.
+                    </div>
+                )}
+                {plannerError && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '12px 16px', borderRadius: 10, margin: '8px 0', color: '#dc2626', fontWeight: 700, fontSize: 13 }}>
+                        ⚠️ {plannerError}
+                    </div>
+                )}
                 <InteractiveTilePlanner
                     initialName={editingRoom.name || ''}
                     siteId={selectedSiteId}
                     onSave={handleSavePlannerRoom}
-                    onCancel={() => setView('dashboard')}
+                    onCancel={() => { setPlannerError(''); setView('dashboard'); }}
                     saving={saving}
                 />
             </div>
