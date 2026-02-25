@@ -503,11 +503,11 @@ export const TileCalculator: React.FC = () => {
                 deductions: [],
                 additions: [],
                 instructions: '',
+                photos: [],
                 // New planner-specific fields
                 surfaceType: data.surfaceType,
                 gridData: data.grid,
                 tilesConfig: data.tilesConfig,
-                photos: data.photos,
             };
 
             console.log('[Planner Save] payload:', JSON.stringify(roomPayload).slice(0, 200));
@@ -998,7 +998,6 @@ export const TileCalculator: React.FC = () => {
                     initialGrid={(editingRoom as any).gridData || {}}
                     initialTilesConfig={(editingRoom as any).tilesConfig || undefined}
                     initialSkirting={plannerSkirting}
-                    initialPhotos={(editingRoom as any).photos || []}
                     onSave={handleSavePlannerRoom}
                     onCancel={() => { setPlannerError(''); setView('dashboard'); }}
                     saving={saving}

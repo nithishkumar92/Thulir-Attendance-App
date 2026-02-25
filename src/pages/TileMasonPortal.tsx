@@ -1,385 +1,423 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { fetchTileRooms } from '../services/apiService';
-import { fetchAdvances } from '../services/apiService';
+import { fetchTileRooms, fetchAdvances } from '../services/apiService';
 import { useNavigate } from 'react-router-dom';
 
-// --- Helpers ---
-const Label: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
-    <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</p>
+/* ─────────────────────────── helpers ─────────────────────────── */
+const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{children}</p>
 );
 
-const Badge: React.FC<{ text: string; color?: 'blue' | 'green' | 'orange' | 'red' | 'gray' | 'purple' }> = ({ text, color = 'blue' }) => {
-    const colors = {
-        blue:   { bg: '#eef2ff', text: '#4f46e5' },
-        green:  { bg: '#ecfdf5', text: '#10b981' },
-        orange: { bg: '#fff7ed', text: '#ea580c' },
-        red:    { bg: '#fef2f2', text: '#ef4444' },
-        gray:   { bg: '#f1f5f9', text: '#64748b' },
-        purple: { bg: '#f5f3ff', text: '#7c3aed' },
-    };
-    const theme = colors[color];
-    return (
-        <span style={{ background: theme.bg, color: theme.text, padding: '4px 8px', borderRadius: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-            {text}
-        </span>
-    );
+const TILE_COLORS: Record<string, string> = {
+    tile1: '#6366f1', tile2: '#9333ea', tile3: '#0d9488', tile4: '#ea580c',
+};
+const TILE_NAMES: Record<string, string> = {
+    tile1: 'Main Field', tile2: 'Border', tile3: 'Highlight 1', tile4: 'Highlight 2',
+};
+const TILE_BG: Record<string, string> = {
+    tile1: '#eef2ff', tile2: '#faf5ff', tile3: '#f0fdfa', tile4: '#fff7ed',
+};
+const TILE_SIZES_MAP: Record<string, number> = {
+    '600x600 mm (2x2 ft)': 4, '600x1200 mm (2x4 ft)': 8,
+    '800x800 mm (32x32 in)': 7.11, '800x1600 mm (32x64 in)': 14.22,
+    '1200x1200 mm (4x4 ft)': 16,
+};
+const calcReq = (area: number, size: string, wastage: number) => {
+    const sqft = TILE_SIZES_MAP[size] || 1;
+    return Math.ceil((area / sqft) * (1 + (wastage || 0) / 100));
 };
 
-// --- Types matching the DB tile_rooms schema ---
-interface TileSpec {
-    id: number;
-    type: string;
-    name: string;
-    size: string;
-    sqftPerPiece: number;
-}
-
-interface Room {
-    id: string;
-    name: string;
-    area: string;
-    totalTiles: number;
-    completedTiles: number;
-    instructions: string;
-    photos: string[];
-    tiles: TileSpec[];
-    siteId: string;
-}
-
-// Map raw DB fields to Room shape
-function mapDbRoom(raw: any): Room {
+function mapDbRoom(raw: any) {
     return {
         id: raw.id,
-        name: raw.room_name || raw.name || 'Unnamed Room',
-        area: raw.floor_area?.toString() || raw.area || '0',
-        totalTiles: raw.tiles_required || raw.totalTiles || 0,
-        completedTiles: raw.completed_tiles || 0,
-        instructions: raw.notes || raw.instructions || '',
-        photos: raw.photos || [],
-        tiles: raw.tiles || [],
-        siteId: raw.site_id || raw.siteId || '',
+        name: raw.name || raw.room_name || 'Unnamed Room',
+        area: raw.floorArea?.toString() || raw.floor_area?.toString() || raw.area || '0',
+        totalArea: raw.totalArea?.toString() || raw.total_area?.toString() || raw.area || '0',
+        length: raw.length || '0',
+        width: raw.width || '0',
+        totalTiles: raw.reqQty || raw.tiles_required || 0,
+        instructions: raw.instructions || raw.notes || '',
+        photos: (() => {
+            const p = raw.photos || [];
+            if (Array.isArray(p)) return p.map((ph: any) => typeof ph === 'string' ? ph : ph?.url || '').filter(Boolean);
+            return [];
+        })(),
+        gridData: raw.gridData || raw.grid_data || {},
+        tilesConfig: raw.tilesConfig || raw.tiles_config || {},
+        surfaceType: raw.surfaceType || raw.surface_type || 'floor',
+        hasSkirting: raw.hasSkirting || false,
+        skirtingArea: raw.skirtingArea || '0',
+        tileName: raw.tileName || '',
+        tileSize: raw.tileSize || '',
+        reqQty: raw.reqQty || 0,
+        wastage: raw.wastage || '0',
     };
 }
 
+type Room = ReturnType<typeof mapDbRoom>;
+
+/* ─────────────────────────── component ─────────────────────────── */
 export const TileMasonPortal: React.FC = () => {
     const { currentUser, sites, teams, advances, logout } = useApp();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState<'work' | 'payments'>('work');
+    const [tab, setTab] = useState<'work' | 'pay'>('work');
     const [rooms, setRooms] = useState<Room[]>([]);
-    const [loadingRooms, setLoadingRooms] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [roomError, setRoomError] = useState('');
-    const [masonAdvances, setMasonAdvances] = useState<any[]>([]);
+    const [myAdvances, setMyAdvances] = useState<any[]>([]);
 
-    // Image modal
+    // expanded room id
+    const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
+    // image modal
     const [imageModal, setImageModal] = useState<string | null>(null);
-    // Shortage modal
-    const [shortageModal, setShortageModal] = useState<Room | null>(null);
-    const [shortageTileId, setShortageTileId] = useState('');
-    const [shortagePieces, setShortagePieces] = useState('');
-    const [shortageOtherItem, setShortageOtherItem] = useState('');
+    // shortage modal
+    const [shortageRoom, setShortageRoom] = useState<Room | null>(null);
+    const [shortageMat, setShortageMat] = useState('');
+    const [shortageQty, setShortageQty] = useState('');
+    const [shortageOther, setShortageOther] = useState('');
+    const [shortageNote, setShortageNote] = useState('');
 
     const assignedTeam = teams.find(t => t.id === currentUser?.teamId);
-    const siteId = assignedTeam?.permittedSiteIds?.[0] || '';
-    const siteName = sites.find(s => s.id === siteId)?.name || assignedTeam?.name || 'Your Site';
+    const siteId = currentUser?.siteId || assignedTeam?.permittedSiteIds?.[0] || '';
+    const siteName = sites.find(s => s.id === siteId)?.name || 'Your Site';
 
-    // Load rooms from DB
+    // Load rooms
     useEffect(() => {
-        if (!siteId) {
-            setLoadingRooms(false);
-            setRoomError('No site assigned. Please contact your admin.');
-            return;
-        }
-        setLoadingRooms(true);
+        if (!siteId) { setLoading(false); setRoomError('No site assigned. Contact your admin.'); return; }
+        setLoading(true);
         fetchTileRooms(siteId)
-            .then(data => {
-                setRooms(data.map(mapDbRoom));
-                setRoomError('');
-            })
+            .then(data => { setRooms(data.map(mapDbRoom)); setRoomError(''); })
             .catch(() => setRoomError('Failed to load rooms. Please refresh.'))
-            .finally(() => setLoadingRooms(false));
+            .finally(() => setLoading(false));
     }, [siteId]);
 
-    // Load advances for payments tab
+    // Load advances
     useEffect(() => {
         const today = new Date();
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(today.getMonth() - 6);
-        const startStr = sixMonthsAgo.toISOString().split('T')[0];
-        const endStr = today.toISOString().split('T')[0];
-        fetchAdvances(startStr, endStr)
-            .then(data => setMasonAdvances(data || []))
+        const from = new Date(); from.setMonth(today.getMonth() - 6);
+        fetchAdvances(from.toISOString().split('T')[0], today.toISOString().split('T')[0])
+            .then(data => setMyAdvances(data || []))
             .catch(() => {});
     }, []);
 
-    // Derived stats
-    const totalOverallTiles = rooms.reduce((a, r) => a + (r.totalTiles || 0), 0);
-    const totalOverallCompleted = rooms.reduce((a, r) => a + (r.completedTiles || 0), 0);
-    const overallProgress = totalOverallTiles > 0 ? Math.round((totalOverallCompleted / totalOverallTiles) * 100) : 0;
-
-    // Payments
-    const workerRatePerSqft = 22; // default, could be configurable
-    const completedSqft = rooms.reduce((acc, r) => {
-        const progress = r.totalTiles > 0 ? r.completedTiles / r.totalTiles : 0;
-        return acc + (parseFloat(r.area || '0') * progress);
-    }, 0);
-    const totalEarned = Math.round(completedSqft * workerRatePerSqft);
-    const totalPaid = masonAdvances.reduce((a, p) => a + (p.amount || 0), 0);
+    // Payments calc
+    const totalReqTiles = rooms.reduce((s, r) => s + (r.reqQty || 0), 0);
+    const workerRate = 22;
+    const totalFloorArea = rooms.reduce((s, r) => s + parseFloat(r.area || '0'), 0);
+    const totalEarned = Math.round(totalFloorArea * workerRate);
+    const totalPaid = myAdvances.reduce((s, p) => s + (p.amount || 0), 0);
     const balance = totalEarned - totalPaid;
+    const totalArea = rooms.reduce((s, r) => s + parseFloat(r.totalArea || '0'), 0);
 
-    // Shortage handlers
-    const handleOpenShortage = (room: Room) => {
-        setShortageModal(room);
-        setShortageTileId('');
-        setShortagePieces('');
-        setShortageOtherItem('');
+    const handleShortageSubmit = () => {
+        if (!shortageMat) return;
+        if (!shortageQty) return;
+        alert(`Shortage reported for ${shortageRoom?.name}:\n${shortageQty} of ${shortageMat === 'other' ? shortageOther : shortageMat}${shortageNote ? `\nNote: ${shortageNote}` : ''}\n\nEngineer has been notified.`);
+        setShortageRoom(null); setShortageMat(''); setShortageQty(''); setShortageOther(''); setShortageNote('');
     };
 
-    const handleReportShortage = () => {
-        if (!shortageTileId) return alert('Please select a tile or material.');
-        if (!shortagePieces) return alert('Please enter the quantity.');
-        let reportMsg = '';
-        if (shortageTileId === 'other') {
-            if (!shortageOtherItem) return alert('Please specify the material name.');
-            reportMsg = `${shortagePieces} of ${shortageOtherItem}`;
-        } else {
-            const selectedTile = shortageModal?.tiles.find(t => t.id.toString() === shortageTileId);
-            if (!selectedTile) return;
-            const calcArea = (parseFloat(shortagePieces) * selectedTile.sqftPerPiece).toFixed(2);
-            reportMsg = `${shortagePieces} pieces of ${selectedTile.name} (${calcArea} sq.ft)`;
-        }
-        alert(`Shortage reported for ${shortageModal?.name}:\n\n${reportMsg}\n\nSite Engineer has been notified.`);
-        setShortageModal(null);
-    };
-
-    const selectedTileObj = shortageTileId && shortageTileId !== 'other'
-        ? shortageModal?.tiles.find(t => t.id.toString() === shortageTileId)
-        : null;
-    const calculatedSqft = selectedTileObj && shortagePieces
-        ? (parseFloat(shortagePieces) * selectedTileObj.sqftPerPiece).toFixed(2)
-        : '0';
+    const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
     return (
-        <div style={{ fontFamily: "'Inter', sans-serif", background: '#f1f5f9', minHeight: '100vh', maxWidth: 430, margin: '0 auto', color: '#0f172a', position: 'relative' }}>
-            
-            {/* HEADER */}
-            <div style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', padding: '20px 20px 24px', color: '#fff', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, position: 'sticky', top: 0, zIndex: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontFamily: "'Inter',sans-serif", background: '#f1f5f9', minHeight: '100vh', maxWidth: 430, margin: '0 auto', color: '#0f172a', paddingBottom: 80 }}>
+
+            {/* ── HEADER ── */}
+            <div style={{ background: 'linear-gradient(135deg,#1e293b,#0f172a)', padding: '20px 20px 28px', color: '#fff', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
                     <div>
-                        <h1 style={{ margin: '0 0 2px', fontSize: 18, fontWeight: 800 }}>{siteName}</h1>
-                        <p style={{ margin: 0, fontSize: 13, color: '#cbd5e1', fontWeight: 500 }}>
-                            👷 {currentUser?.name} &nbsp;•&nbsp; Tile Mason
-                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🧱</div>
+                            <div>
+                                <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Tile Worker Portal</h1>
+                                <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>👷 {currentUser?.name}</p>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 6, height: 6, background: '#4ade80', borderRadius: '50%' }} />
+                            <p style={{ margin: 0, fontSize: 12, color: '#cbd5e1', fontWeight: 600 }}>{siteName}</p>
+                        </div>
                     </div>
                     <button
                         onClick={() => { logout(); navigate('/login'); }}
-                        style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#cbd5e1', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                    >
-                        Logout
-                    </button>
+                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: '#94a3b8', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    >Logout</button>
                 </div>
 
-                {/* Tabs */}
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 4 }}>
-                    {(['work', 'payments'] as const).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', background: activeTab === tab ? '#fff' : 'transparent', color: activeTab === tab ? '#0f172a' : '#cbd5e1', fontSize: 14, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
-                        >
-                            {tab === 'work' ? '📋 Site Work' : '₹ Payments'}
-                        </button>
+                {/* Quick stats row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    {[
+                        { label: 'Rooms', value: rooms.length, icon: '🏠' },
+                        { label: 'Total Area', value: `${totalArea.toFixed(0)} sqft`, icon: '📐' },
+                        { label: 'Balance', value: `₹${Math.abs(balance).toLocaleString()}`, icon: '💰' },
+                    ].map(s => (
+                        <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
+                            <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 900, color: '#f8fafc' }}>{s.value}</p>
+                            <p style={{ margin: 0, fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>{s.label}</p>
+                        </div>
                     ))}
                 </div>
+
+                <p style={{ margin: '14px 0 0', fontSize: 11, color: '#475569', textAlign: 'right' }}>{today}</p>
             </div>
 
-            <div style={{ padding: '20px 16px 60px' }}>
+            {/* ── BODY ── */}
+            <div style={{ padding: '18px 14px' }}>
 
-                {/* ---- SITE WORK TAB ---- */}
-                {activeTab === 'work' && (
+                {/* ══════════ WORK TAB ══════════ */}
+                {tab === 'work' && (
                     <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Assigned Rooms</h2>
-                            <Badge
-                                text={`Progress: ${overallProgress}%`}
-                                color={overallProgress === 100 ? 'green' : 'blue'}
-                            />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>Assigned Rooms</h2>
+                            <span style={{ background: '#eef2ff', color: '#4f46e5', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 800 }}>
+                                {rooms.length} Rooms · {totalReqTiles.toLocaleString()} Tiles
+                            </span>
                         </div>
 
-                        {loadingRooms && (
+                        {loading && (
                             <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
-                                <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
-                                Loading rooms...
+                                <div style={{ fontSize: 28, marginBottom: 8, animation: 'spin 1s linear infinite' }}>⏳</div>
+                                Loading rooms…
                             </div>
                         )}
-
                         {roomError && (
-                            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: 16, color: '#ef4444', fontWeight: 700, textAlign: 'center' }}>
+                            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 14, padding: 16, color: '#ef4444', fontWeight: 700, textAlign: 'center' }}>
                                 {roomError}
                             </div>
                         )}
-
-                        {!loadingRooms && !roomError && rooms.length === 0 && (
-                            <div style={{ background: '#fff', borderRadius: 16, padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-                                <div style={{ fontSize: 36, marginBottom: 8 }}>🏠</div>
-                                <p style={{ margin: 0, fontWeight: 700 }}>No rooms assigned yet.</p>
-                                <p style={{ margin: '4px 0 0', fontSize: 13 }}>Your engineer will assign rooms soon.</p>
+                        {!loading && !roomError && rooms.length === 0 && (
+                            <div style={{ background: '#fff', borderRadius: 20, padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+                                <div style={{ fontSize: 40, marginBottom: 8 }}>🏠</div>
+                                <p style={{ margin: 0, fontWeight: 700 }}>No rooms assigned yet</p>
+                                <p style={{ margin: '4px 0 0', fontSize: 13 }}>Your engineer will set up rooms soon.</p>
                             </div>
                         )}
 
                         {rooms.map(room => {
-                            const progressPercent = room.totalTiles > 0 ? Math.round((room.completedTiles / room.totalTiles) * 100) : 0;
-                            const isComplete = room.completedTiles >= room.totalTiles && room.totalTiles > 0;
+                            const isOpen = expandedRoom === room.id;
+                            const gridEntries = Object.entries(room.gridData || {});
+                            const hasGrid = gridEntries.length > 0;
+                            const tc = room.tilesConfig || {};
+                            const W = parseFloat(room.width) || 10;
+                            const L = parseFloat(room.length) || 12;
+
+                            // per-type tile areas
+                            const areas: Record<string, number> = { tile1: 0, tile2: 0, tile3: 0, tile4: 0 };
+                            gridEntries.forEach(([, v]) => { if (v in areas) areas[v]++; });
+                            const activeTypes = Object.keys(areas).filter(k => areas[k] > 0);
 
                             return (
-                                <div key={room.id} style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: isComplete ? '2px solid #10b981' : '1px solid #e2e8f0' }}>
-                                    
-                                    {/* Room header */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{room.name}</h3>
-                                            {isComplete && <span>✅</span>}
+                                <div key={room.id} style={{ background: '#fff', borderRadius: 20, marginBottom: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
+
+                                    {/* Room card header — always visible */}
+                                    <div
+                                        onClick={() => setExpandedRoom(isOpen ? null : room.id)}
+                                        style={{ padding: 16, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+                                    >
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                                <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                                                    {room.surfaceType === 'wall' ? '🧱' : '🟦'}
+                                                </div>
+                                                <div>
+                                                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{room.name}</h3>
+                                                    <p style={{ margin: 0, fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                                                        {W} × {L} ft · {parseFloat(room.area || '0').toFixed(0)} sq.ft
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {/* Mini type badges */}
+                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                                {activeTypes.map(k => (
+                                                    <span key={k} style={{ background: TILE_BG[k], color: TILE_COLORS[k], fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6 }}>
+                                                        {TILE_NAMES[k]}
+                                                    </span>
+                                                ))}
+                                                {!hasGrid && room.tileName && (
+                                                    <span style={{ background: '#eef2ff', color: '#4f46e5', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6 }}>{room.tileName}</span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div style={{ textAlign: 'right', background: '#f8fafc', padding: '6px 10px', borderRadius: 8 }}>
-                                            <p style={{ margin: 0, fontSize: 10, color: '#64748b', fontWeight: 700 }}>ROOM AREA</p>
-                                            <p style={{ margin: 0, fontSize: 14, color: '#0f172a', fontWeight: 800 }}>{parseFloat(room.area || '0').toFixed(1)} sq.ft</p>
+                                        <div style={{ textAlign: 'right', marginLeft: 10 }}>
+                                            <p style={{ margin: '0 0 2px', fontSize: 20, fontWeight: 900, color: '#0f172a' }}>{room.reqQty} <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>nos</span></p>
+                                            <p style={{ margin: '0 0 8px', fontSize: 10, color: '#94a3b8', fontWeight: 700 }}>REQUIRED</p>
+                                            <span style={{ fontSize: 16, color: isOpen ? '#6366f1' : '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
                                         </div>
                                     </div>
 
-                                    {/* Progress bar */}
-                                    <div style={{ marginBottom: 14 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                            <Label style={{ margin: 0 }}>Work Progress</Label>
-                                            <span style={{ fontSize: 11, fontWeight: 800, color: isComplete ? '#10b981' : '#6366f1' }}>
-                                                {room.completedTiles} / {room.totalTiles} Tiles ({progressPercent}%)
-                                            </span>
-                                        </div>
-                                        <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
-                                            <div style={{ height: '100%', background: isComplete ? '#10b981' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${progressPercent}%`, transition: 'width 0.4s ease' }} />
-                                        </div>
-                                    </div>
+                                    {/* Expanded section */}
+                                    {isOpen && (
+                                        <div style={{ borderTop: '1px solid #f1f5f9', padding: 16 }}>
 
-                                    {/* Tile specs */}
-                                    {room.tiles && room.tiles.length > 0 && (
-                                        <div style={{ marginBottom: 14 }}>
-                                            <Label>Required Tiles</Label>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                                {room.tiles.map((tile, idx) => (
-                                                    <div key={tile.id ?? idx} style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div style={{ flex: 1, paddingRight: 8 }}>
-                                                            <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{tile.name}</p>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                <Badge text={tile.type} color="purple" />
-                                                                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{tile.size}</span>
-                                                            </div>
+                                            {/* Grid layout preview */}
+                                            {hasGrid && (
+                                                <div style={{ marginBottom: 16 }}>
+                                                    <Label>{room.surfaceType === 'wall' ? '🧱 Wall Elevation' : '🪟 Floor Layout'}</Label>
+                                                    <div style={{ background: '#f8fafc', borderRadius: 10, padding: 10, border: '1px solid #e2e8f0' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, 1fr)`, gap: 1, background: '#cbd5e1', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+                                                            {Array.from({ length: L }).flatMap((_, y) =>
+                                                                Array.from({ length: W }).map((_, x) => {
+                                                                    const ct = room.gridData[`${x}-${y}`];
+                                                                    let bg = '#f8fafc';
+                                                                    if (ct === 'deduct') bg = 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 5px)';
+                                                                    else if (ct && TILE_COLORS[ct]) bg = TILE_COLORS[ct];
+                                                                    return <div key={`${x}-${y}`} style={{ aspectRatio: '1/1', background: bg }} />;
+                                                                })
+                                                            )}
                                                         </div>
-                                                        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontWeight: 700, whiteSpace: 'nowrap' }}>{tile.sqftPerPiece} sq.ft/pc</p>
+                                                        {/* Legend */}
+                                                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                                            {activeTypes.map(k => (
+                                                                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                                    <div style={{ width: 10, height: 10, background: TILE_COLORS[k], borderRadius: 3 }} />
+                                                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#475569' }}>{TILE_NAMES[k]}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                                </div>
+                                            )}
 
-                                    {/* Engineer notes */}
-                                    {room.instructions && (
-                                        <div style={{ background: '#fffbeb', borderLeft: '3px solid #f59e0b', padding: '10px 12px', borderRadius: '0 8px 8px 0', marginBottom: 14 }}>
-                                            <p style={{ margin: '0 0 4px', fontSize: 11, color: '#b45309', fontWeight: 800, textTransform: 'uppercase' }}>📝 Engineer Notes</p>
-                                            <p style={{ margin: 0, fontSize: 13, color: '#92400e', lineHeight: 1.5 }}>{room.instructions}</p>
-                                        </div>
-                                    )}
-
-                                    {/* Reference photos */}
-                                    {room.photos && room.photos.length > 0 && (
-                                        <div style={{ marginBottom: 14 }}>
-                                            <Label>Mockup & Reference Photos</Label>
-                                            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-                                                {room.photos.map((url, idx) => (
-                                                    <div key={idx} onClick={() => setImageModal(url)} style={{ width: 80, height: 80, flexShrink: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', border: '1px solid #e2e8f0' }}>
-                                                        <img src={url} alt="Reference" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            {/* Tile type breakdown */}
+                                            {activeTypes.length > 0 && (
+                                                <div style={{ marginBottom: 16 }}>
+                                                    <Label>Tile Type Breakdown</Label>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                        {activeTypes.map(k => {
+                                                            const area = areas[k];
+                                                            const cfg = (tc as any)[k] || {};
+                                                            const req = calcReq(area, cfg.size || '', parseFloat(cfg.wastage) || 0);
+                                                            return (
+                                                                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, background: TILE_BG[k], borderRadius: 12, padding: '10px 12px' }}>
+                                                                    <div style={{ width: 28, height: 28, background: TILE_COLORS[k], borderRadius: 8, flexShrink: 0 }} />
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <p style={{ margin: '0 0 1px', fontSize: 13, fontWeight: 800, color: TILE_COLORS[k] }}>{TILE_NAMES[k]}</p>
+                                                                        <p style={{ margin: 0, fontSize: 10, color: '#64748b', fontWeight: 600 }}>{cfg.size || 'Size not set'}</p>
+                                                                    </div>
+                                                                    <div style={{ textAlign: 'right' }}>
+                                                                        <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0f172a' }}>{req} <span style={{ fontSize: 10, color: '#94a3b8' }}>nos</span></p>
+                                                                        <p style={{ margin: 0, fontSize: 10, color: '#94a3b8' }}>{area} sq.ft</p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </div>
+                                            )}
+
+                                            {/* Simple tile info when no grid */}
+                                            {!hasGrid && room.tileName && (
+                                                <div style={{ background: '#eef2ff', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div>
+                                                            <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 800, color: '#4f46e5' }}>{room.tileName}</p>
+                                                            <p style={{ margin: 0, fontSize: 11, color: '#6366f1' }}>{room.tileSize}</p>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#4f46e5' }}>{room.reqQty}</p>
+                                                            <p style={{ margin: 0, fontSize: 10, color: '#818cf8' }}>nos (+{room.wastage}%)</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Engineer notes */}
+                                            {room.instructions && (
+                                                <div style={{ background: '#fffbeb', borderLeft: '3px solid #f59e0b', padding: '10px 12px', borderRadius: '0 10px 10px 0', marginBottom: 16 }}>
+                                                    <p style={{ margin: '0 0 4px', fontSize: 10, color: '#b45309', fontWeight: 800, textTransform: 'uppercase' }}>📝 Engineer Notes</p>
+                                                    <p style={{ margin: 0, fontSize: 13, color: '#92400e', lineHeight: 1.5 }}>{room.instructions}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Reference photos */}
+                                            {room.photos.length > 0 && (
+                                                <div style={{ marginBottom: 16 }}>
+                                                    <Label>Reference Photos</Label>
+                                                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                                                        {room.photos.map((url, i) => (
+                                                            <div key={i} onClick={() => setImageModal(url)} style={{ width: 76, height: 76, flexShrink: 0, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', border: '1px solid #e2e8f0' }}>
+                                                                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Shortage button */}
+                                            <button
+                                                onClick={() => { setShortageRoom(room); setShortageMat(''); setShortageQty(''); setShortageOther(''); setShortageNote(''); }}
+                                                style={{ width: '100%', padding: '12px', background: '#fef2f2', color: '#ef4444', border: '1.5px solid #fecaca', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+                                            >⚠️ Report Material Shortage</button>
                                         </div>
                                     )}
-
-                                    {/* Report shortage button */}
-                                    <div style={{ paddingTop: 14, borderTop: '1px dashed #e2e8f0' }}>
-                                        <button
-                                            onClick={() => handleOpenShortage(room)}
-                                            style={{ width: '100%', padding: 12, background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                                        >
-                                            ⚠️ Report Material Shortage
-                                        </button>
-                                    </div>
                                 </div>
                             );
                         })}
                     </>
                 )}
 
-                {/* ---- PAYMENTS TAB ---- */}
-                {activeTab === 'payments' && (
+                {/* ══════════ PAYMENTS TAB ══════════ */}
+                {tab === 'pay' && (
                     <>
-                        {/* Ledger summary card */}
-                        <div style={{ background: 'linear-gradient(135deg,#4f46e5,#3b82f6)', borderRadius: 16, padding: 20, color: '#fff', marginBottom: 20, boxShadow: '0 8px 20px rgba(59,130,246,0.25)' }}>
-                            <p style={{ margin: '0 0 4px', fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-                                TOTAL EARNED ({completedSqft.toFixed(0)} sq.ft @ ₹{workerRatePerSqft}/sq.ft)
+                        {/* Earnings card */}
+                        <div style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', borderRadius: 20, padding: 20, color: '#fff', marginBottom: 16, boxShadow: '0 8px 24px rgba(79,70,229,0.3)' }}>
+                            <p style={{ margin: '0 0 6px', fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                Total Earned ({totalFloorArea.toFixed(0)} sq.ft × ₹{workerRate})
                             </p>
-                            <h2 style={{ margin: '0 0 20px', fontSize: 28, fontWeight: 800 }}>₹{totalEarned.toLocaleString()}</h2>
-
-                            <div style={{ display: 'flex', gap: 16, background: 'rgba(0,0,0,0.15)', padding: 16, borderRadius: 12 }}>
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ margin: '0 0 4px', fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>ADVANCES PAID</p>
-                                    <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#6ee7b7' }}>₹{totalPaid.toLocaleString()}</p>
+                            <h2 style={{ margin: '0 0 20px', fontSize: 32, fontWeight: 900 }}>₹{totalEarned.toLocaleString()}</h2>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 14 }}>
+                                    <p style={{ margin: '0 0 4px', fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700, textTransform: 'uppercase' }}>Advances Paid</p>
+                                    <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#6ee7b7' }}>₹{totalPaid.toLocaleString()}</p>
                                 </div>
-                                <div style={{ width: 1, background: 'rgba(255,255,255,0.2)' }} />
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ margin: '0 0 4px', fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>BALANCE DUE</p>
-                                    <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: balance < 0 ? '#fca5a5' : '#fff' }}>
-                                        ₹{Math.abs(balance).toLocaleString()} {balance < 0 ? '(overpaid)' : ''}
+                                <div style={{ background: balance < 0 ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 14 }}>
+                                    <p style={{ margin: '0 0 4px', fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700, textTransform: 'uppercase' }}>{balance < 0 ? 'Overpaid' : 'Balance Due'}</p>
+                                    <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: balance < 0 ? '#fca5a5' : '#fff' }}>
+                                        ₹{Math.abs(balance).toLocaleString()}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Room progress for payment reference */}
-                        <div style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 20, border: '1px solid #e2e8f0' }}>
-                            <Label>Work Completion by Room</Label>
-                            {rooms.length === 0 && <p style={{ margin: 0, color: '#94a3b8', fontSize: 13 }}>No room data yet.</p>}
-                            {rooms.map(room => {
-                                const pct = room.totalTiles > 0 ? Math.round((room.completedTiles / room.totalTiles) * 100) : 0;
-                                const sqft = (parseFloat(room.area || '0') * pct / 100).toFixed(1);
+                        {/* Rooms breakdown */}
+                        <div style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, border: '1px solid #f1f5f9' }}>
+                            <Label>Area by Room</Label>
+                            {rooms.length === 0 ? (
+                                <p style={{ margin: 0, color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 16 }}>No rooms yet</p>
+                            ) : rooms.map(r => {
+                                const earned = Math.round(parseFloat(r.area || '0') * workerRate);
                                 return (
-                                    <div key={room.id} style={{ marginBottom: 12 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                            <span style={{ fontSize: 13, fontWeight: 700 }}>{room.name}</span>
-                                            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{sqft} sq.ft ({pct}%)</span>
+                                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f8fafc' }}>
+                                        <div>
+                                            <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{r.name}</p>
+                                            <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>{parseFloat(r.area || '0').toFixed(1)} sq.ft</p>
                                         </div>
-                                        <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
-                                            <div style={{ height: '100%', background: pct === 100 ? '#10b981' : '#6366f1', width: `${pct}%` }} />
-                                        </div>
+                                        <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#4f46e5' }}>₹{earned.toLocaleString()}</p>
                                     </div>
                                 );
                             })}
                         </div>
 
-                        <h2 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 800 }}>Advance History</h2>
-
-                        {masonAdvances.length === 0 ? (
-                            <p style={{ textAlign: 'center', color: '#64748b', padding: 20 }}>No advance payments recorded.</p>
+                        {/* Advance history */}
+                        <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800 }}>Advance History</h3>
+                        {myAdvances.length === 0 ? (
+                            <div style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', color: '#94a3b8' }}>
+                                <div style={{ fontSize: 32, marginBottom: 8 }}>💰</div>
+                                <p style={{ margin: 0, fontWeight: 700 }}>No advance payments recorded</p>
+                            </div>
                         ) : (
-                            <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                                {masonAdvances.map((pay, idx) => (
-                                    <div key={pay.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottom: idx !== masonAdvances.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                            <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+                                {myAdvances.map((p, i) => (
+                                    <div key={p.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: i !== myAdvances.length - 1 ? '1px solid #f8fafc' : 'none' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>💵</div>
+                                            <div style={{ width: 38, height: 38, background: '#ecfdf5', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>💵</div>
                                             <div>
-                                                <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800 }}>Advance</p>
-                                                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{pay.date} {pay.notes ? `• ${pay.notes}` : ''}</p>
+                                                <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 800 }}>Advance</p>
+                                                <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>{p.date}{p.notes ? ` · ${p.notes}` : ''}</p>
                                             </div>
                                         </div>
-                                        <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#10b981' }}>+₹{(pay.amount || 0).toLocaleString()}</p>
+                                        <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#10b981' }}>+₹{(p.amount || 0).toLocaleString()}</p>
                                     </div>
                                 ))}
                             </div>
@@ -388,90 +426,88 @@ export const TileMasonPortal: React.FC = () => {
                 )}
             </div>
 
-            {/* ---- MODALS ---- */}
+            {/* ── STICKY BOTTOM NAV ── */}
+            <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: '#fff', borderTop: '1px solid #f1f5f9', display: 'flex', zIndex: 50, boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}>
+                {([
+                    { key: 'work', label: 'Site Work', icon: '📋' },
+                    { key: 'pay',  label: 'Payments',  icon: '₹' },
+                ] as const).map(t => (
+                    <button
+                        key={t.key}
+                        onClick={() => setTab(t.key)}
+                        style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: tab === t.key ? '#6366f1' : '#94a3b8', borderTop: tab === t.key ? '2px solid #6366f1' : '2px solid transparent', transition: 'all 0.15s' }}
+                    >
+                        <span style={{ fontSize: 20 }}>{t.icon}</span>
+                        <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.label}</span>
+                    </button>
+                ))}
+            </div>
 
-            {/* Fullscreen image */}
+            {/* ── IMAGE MODAL ── */}
             {imageModal && (
-                <div onClick={() => setImageModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                    <img src={imageModal} alt="Reference" style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 12, objectFit: 'contain' }} />
-                    <p style={{ color: '#fff', marginTop: 16, fontSize: 14, fontWeight: 600 }}>Tap anywhere to close</p>
+                <div onClick={() => setImageModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <img src={imageModal} alt="" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 14, objectFit: 'contain' }} />
+                    <p style={{ color: '#64748b', marginTop: 16, fontSize: 13 }}>Tap anywhere to close</p>
                 </div>
             )}
 
-            {/* Shortage modal */}
-            {shortageModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <div style={{ background: '#fff', width: '100%', maxWidth: 430, borderRadius: '24px 24px 0 0', padding: 24, boxSizing: 'border-box', animation: 'slideUp 0.3s ease-out' }}>
-
+            {/* ── SHORTAGE MODAL ── */}
+            {shortageRoom && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <div style={{ background: '#fff', width: '100%', maxWidth: 430, borderRadius: '24px 24px 0 0', padding: 24, boxSizing: 'border-box', animation: 'slideUp 0.25s ease-out' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#ef4444' }}>Report Material Shortage</h2>
-                            <button onClick={() => setShortageModal(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
-                        </div>
-
-                        <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b' }}>
-                            Notifying engineer for room: <strong style={{ color: '#0f172a' }}>{shortageModal.name}</strong>
-                        </p>
-
-                        <div style={{ marginBottom: 16 }}>
-                            <Label>Select Material</Label>
-                            <div style={{ position: 'relative' }}>
-                                <select
-                                    value={shortageTileId}
-                                    onChange={e => setShortageTileId(e.target.value)}
-                                    style={{ width: '100%', padding: 14, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 15, outline: 'none', background: '#f8fafc', color: '#0f172a', appearance: 'none' }}
-                                >
-                                    <option value="" disabled>Select tile or material...</option>
-                                    {shortageModal.tiles.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
-                                    ))}
-                                    <option value="other">Other Material (Cement, Spacer, etc.)</option>
-                                </select>
-                                <div style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 12 }}>▼</div>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#ef4444' }}>Report Shortage</h2>
+                                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{shortageRoom.name}</p>
                             </div>
+                            <button onClick={() => setShortageRoom(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: 'pointer', color: '#64748b' }}>✕</button>
                         </div>
 
-                        {shortageTileId === 'other' && (
-                            <div style={{ marginBottom: 16 }}>
-                                <Label>Specify Material Name</Label>
-                                <input
-                                    type="text" value={shortageOtherItem} onChange={e => setShortageOtherItem(e.target.value)}
-                                    placeholder="e.g. White Epoxy Grout"
-                                    style={{ width: '100%', boxSizing: 'border-box', padding: 14, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 15, outline: 'none' }}
-                                />
+                        <div style={{ marginBottom: 14 }}>
+                            <Label>Material / Tile Type</Label>
+                            <select value={shortageMat} onChange={e => setShortageMat(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, background: '#f8fafc', outline: 'none', appearance: 'none' }}>
+                                <option value="" disabled>Select material…</option>
+                                {Object.keys(shortageRoom.tilesConfig || {}).filter(k => (shortageRoom.tilesConfig as any)[k]?.size && !(shortageRoom.tilesConfig as any)[k]?.size.includes('Select')).map(k => (
+                                    <option key={k} value={k}>{TILE_NAMES[k] || k} — {(shortageRoom.tilesConfig as any)[k]?.size}</option>
+                                ))}
+                                <option value="cement">Cement</option>
+                                <option value="spacer">Tile Spacers</option>
+                                <option value="grout">Grout</option>
+                                <option value="other">Other…</option>
+                            </select>
+                        </div>
+
+                        {shortageMat === 'other' && (
+                            <div style={{ marginBottom: 14 }}>
+                                <Label>Specify Material</Label>
+                                <input value={shortageOther} onChange={e => setShortageOther(e.target.value)} placeholder="e.g. White Epoxy Grout" style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-                            <div style={{ flex: 1 }}>
-                                <Label>{shortageTileId === 'other' ? 'Quantity' : 'No. of Pieces'}</Label>
-                                <input
-                                    type={shortageTileId === 'other' ? 'text' : 'number'}
-                                    value={shortagePieces} onChange={e => setShortagePieces(e.target.value)}
-                                    placeholder={shortageTileId === 'other' ? 'e.g. 2 bags' : 'e.g. 5'}
-                                    style={{ width: '100%', boxSizing: 'border-box', padding: 14, borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 15, outline: 'none' }}
-                                />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                            <div>
+                                <Label>Quantity Needed</Label>
+                                <input type="text" value={shortageQty} onChange={e => setShortageQty(e.target.value)} placeholder="e.g. 15 pcs / 2 bags" style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
                             </div>
-                            {selectedTileObj && (
-                                <div style={{ flex: 1, background: '#eef2ff', borderRadius: 12, padding: 12, border: '1px solid #c7d2fe', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                    <p style={{ margin: '0 0 2px', fontSize: 10, color: '#6366f1', fontWeight: 800 }}>EQUIVALENT AREA</p>
-                                    <p style={{ margin: 0, fontSize: 18, color: '#4f46e5', fontWeight: 800 }}>{calculatedSqft} <span style={{ fontSize: 12, fontWeight: 600 }}>sq.ft</span></p>
-                                </div>
-                            )}
+                            <div>
+                                <Label>Note (optional)</Label>
+                                <input type="text" value={shortageNote} onChange={e => setShortageNote(e.target.value)} placeholder="Urgent?" style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
+                            </div>
                         </div>
 
                         <button
-                            onClick={handleReportShortage}
-                            style={{ width: '100%', padding: 16, background: '#ef4444', color: '#fff', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 800, cursor: 'pointer' }}
-                        >
-                            🚀 Send Shortage Report
-                        </button>
+                            onClick={handleShortageSubmit}
+                            disabled={!shortageMat || !shortageQty}
+                            style={{ width: '100%', padding: 16, background: (!shortageMat || !shortageQty) ? '#fca5a5' : '#ef4444', color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 900, cursor: (!shortageMat || !shortageQty) ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+                        >🚀 Send Shortage Report</button>
                     </div>
                 </div>
             )}
 
             <style>{`
                 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-                * { -webkit-tap-highlight-color: transparent; }
+                * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+                ::-webkit-scrollbar { display: none; }
             `}</style>
         </div>
     );
