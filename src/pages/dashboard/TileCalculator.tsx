@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import * as api from '../../services/apiService';
+import { InteractiveTilePlanner, PlannerSaveData } from './InteractiveTilePlanner';
 
 // --- Types ---
 interface TileSize {
@@ -209,7 +210,7 @@ const MockupPhotos: React.FC<{
                                 justifyContent: 'center',
                             }}
                         >
-                            ✕
+                            âœ•
                         </button>
                     </div>
                 ))}
@@ -454,6 +455,47 @@ export const TileCalculator: React.FC = () => {
         }
     };
 
+    // --- Planner Save Handler ---
+    const handleSavePlannerRoom = async (data: PlannerSaveData) => {
+        if (!editingRoom) return;
+        setSaving(true);
+        try {
+            const isNew = !rooms.find((r) => r.id === editingRoom.id);
+            const roomPayload = {
+                ...editingRoom,
+                name: data.name,
+                length: String(data.length),
+                width: String(data.width),
+                totalArea: String(data.totalArea),
+                floorArea: String(data.floorArea),
+                skirtingArea: String(data.skirtingArea),
+                reqQty: String(data.reqQty),
+                hasSkirting: data.skirting.enabled,
+                skirtingHeight: data.skirting.height,
+                doors: data.skirting.doors,
+                doorWidth: data.skirting.doorWidth,
+                wastage: String(data.tilesConfig.tile1.wastage),
+                tileSize: data.tilesConfig.tile1.size,
+                tileName: 'Multi-type (Planner)',
+                siteId: selectedSiteId,
+                deductions: [],
+                additions: [],
+            };
+            if (isNew) {
+                const saved = await api.createTileRoom(roomPayload);
+                setRooms((prev) => [...prev, { ...saved, id: saved.id }]);
+            } else {
+                const saved = await api.updateTileRoom(String(editingRoom.id), roomPayload);
+                setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? { ...saved, id: saved.id } : r)));
+            }
+            setView('dashboard');
+        } catch (err: any) {
+            alert('Failed to save room: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const updateField = <K extends keyof Room>(field: K, value: Room[K]) => {
         if (!editingRoom) return;
         const updated = { ...editingRoom, [field]: value };
@@ -649,7 +691,7 @@ export const TileCalculator: React.FC = () => {
                 {/* Page Header */}
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">🪟 Tile Calculator</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">ðŸªŸ Tile Calculator</h1>
                         <p className="text-sm text-gray-500 mt-1">Room-wise tile requirement setup & PDF report</p>
                     </div>
                     <div className="flex flex-wrap gap-3 items-center">
@@ -681,7 +723,7 @@ export const TileCalculator: React.FC = () => {
                                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
                                 disabled={rooms.length === 0}
                             >
-                                📄 Report
+                                ðŸ“„ Report
                             </button>
                             <button
                                 onClick={handleAddNewRoom}
@@ -697,7 +739,7 @@ export const TileCalculator: React.FC = () => {
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Rooms — {selectedSite?.name || '—'}</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Rooms â€” {selectedSite?.name || 'â€”'}</p>
                         <p className="text-3xl font-bold text-gray-800">{rooms.length}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -715,13 +757,13 @@ export const TileCalculator: React.FC = () => {
 
                     {!selectedSiteId ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                            <p className="text-5xl mb-3">🏗️</p>
+                            <p className="text-5xl mb-3">ðŸ—ï¸</p>
                             <p className="text-sm font-medium">Please select a site above to view or add rooms.</p>
                         </div>
                     ) : loading ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                            <p className="text-4xl mb-3 animate-spin">⏳</p>
-                            <p className="text-sm font-medium">Loading rooms…</p>
+                            <p className="text-4xl mb-3 animate-spin">â³</p>
+                            <p className="text-sm font-medium">Loading roomsâ€¦</p>
                         </div>
                     ) : error ? (
                         <div className="bg-red-50 rounded-xl border border-red-200 p-6 text-center text-red-600">
@@ -730,7 +772,7 @@ export const TileCalculator: React.FC = () => {
                         </div>
                     ) : rooms.length === 0 ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                            <p className="text-5xl mb-3">📭</p>
+                            <p className="text-5xl mb-3">ðŸ“­</p>
                             <p className="text-sm font-medium">
                                 No rooms for <strong>{selectedSite?.name}</strong> yet.
                                 <br />
@@ -783,12 +825,12 @@ export const TileCalculator: React.FC = () => {
                                         <div className="flex gap-2 flex-wrap">
                                             {room.deductions?.length > 0 && (
                                                 <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-md">
-                                                    ⚠️ {room.deductions.length} Deductions
+                                                    âš ï¸ {room.deductions.length} Deductions
                                                 </span>
                                             )}
                                             {room.additions?.length > 0 && (
                                                 <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                                                    ➕ {room.additions.length} Additions
+                                                    âž• {room.additions.length} Additions
                                                 </span>
                                             )}
                                         </div>
@@ -796,7 +838,7 @@ export const TileCalculator: React.FC = () => {
 
                                     <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                                         <span className="text-xs text-gray-400">
-                                            📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸 tap to view photos
+                                            ðŸ“ {room.instructions ? 'Has notes' : 'No notes'} &nbsp;â€¢&nbsp; ðŸ“¸ tap to view photos
                                         </span>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
@@ -821,7 +863,7 @@ export const TileCalculator: React.FC = () => {
                                     onClick={() => setDownloadModalVisible(false)}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
-                                    ✕
+                                    âœ•
                                 </button>
                             </div>
                             <p className="text-sm text-gray-500 mb-4">
@@ -874,7 +916,7 @@ export const TileCalculator: React.FC = () => {
                                 disabled={selectedRoomsToDownload.length === 0}
                                 className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors"
                             >
-                                🖨️ Print / Save as PDF
+                                ðŸ–¨ï¸ Print / Save as PDF
                             </button>
                         </div>
                     </div>
@@ -884,440 +926,17 @@ export const TileCalculator: React.FC = () => {
     }
 
     // =====================================================================
-    // EDIT / CREATE ROOM VIEW
+    // EDIT / CREATE ROOM VIEW  â€” Pro Layout Planner
     // =====================================================================
     if (view === 'editRoom' && editingRoom) {
         return (
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setView('dashboard')}
-                        className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors"
-                    >
-                        ← Back
-                    </button>
-                    <h1 className="text-xl font-bold text-gray-800">
-                        {editingRoom.name ? `Edit Room — ${editingRoom.name}` : 'New Room'}
-                    </h1>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
-                    {/* Room Name */}
-                    <div>
-                        <FieldLabel>Room Name</FieldLabel>
-                        <TileInput
-                            value={editingRoom.name}
-                            onChange={(e) => updateField('name', e.target.value)}
-                            placeholder="e.g. Master Bedroom"
-                        />
-                    </div>
-
-                    {/* Tile Spec & Size */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <FieldLabel>Tile Spec / Brand</FieldLabel>
-                            <TileInput
-                                value={editingRoom.tileName}
-                                onChange={(e) => updateField('tileName', e.target.value)}
-                                placeholder="e.g. GVT Wooden"
-                            />
-                        </div>
-                        <div>
-                            <FieldLabel>Tile Size</FieldLabel>
-                            <select
-                                value={editingRoom.tileSize}
-                                onChange={(e) => updateField('tileSize', e.target.value)}
-                                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            >
-                                {TILE_SIZES.map((t) => (
-                                    <option key={t.label} value={t.label}>
-                                        {t.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Custom tile dimensions */}
-                    {editingRoom.tileSize === 'Custom / Other' && (
-                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <FieldLabel>Custom Tile Dimensions</FieldLabel>
-                            <div className="grid grid-cols-3 gap-3">
-                                <TileInput
-                                    type="number"
-                                    value={editingRoom.customTileLength}
-                                    onChange={(e) => updateField('customTileLength', e.target.value)}
-                                    placeholder="Length"
-                                />
-                                <TileInput
-                                    type="number"
-                                    value={editingRoom.customTileWidth}
-                                    onChange={(e) => updateField('customTileWidth', e.target.value)}
-                                    placeholder="Width"
-                                />
-                                <select
-                                    value={editingRoom.customTileUnit}
-                                    onChange={(e) =>
-                                        updateField(
-                                            'customTileUnit',
-                                            e.target.value as 'feet' | 'inches' | 'mm'
-                                        )
-                                    }
-                                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                >
-                                    <option value="feet">Feet</option>
-                                    <option value="inches">Inches</option>
-                                    <option value="mm">mm</option>
-                                </select>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Dimensions */}
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-                        <FieldLabel>Main Room Dimensions (Feet)</FieldLabel>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <FieldLabel style={{ fontSize: 10 }}>Length</FieldLabel>
-                                <TileInput
-                                    type="number"
-                                    value={editingRoom.length}
-                                    onChange={(e) => updateField('length', e.target.value)}
-                                    placeholder="Length"
-                                />
-                            </div>
-                            <div>
-                                <FieldLabel style={{ fontSize: 10 }}>Width</FieldLabel>
-                                <TileInput
-                                    type="number"
-                                    value={editingRoom.width}
-                                    onChange={(e) => updateField('width', e.target.value)}
-                                    placeholder="Width"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Skirting Toggle */}
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={editingRoom.hasSkirting}
-                                onChange={(e) => updateField('hasSkirting', e.target.checked)}
-                                className="w-4 h-4 accent-indigo-600"
-                            />
-                            <span className="text-sm font-semibold text-gray-700">
-                                Include Skirting Calculation
-                            </span>
-                        </label>
-
-                        {editingRoom.hasSkirting && (
-                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-dashed border-gray-300">
-                                <div>
-                                    <FieldLabel style={{ fontSize: 10 }}>Skirting Ht (Inches)</FieldLabel>
-                                    <TileInput
-                                        type="number"
-                                        value={editingRoom.skirtingHeight}
-                                        onChange={(e) => updateField('skirtingHeight', e.target.value)}
-                                        placeholder="4"
-                                    />
-                                </div>
-                                <div>
-                                    <FieldLabel style={{ fontSize: 10 }}>Wastage %</FieldLabel>
-                                    <TileInput
-                                        type="number"
-                                        value={editingRoom.wastage}
-                                        onChange={(e) => updateField('wastage', e.target.value)}
-                                        placeholder="10"
-                                    />
-                                </div>
-                                <div>
-                                    <FieldLabel style={{ fontSize: 10 }}>No. of Doors</FieldLabel>
-                                    <TileInput
-                                        type="number"
-                                        value={editingRoom.doors}
-                                        onChange={(e) => updateField('doors', e.target.value)}
-                                        placeholder="1"
-                                    />
-                                </div>
-                                <div>
-                                    <FieldLabel style={{ fontSize: 10 }}>Door Width (Feet)</FieldLabel>
-                                    <TileInput
-                                        type="number"
-                                        value={editingRoom.doorWidth}
-                                        onChange={(e) => updateField('doorWidth', e.target.value)}
-                                        placeholder="3"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Deductions */}
-                        <div className="pt-4 border-t-2 border-gray-200">
-                            <div className="flex justify-between items-center mb-2">
-                                <FieldLabel style={{ margin: 0 }}>➖ Untiled Areas (Deductions)</FieldLabel>
-                                <button
-                                    onClick={addDeduction}
-                                    className="text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1 rounded-md transition-colors"
-                                >
-                                    + Add Exclusion
-                                </button>
-                            </div>
-                            <p className="text-xs text-gray-400 mb-3">
-                                Exclude areas like Cupboards or Kitchen Counters.
-                            </p>
-                            {editingRoom.deductions.map((d) => (
-                                <div
-                                    key={d.id}
-                                    style={{ position: 'relative' }}
-                                    className="bg-white border border-red-200 rounded-lg p-3 mb-3"
-                                >
-                                    <button
-                                        onClick={() => removeDeduction(d.id)}
-                                        style={{
-                                            position: 'absolute',
-                                            top: -8,
-                                            right: -8,
-                                            width: 20,
-                                            height: 20,
-                                            borderRadius: '50%',
-                                            background: '#ef4444',
-                                            color: '#fff',
-                                            border: 'none',
-                                            fontSize: 10,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                        }}
-                                    >
-                                        ✕
-                                    </button>
-                                    <TileInput
-                                        value={d.name}
-                                        onChange={(e) => updateDeduction(d.id, 'name', e.target.value)}
-                                        placeholder="Area Name (e.g. Counter Base)"
-                                        style={{ marginBottom: 8, padding: '8px 10px', fontSize: 13 }}
-                                    />
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div>
-                                            <FieldLabel style={{ fontSize: 9 }}>Length (ft)</FieldLabel>
-                                            <TileInput
-                                                type="number"
-                                                value={d.length}
-                                                onChange={(e) =>
-                                                    updateDeduction(d.id, 'length', e.target.value)
-                                                }
-                                                placeholder="L"
-                                                style={{ padding: '8px 10px' }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <FieldLabel style={{ fontSize: 9 }}>Width (ft)</FieldLabel>
-                                            <TileInput
-                                                type="number"
-                                                value={d.width}
-                                                onChange={(e) =>
-                                                    updateDeduction(d.id, 'width', e.target.value)
-                                                }
-                                                placeholder="W"
-                                                style={{ padding: '8px 10px' }}
-                                            />
-                                        </div>
-                                        {editingRoom.hasSkirting && (
-                                            <div>
-                                                <FieldLabel style={{ fontSize: 9 }}>Wall Contact (ft)</FieldLabel>
-                                                <TileInput
-                                                    type="number"
-                                                    value={d.perimeterDeduct}
-                                                    onChange={(e) =>
-                                                        updateDeduction(
-                                                            d.id,
-                                                            'perimeterDeduct',
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    placeholder="Skirting deduct"
-                                                    style={{ padding: '8px 10px' }}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Additions */}
-                        <div className="pt-4 border-t-2 border-dashed border-gray-200">
-                            <div className="flex justify-between items-center mb-2">
-                                <FieldLabel style={{ margin: 0, color: '#059669' }}>
-                                    ➕ Extra Tiled Areas (Additions)
-                                </FieldLabel>
-                                <button
-                                    onClick={addAddition}
-                                    className="text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md transition-colors"
-                                >
-                                    + Add Extra Area
-                                </button>
-                            </div>
-                            <p className="text-xs text-gray-400 mb-3">
-                                Include areas like Window Sills, Steps, or Alcoves.
-                            </p>
-                            {editingRoom.additions.map((a) => (
-                                <div
-                                    key={a.id}
-                                    style={{ position: 'relative' }}
-                                    className="bg-white border border-emerald-200 rounded-lg p-3 mb-3"
-                                >
-                                    <button
-                                        onClick={() => removeAddition(a.id)}
-                                        style={{
-                                            position: 'absolute',
-                                            top: -8,
-                                            right: -8,
-                                            width: 20,
-                                            height: 20,
-                                            borderRadius: '50%',
-                                            background: '#10b981',
-                                            color: '#fff',
-                                            border: 'none',
-                                            fontSize: 10,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                        }}
-                                    >
-                                        ✕
-                                    </button>
-                                    <TileInput
-                                        value={a.name}
-                                        onChange={(e) => updateAddition(a.id, 'name', e.target.value)}
-                                        placeholder="Area Name (e.g. Window Sill)"
-                                        style={{ marginBottom: 8, padding: '8px 10px', fontSize: 13 }}
-                                    />
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div>
-                                            <FieldLabel style={{ fontSize: 9 }}>Length (ft)</FieldLabel>
-                                            <TileInput
-                                                type="number"
-                                                value={a.length}
-                                                onChange={(e) =>
-                                                    updateAddition(a.id, 'length', e.target.value)
-                                                }
-                                                placeholder="L"
-                                                style={{ padding: '8px 10px' }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <FieldLabel style={{ fontSize: 9 }}>Width (ft)</FieldLabel>
-                                            <TileInput
-                                                type="number"
-                                                value={a.width}
-                                                onChange={(e) =>
-                                                    updateAddition(a.id, 'width', e.target.value)
-                                                }
-                                                placeholder="W"
-                                                style={{ padding: '8px 10px' }}
-                                            />
-                                        </div>
-                                        {editingRoom.hasSkirting && (
-                                            <div>
-                                                <FieldLabel style={{ fontSize: 9 }}>Wall Contact (ft)</FieldLabel>
-                                                <TileInput
-                                                    type="number"
-                                                    value={a.perimeterAdd}
-                                                    onChange={(e) =>
-                                                        updateAddition(a.id, 'perimeterAdd', e.target.value)
-                                                    }
-                                                    placeholder="Skirting add"
-                                                    style={{ padding: '8px 10px' }}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Estimated Requirement Summary */}
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex justify-between items-center">
-                        <div>
-                            <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-wide mb-1">
-                                Estimated Requirement
-                            </p>
-                            <p className="text-xs text-gray-500">
-                                Floor: {editingRoom.floorArea || 0} sq.ft
-                                {editingRoom.hasSkirting &&
-                                    ` | Skirt: ${editingRoom.skirtingArea || 0} sq.ft`}
-                            </p>
-                            {(parseFloat(editingRoom.totalDeductedArea || '0') > 0 ||
-                                parseFloat(editingRoom.totalAddedArea || '0') > 0) && (
-                                <div className="flex gap-3 mt-1">
-                                    {parseFloat(editingRoom.totalDeductedArea || '0') > 0 && (
-                                        <span className="text-xs font-semibold text-red-500">
-                                            -{editingRoom.totalDeductedArea} sq.ft
-                                        </span>
-                                    )}
-                                    {parseFloat(editingRoom.totalAddedArea || '0') > 0 && (
-                                        <span className="text-xs font-semibold text-emerald-500">
-                                            +{editingRoom.totalAddedArea} sq.ft
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                            <p className="text-xs font-semibold text-indigo-700 mt-1">
-                                Total: {editingRoom.totalArea || 0} sq.ft + {editingRoom.wastage || 0}%
-                                waste
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-4xl font-extrabold text-indigo-700 leading-none">
-                                {editingRoom.reqQty || 0}
-                            </p>
-                            <span className="text-xs font-semibold text-indigo-400">nos</span>
-                        </div>
-                    </div>
-
-                    {/* Instructions */}
-                    <div>
-                        <FieldLabel>Laying Instructions / Notes for Mason</FieldLabel>
-                        <textarea
-                            value={editingRoom.instructions}
-                            onChange={(e) => updateField('instructions', e.target.value)}
-                            placeholder="e.g. Do not lay tiles under cupboard. Tile the window sill."
-                            rows={4}
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-                        />
-                    </div>
-
-                    {/* Photos */}
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <FieldLabel style={{ margin: 0 }}>Mockup & Reference Photos</FieldLabel>
-                            <span className="text-xs text-gray-400 font-semibold">
-                                {editingRoom.photos?.length || 0} added
-                            </span>
-                        </div>
-                        <p className="text-xs text-gray-400 mb-2">
-                            Upload laying pattern references or 3D mockups.
-                        </p>
-                        <MockupPhotos
-                            photos={editingRoom.photos}
-                            onChange={(photos) => updateField('photos', photos)}
-                        />
-                    </div>
-
-                    {/* Save Button */}
-                    <button
-                        onClick={handleSaveRoom}
-                        disabled={saving}
-                        className="w-full py-3 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white rounded-xl font-bold text-sm transition-colors shadow-md"
-                    >
-                        {saving ? '⏳ Saving…' : 'Save Room Setup'}
-                    </button>
-                </div>
+            <div>
+                <InteractiveTilePlanner
+                    initialName={editingRoom.name || ''}
+                    onSave={handleSavePlannerRoom}
+                    onCancel={() => setView('dashboard')}
+                    saving={saving}
+                />
             </div>
         );
     }
@@ -1335,7 +954,7 @@ export const TileCalculator: React.FC = () => {
                         onClick={() => setView('dashboard')}
                         className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600"
                     >
-                        ←
+                        â†
                     </button>
                     <div className="flex-1">
                         <h1 className="text-xl font-bold text-gray-900">{r.name}</h1>
@@ -1345,13 +964,13 @@ export const TileCalculator: React.FC = () => {
                         onClick={() => { handleEditRoom(r); }}
                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
                     >
-                        ✏️ Edit
+                        âœï¸ Edit
                     </button>
                     <button
                         onClick={() => { handleDeleteRoom(r.id); setView('dashboard'); }}
                         className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-colors"
                     >
-                        🗑️
+                        ðŸ—‘ï¸
                     </button>
                 </div>
 
@@ -1361,11 +980,11 @@ export const TileCalculator: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <p className="text-xs text-gray-400 font-semibold uppercase">Tile Name</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileName || '—'}</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileName || 'â€”'}</p>
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 font-semibold uppercase">Tile Size</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileSize || '—'}</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileSize || 'â€”'}</p>
                         </div>
                     </div>
                 </div>
@@ -1376,11 +995,11 @@ export const TileCalculator: React.FC = () => {
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                             <p className="text-xs text-gray-400 font-semibold uppercase">Length</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.length || '—'} ft</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.length || 'â€”'} ft</p>
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 font-semibold uppercase">Width</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.width || '—'} ft</p>
+                            <p className="text-sm font-bold text-gray-800 mt-1">{r.width || 'â€”'} ft</p>
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 font-semibold uppercase">Skirting</p>
@@ -1452,13 +1071,13 @@ export const TileCalculator: React.FC = () => {
                     </div>
                 )}
 
-                {/* Photos — lazy loaded */}
+                {/* Photos â€” lazy loaded */}
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                     <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
-                        📸 Photos {loadingDetail && <span className="text-indigo-400 normal-case font-normal">(loading…)</span>}
+                        ðŸ“¸ Photos {loadingDetail && <span className="text-indigo-400 normal-case font-normal">(loadingâ€¦)</span>}
                     </h2>
                     {loadingDetail ? (
-                        <p className="text-sm text-gray-400 text-center py-6">Fetching photos from cloud…</p>
+                        <p className="text-sm text-gray-400 text-center py-6">Fetching photos from cloudâ€¦</p>
                     ) : (!r.photos || r.photos.length === 0) ? (
                         <p className="text-sm text-gray-400 text-center py-6">No photos attached to this room.</p>
                     ) : (
