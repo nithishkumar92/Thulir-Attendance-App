@@ -458,35 +458,50 @@ export const TileCalculator: React.FC = () => {
     // --- Planner Save Handler ---
     const handleSavePlannerRoom = async (data: PlannerSaveData) => {
         if (!editingRoom) return;
+        if (!selectedSiteId) {
+            alert('Please select a site before saving a room.');
+            return;
+        }
         setSaving(true);
         try {
-            const isNew = !rooms.find((r) => r.id === editingRoom.id);
+            // A room is "new" if it doesn't exist in the rooms list yet
+            const existingRoom = rooms.find((r) => r.id === editingRoom.id);
+            const isNew = !existingRoom;
+
             const roomPayload = {
-                ...editingRoom,
+                siteId: selectedSiteId,
                 name: data.name,
+                tileName: 'Multi-type (Planner)',
+                tileSize: data.tilesConfig.tile1.size,
                 length: String(data.length),
                 width: String(data.width),
-                totalArea: String(data.totalArea),
-                floorArea: String(data.floorArea),
-                skirtingArea: String(data.skirtingArea),
-                reqQty: String(data.reqQty),
                 hasSkirting: data.skirting.enabled,
                 skirtingHeight: data.skirting.height,
                 doors: data.skirting.doors,
                 doorWidth: data.skirting.doorWidth,
+                floorArea: String(data.floorArea),
+                skirtingArea: String(data.skirtingArea),
+                totalArea: String(data.totalArea),
+                totalDeductedArea: '0',
+                totalAddedArea: '0',
                 wastage: String(data.tilesConfig.tile1.wastage),
-                tileSize: data.tilesConfig.tile1.size,
-                tileName: 'Multi-type (Planner)',
-                siteId: selectedSiteId,
+                reqQty: String(data.reqQty),
                 deductions: [],
                 additions: [],
+                instructions: '',
+                photos: [],
+                // New planner-specific fields
+                surfaceType: data.surfaceType,
+                gridData: data.grid,
+                tilesConfig: data.tilesConfig,
             };
+
             if (isNew) {
                 const saved = await api.createTileRoom(roomPayload);
-                setRooms((prev) => [...prev, { ...saved, id: saved.id }]);
+                setRooms((prev) => [...prev, saved]);
             } else {
                 const saved = await api.updateTileRoom(String(editingRoom.id), roomPayload);
-                setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? { ...saved, id: saved.id } : r)));
+                setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? saved : r)));
             }
             setView('dashboard');
         } catch (err: any) {
@@ -495,6 +510,7 @@ export const TileCalculator: React.FC = () => {
             setSaving(false);
         }
     };
+
 
     const updateField = <K extends keyof Room>(field: K, value: Room[K]) => {
         if (!editingRoom) return;
