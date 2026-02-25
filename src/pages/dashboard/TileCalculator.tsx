@@ -965,6 +965,16 @@ export const TileCalculator: React.FC = () => {
     // EDIT / CREATE ROOM VIEW  â€” Pro Layout Planner
     // =====================================================================
     if (view === 'editRoom' && editingRoom) {
+        // Build skirting config from room fields if editing an existing room
+        const plannerSkirting = (editingRoom as any).skirtingConfig || {
+            enabled: editingRoom.hasSkirting || false,
+            height: editingRoom.skirtingHeight || '4',
+            doors: editingRoom.doors || '1',
+            doorWidth: editingRoom.doorWidth || '3',
+            size: (editingRoom as any).skirtingTileSize || '600x600 mm (2x2 ft)',
+            wastage: (editingRoom as any).skirtingWastage || '15',
+        };
+
         return (
             <div>
                 {!selectedSiteId && (
@@ -980,6 +990,14 @@ export const TileCalculator: React.FC = () => {
                 <InteractiveTilePlanner
                     initialName={editingRoom.name || ''}
                     siteId={selectedSiteId}
+                    initialSurfaceType={(editingRoom as any).surfaceType || 'floor'}
+                    initialDimensions={{
+                        length: parseFloat(editingRoom.length) || 12,
+                        width: parseFloat(editingRoom.width) || 10,
+                    }}
+                    initialGrid={(editingRoom as any).gridData || {}}
+                    initialTilesConfig={(editingRoom as any).tilesConfig || undefined}
+                    initialSkirting={plannerSkirting}
                     onSave={handleSavePlannerRoom}
                     onCancel={() => { setPlannerError(''); setView('dashboard'); }}
                     saving={saving}

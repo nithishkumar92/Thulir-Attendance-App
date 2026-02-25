@@ -58,6 +58,11 @@ export interface PlannerSaveData {
 interface Props {
     initialName?: string;
     siteId?: string;
+    initialSurfaceType?: 'floor' | 'wall';
+    initialDimensions?: { length: number; width: number };
+    initialGrid?: Record<string, string>;
+    initialTilesConfig?: TilesConfig;
+    initialSkirting?: SkirtingConfig;
     onSave: (data: PlannerSaveData) => void;
     onCancel: () => void;
     saving?: boolean;
@@ -83,11 +88,22 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ type = '
 );
 
 // --- Main Component ---
-export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', siteId = '', onSave, onCancel, saving = false }) => {
+export const InteractiveTilePlanner: React.FC<Props> = ({
+    initialName = '',
+    siteId = '',
+    initialSurfaceType = 'floor',
+    initialDimensions = { length: 12, width: 10 },
+    initialGrid = {},
+    initialTilesConfig,
+    initialSkirting,
+    onSave,
+    onCancel,
+    saving = false,
+}) => {
     const [roomName, setRoomName] = useState(initialName);
-    const [surfaceType, setSurfaceType] = useState<'floor' | 'wall'>('floor');
-    const [dimensions, setDimensions] = useState({ length: 12, width: 10 });
-    const [grid, setGrid] = useState<Record<string, string>>({});
+    const [surfaceType, setSurfaceType] = useState<'floor' | 'wall'>(initialSurfaceType);
+    const [dimensions, setDimensions] = useState(initialDimensions);
+    const [grid, setGrid] = useState<Record<string, string>>(initialGrid);
     const [activeTool, setActiveTool] = useState('tile1');
     const [isPainting, setIsPainting] = useState(false);
 
@@ -96,7 +112,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', site
     const [dividerInput, setDividerInput] = useState('');
 
     // Tile Configurations
-    const [tilesConfig, setTilesConfig] = useState<TilesConfig>({
+    const [tilesConfig, setTilesConfig] = useState<TilesConfig>(initialTilesConfig || {
         tile1: { size: '600x1200 mm (2x4 ft)', wastage: 10 },
         tile2: { size: '600x600 mm (2x2 ft)', wastage: 15 },
         tile3: { size: 'Select Tile Size...', wastage: 10 },
@@ -104,13 +120,19 @@ export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', site
     });
 
     // Skirting
-    const [skirting, setSkirting] = useState<SkirtingConfig>({
+    const [skirting, setSkirting] = useState<SkirtingConfig>(initialSkirting || {
         enabled: false, height: '4', doors: '1', doorWidth: '3', size: '600x600 mm (2x2 ft)', wastage: '15',
     });
     const [saveError, setSaveError] = useState('');
 
-    // Reset grid when dimensions or surface type change
+    // Reset grid only when dimensions or surface type change AND there is no initial grid
+    // (Don't reset when loading saved data)
+    const isFirstRender = React.useRef(true);
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return; // skip reset on first render — we want to keep initialGrid
+        }
         setGrid({});
         setDividers([]);
     }, [dimensions.length, dimensions.width, surfaceType]);
