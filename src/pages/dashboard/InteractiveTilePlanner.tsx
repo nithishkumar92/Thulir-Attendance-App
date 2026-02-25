@@ -57,6 +57,7 @@ export interface PlannerSaveData {
 
 interface Props {
     initialName?: string;
+    siteId?: string;
     onSave: (data: PlannerSaveData) => void;
     onCancel: () => void;
     saving?: boolean;
@@ -82,7 +83,7 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ type = '
 );
 
 // --- Main Component ---
-export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', onSave, onCancel, saving = false }) => {
+export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', siteId = '', onSave, onCancel, saving = false }) => {
     const [roomName, setRoomName] = useState(initialName);
     const [surfaceType, setSurfaceType] = useState<'floor' | 'wall'>('floor');
     const [dimensions, setDimensions] = useState({ length: 12, width: 10 });
@@ -106,6 +107,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', onSa
     const [skirting, setSkirting] = useState<SkirtingConfig>({
         enabled: false, height: '4', doors: '1', doorWidth: '3', size: '600x600 mm (2x2 ft)', wastage: '15',
     });
+    const [saveError, setSaveError] = useState('');
 
     // Reset grid when dimensions or surface type change
     useEffect(() => {
@@ -199,8 +201,13 @@ export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', onSa
 
     // --- Save handler ---
     const handleSave = () => {
+        setSaveError('');
         if (!roomName.trim()) {
-            alert('Please enter a room name.');
+            setSaveError('Please enter a room name.');
+            return;
+        }
+        if (!siteId) {
+            setSaveError('No site selected. Please go back and select a site first.');
             return;
         }
         onSave({
@@ -456,6 +463,13 @@ export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', onSa
                 </div>
             )}
 
+            {/* Save Error */}
+            {saveError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', marginBottom: 12, color: '#dc2626', fontSize: 13, fontWeight: 700 }}>
+                    ⚠️ {saveError}
+                </div>
+            )}
+
             {/* Save / Cancel Buttons */}
             <div style={{ display: 'flex', gap: 12, paddingBottom: 40 }}>
                 <button
@@ -475,3 +489,4 @@ export const InteractiveTilePlanner: React.FC<Props> = ({ initialName = '', onSa
         </div>
     );
 };
+

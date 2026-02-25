@@ -384,6 +384,12 @@ export const TileCalculator: React.FC = () => {
         else setRooms([]);
     }, [selectedSiteId, loadRooms]);
 
+    // Auto-select first site when sites load async from context
+    useEffect(() => {
+        if (!selectedSiteId && sites.length > 0) {
+            setSelectedSiteId(sites[0].id);
+        }
+    }, [sites, selectedSiteId]);
 
     // --- Handlers ---
     const handleAddNewRoom = () => {
@@ -949,6 +955,7 @@ export const TileCalculator: React.FC = () => {
             <div>
                 <InteractiveTilePlanner
                     initialName={editingRoom.name || ''}
+                    siteId={selectedSiteId}
                     onSave={handleSavePlannerRoom}
                     onCancel={() => setView('dashboard')}
                     saving={saving}
