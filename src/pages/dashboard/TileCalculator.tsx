@@ -1098,6 +1098,106 @@ export const TileCalculator: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Grid Layout Preview */}
+                {(r as any).gridData && Object.keys((r as any).gridData).length > 0 && (() => {
+                    const gridData: Record<string, string> = (r as any).gridData;
+                    const tc: any = (r as any).tilesConfig || {};
+                    const W = parseFloat(r.width) || 10;
+                    const L = parseFloat(r.length) || 12;
+                    const TILE_COLORS: Record<string, string> = {
+                        tile1: '#6366f1', tile2: '#9333ea', tile3: '#0d9488', tile4: '#ea580c', deduct: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)',
+                    };
+                    const TILE_META = [
+                        { id: 'tile1', name: 'Main Field', color: '#6366f1', bg: '#eef2ff' },
+                        { id: 'tile2', name: 'Border', color: '#9333ea', bg: '#faf5ff' },
+                        { id: 'tile3', name: 'Highlight 1', color: '#0d9488', bg: '#f0fdfa' },
+                        { id: 'tile4', name: 'Highlight 2', color: '#ea580c', bg: '#fff7ed' },
+                    ];
+                    const TILE_SIZES_MAP: Record<string, number> = {
+                        '600x600 mm (2x2 ft)': 4, '600x1200 mm (2x4 ft)': 8,
+                        '800x800 mm (32x32 in)': 7.11, '800x1600 mm (32x64 in)': 14.22,
+                        '1200x1200 mm (4x4 ft)': 16,
+                    };
+                    const calcReq = (area: number, size: string, wastage: number) => {
+                        const sqft = TILE_SIZES_MAP[size] || 1;
+                        return Math.ceil((area / sqft) * (1 + (wastage || 0) / 100));
+                    };
+                    const areas = { tile1: 0, tile2: 0, tile3: 0, tile4: 0 };
+                    Object.values(gridData).forEach(v => { if (v in areas) (areas as any)[v]++; });
+                    const hasAnyType = Object.values(areas).some(v => v > 0);
+                    return (
+                        <>
+                            {/* Read-only grid */}
+                            <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        {(r as any).surfaceType === 'wall' ? '🧱 Wall Elevation Layout' : '🪟 Floor Layout Preview'}
+                                    </p>
+                                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{W} × {L} ft</span>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, 1fr)`, gap: 1, background: '#e2e8f0', border: '2px solid #e2e8f0', borderRadius: 6, overflow: 'hidden' }}>
+                                    {Array.from({ length: L }).map((_, y) =>
+                                        Array.from({ length: W }).map((_, x) => {
+                                            const cellType = gridData[`${x}-${y}`];
+                                            let bg = '#f8fafc';
+                                            if (cellType === 'deduct') bg = TILE_COLORS['deduct'];
+                                            else if (cellType && TILE_COLORS[cellType]) bg = TILE_COLORS[cellType];
+                                            return (
+                                                <div
+                                                    key={`${x}-${y}`}
+                                                    style={{ aspectRatio: '1/1', background: bg }}
+                                                />
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                {/* Legend */}
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+                                    {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => (
+                                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            <div style={{ width: 12, height: 12, background: t.color, borderRadius: 3 }} />
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{t.name}</span>
+                                        </div>
+                                    ))}
+                                    {Object.values(gridData).includes('deduct') && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            <div style={{ width: 12, height: 12, background: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)', border: '1px solid #cbd5e1', borderRadius: 3 }} />
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Void/Deduct</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Per-tile-type breakdown */}
+                            {hasAnyType && (
+                                <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                                    <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tile Type Breakdown</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => {
+                                            const area = (areas as any)[t.id];
+                                            const config = tc[t.id] || {};
+                                            const req = calcReq(area, config.size || '', parseFloat(config.wastage) || 0);
+                                            return (
+                                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: t.bg, borderRadius: 12, padding: '10px 14px' }}>
+                                                    <div style={{ width: 32, height: 32, background: t.color, borderRadius: 8, flexShrink: 0 }} />
+                                                    <div style={{ flex: 1 }}>
+                                                        <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 800, color: t.color }}>{t.name}</p>
+                                                        <p style={{ margin: 0, fontSize: 11, color: '#64748b', fontWeight: 600 }}>{config.size || 'Size not set'} · {config.wastage || 0}% wastage</p>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <p style={{ margin: '0 0 1px', fontSize: 18, fontWeight: 900, color: '#0f172a' }}>{req} <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>nos</span></p>
+                                                        <p style={{ margin: 0, fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{area} sq.ft</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    );
+                })()}
+
                 {/* Deductions */}
                 {r.deductions && r.deductions.length > 0 && (
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
