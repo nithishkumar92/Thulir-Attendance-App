@@ -92,23 +92,30 @@ export const TileMasonPortal: React.FC = () => {
             .finally(() => setLoading(false));
     }, [siteId]);
 
-    // Load advances
+    // Load advances — filtered to this worker's team
     useEffect(() => {
         const today = new Date();
         const from = new Date(); from.setMonth(today.getMonth() - 6);
         fetchAdvances(from.toISOString().split('T')[0], today.toISOString().split('T')[0])
-            .then(data => setMyAdvances(data || []))
+            .then(data => {
+                const teamId = currentUser?.teamId || '';
+                // filter to only this worker's team advances
+                const filtered = (data || []).filter((p: any) =>
+                    !teamId || !p.teamId || p.teamId === teamId
+                );
+                setMyAdvances(filtered);
+            })
             .catch(() => {});
-    }, []);
+    }, [currentUser?.teamId]);
 
     // Payments calc
-    const totalReqTiles = rooms.reduce((s, r) => s + (r.reqQty || 0), 0);
+    const totalReqTiles = rooms.reduce((s, r) => s + (parseFloat(String(r.reqQty)) || 0), 0);
     const workerRate = 22;
-    const totalFloorArea = rooms.reduce((s, r) => s + parseFloat(r.area || '0'), 0);
+    const totalFloorArea = rooms.reduce((s, r) => s + (parseFloat(r.area || '0') || 0), 0);
     const totalEarned = Math.round(totalFloorArea * workerRate);
-    const totalPaid = myAdvances.reduce((s, p) => s + (p.amount || 0), 0);
+    const totalPaid = myAdvances.reduce((s, p) => s + (parseFloat(String(p.amount)) || 0), 0);
     const balance = totalEarned - totalPaid;
-    const totalArea = rooms.reduce((s, r) => s + parseFloat(r.totalArea || '0'), 0);
+    const totalArea = rooms.reduce((s, r) => s + (parseFloat(r.totalArea || r.area || '0') || 0), 0);
 
     const handleShortageSubmit = () => {
         if (!shortageMat) return;
@@ -204,7 +211,7 @@ export const TileMasonPortal: React.FC = () => {
 
                             // per-type tile areas
                             const areas: Record<string, number> = { tile1: 0, tile2: 0, tile3: 0, tile4: 0 };
-                            gridEntries.forEach(([, v]) => { if (v in areas) areas[v]++; });
+                            gridEntries.forEach(([, v]) => { const key = String(v); if (key in areas) areas[key]++; });
                             const activeTypes = Object.keys(areas).filter(k => areas[k] > 0);
 
                             return (
