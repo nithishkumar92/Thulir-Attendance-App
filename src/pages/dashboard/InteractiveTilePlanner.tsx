@@ -51,8 +51,8 @@ export interface PlannerSaveData {
     tilesConfig: TilesConfig;
     skirting: SkirtingConfig;
     grid: Record<string, string>;
-    // tile breakdown areas (sq.ft per type)
     areas: { tile1: number; tile2: number; tile3: number; tile4: number };
+    photos: { id: number; url: string }[];
 }
 
 interface Props {
@@ -63,6 +63,7 @@ interface Props {
     initialGrid?: Record<string, string>;
     initialTilesConfig?: TilesConfig;
     initialSkirting?: SkirtingConfig;
+    initialPhotos?: { id: number; url: string }[];
     onSave: (data: PlannerSaveData) => void;
     onCancel: () => void;
     saving?: boolean;
@@ -96,6 +97,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     initialGrid = {},
     initialTilesConfig,
     initialSkirting,
+    initialPhotos = [],
     onSave,
     onCancel,
     saving = false,
@@ -123,6 +125,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     const [skirting, setSkirting] = useState<SkirtingConfig>(initialSkirting || {
         enabled: false, height: '4', doors: '1', doorWidth: '3', size: '600x600 mm (2x2 ft)', wastage: '15',
     });
+    const [photos, setPhotos] = useState<{ id: number; url: string }[]>(initialPhotos);
     const [saveError, setSaveError] = useState('');
 
     // Reset grid only when dimensions or surface type change AND there is no initial grid
@@ -245,6 +248,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
             skirting,
             grid,
             areas,
+            photos,
         });
     };
 
@@ -484,6 +488,49 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     )}
                 </div>
             )}
+
+            {/* Photos */}
+            <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#0f172a' }}>📸 Site Photos</p>
+                    <label style={{ padding: '6px 14px', background: '#6366f1', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}>
+                        + Add Photo
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                files.forEach(file => {
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                        const url = ev.target?.result as string;
+                                        setPhotos(prev => [...prev, { id: Date.now() + Math.random(), url }]);
+                                    };
+                                    reader.readAsDataURL(file);
+                                });
+                                e.target.value = '';
+                            }}
+                        />
+                    </label>
+                </div>
+                {photos.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '12px 0' }}>No photos added yet</p>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                        {photos.map(ph => (
+                            <div key={ph.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', aspectRatio: '1/1' }}>
+                                <img src={ph.url} alt="site" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <button
+                                    onClick={() => setPhotos(prev => prev.filter(p => p.id !== ph.id))}
+                                    style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}
+                                >×</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Save Error */}
             {saveError && (
