@@ -43,6 +43,7 @@ function mapDbRoom(raw: any) {
         surfaceType: (raw.surfaceType || raw.surface_type || 'floor') as string,
         tileName: raw.tileName || '',
         tileSize: raw.tileSize || '',
+        floor: raw.floor || '',
         wastage: parseFloat(raw.wastage ?? '0') || 0,
         shortageReports: raw.shortageReports || raw.shortage_reports || [],
     };
@@ -120,6 +121,7 @@ export const TileMasonPortal: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [roomError, setRoomError] = useState('');
     const [myAdvances, setMyAdvances] = useState<any[]>([]);
+    const [selectedFloor, setSelectedFloor] = useState<string>('');
     // which room is selected in work tab
     const [activeRoomIdx, setActiveRoomIdx] = useState(0);
     // show grid toggle
@@ -141,10 +143,29 @@ export const TileMasonPortal: React.FC = () => {
         if (!siteId) { setLoading(false); setRoomError('No site assigned. Contact your admin.'); return; }
         setLoading(true);
         fetchTileRooms(siteId)
-            .then(data => { setRooms(data.map(mapDbRoom)); setRoomError(''); setActiveRoomIdx(0); setShowGrid(false); })
+            .then(data => { 
+                const mapped = data.map(mapDbRoom);
+                setRooms(mapped); 
+                setRoomError(''); 
+                setActiveRoomIdx(0); 
+                setShowGrid(false);
+                
+                if (mapped.length > 0) {
+                    const uniqueFloors = [...new Set(mapped.map((r: any) => r.floor?.trim() || 'Unassigned'))] as string[];
+                    if (!selectedFloor || !uniqueFloors.includes(selectedFloor)) {
+                        setSelectedFloor(uniqueFloors[0]);
+                    }
+                }
+            })
             .catch(() => setRoomError('Failed to load rooms. Please refresh.'))
             .finally(() => setLoading(false));
     }, [siteId]);
+
+    // reset active room index when floor changes
+    useEffect(() => {
+        setActiveRoomIdx(0);
+        setShowGrid(false);
+    }, [selectedFloor]);
 
     useEffect(() => {
         const today = new Date();
@@ -157,8 +178,10 @@ export const TileMasonPortal: React.FC = () => {
             .catch(() => {});
     }, [currentUser?.teamId]);
 
+    const filteredRooms = rooms.filter(r => (r.floor?.trim() || 'Unassigned') === selectedFloor);
+
     // active room
-    const activeRoom = rooms[activeRoomIdx] || null;
+    const activeRoom = filteredRooms[activeRoomIdx] || null;
 
     // tile type breakdown for active room
     const gridEntries = Object.entries(activeRoom?.gridData || {});
@@ -266,23 +289,51 @@ export const TileMasonPortal: React.FC = () => {
 
                         {!loading && !roomError && rooms.length > 0 && (
                             <>
-                                {/* Room selector — horizontal chips */}
-                                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 16, msOverflowStyle: 'none' }}>
-                                    {rooms.map((r, i) => (
-                                        <button
-                                            key={r.id}
-                                            onClick={() => { setActiveRoomIdx(i); setShowGrid(false); }}
-                                            style={{
-                                                flexShrink: 0, padding: '9px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 13, transition: 'all 0.15s',
-                                                background: i === activeRoomIdx ? '#6366f1' : '#fff',
-                                                color: i === activeRoomIdx ? '#fff' : '#334155',
-                                                boxShadow: i === activeRoomIdx ? '0 4px 14px rgba(99,102,241,0.35)' : '0 1px 4px rgba(0,0,0,0.08)',
-                                            }}
-                                        >
-                                            {r.name}
-                                        </button>
-                                    ))}
+                                {/* FLOOR TABS */}
+                                <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8, marginBottom: 12, msOverflowStyle: 'none' }} className="scrollbar-hide">
+                                    {(() => {
+                                        const rawFloors = rooms.map(r => r.floor?.trim() || 'Unassigned');
+                                        const uniqueFloors = Array.from(new Set(rawFloors));
+                                        return uniqueFloors.map(floorName => (
+                                            <button
+                                                key={floorName}
+                                                onClick={() => setSelectedFloor(floorName)}
+                                                style={{
+                                                    flexShrink: 0, padding: '8px 18px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 13, transition: 'all 0.15s',
+                                                    background: selectedFloor === floorName ? '#6366f1' : '#e2e8f0',
+                                                    color: selectedFloor === floorName ? '#fff' : '#475569',
+                                                    boxShadow: selectedFloor === floorName ? '0 4px 12px rgba(99,102,241,0.2)' : 'none',
+                                                }}
+                                            >
+                                                {floorName}
+                                            </button>
+                                        ));
+                                    })()}
                                 </div>
+
+                                {/* Room selector — horizontal chips */}
+                                {filteredRooms.length > 0 ? (
+                                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 16, msOverflowStyle: 'none' }} className="scrollbar-hide">
+                                        {filteredRooms.map((r, i) => (
+                                            <button
+                                                key={r.id}
+                                                onClick={() => { setActiveRoomIdx(i); setShowGrid(false); }}
+                                                style={{
+                                                    flexShrink: 0, padding: '9px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 13, transition: 'all 0.15s',
+                                                    background: i === activeRoomIdx ? '#4f46e5' : '#fff',
+                                                    color: i === activeRoomIdx ? '#fff' : '#334155',
+                                                    boxShadow: i === activeRoomIdx ? '0 4px 14px rgba(79,70,229,0.35)' : '0 1px 4px rgba(0,0,0,0.08)',
+                                                }}
+                                            >
+                                                {r.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13, fontWeight: 600 }}>
+                                        No rooms found on this floor.
+                                    </div>
+                                )}
 
                                 {activeRoom && (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
