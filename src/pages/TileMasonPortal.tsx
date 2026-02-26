@@ -45,6 +45,7 @@ function mapDbRoom(raw: any) {
         tileSize: raw.tileSize || '',
         floor: raw.floor || '',
         wastage: parseFloat(raw.wastage ?? '0') || 0,
+        skirting: raw.skirting || (raw.hasSkirting ? { enabled: true, size: raw.skirtingTileSize, wastage: raw.skirtingWastage } : {}) as any,
         shortageReports: raw.shortageReports || raw.shortage_reports || [],
     };
 }
@@ -377,6 +378,25 @@ export const TileMasonPortal: React.FC = () => {
                                                     ) : (
                                                         <TileChip label={activeRoom.tileName || 'Main Tile'} color="#6366f1" count={activeRoom.reqQty} size={activeRoom.tileSize} purchaseName={activeRoom.tileName} uniqueId={tc?.tile1?.uniqueId} />
                                                     )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* ── Skirting requirement ── */}
+                                        {activeRoom.skirting?.enabled && activeRoom.surfaceType === 'floor' && (
+                                            <div style={{ marginTop: 16 }}>
+                                                <p style={{ margin: '4px 0 10px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>🧱 Skirting Area</p>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                    {(() => {
+                                                        const sk = activeRoom.skirting;
+                                                        const perimeter = 2 * (activeRoom.length + activeRoom.width);
+                                                        const doorsDeduct = (parseFloat(sk.doors) || 0) * (parseFloat(sk.doorWidth) || 0);
+                                                        const netPerimeter = Math.max(0, perimeter - doorsDeduct);
+                                                        const heightFt = (parseFloat(sk.height) || 0) / 12;
+                                                        const area = netPerimeter * heightFt;
+                                                        const req = calcReq(area, sk.size || '', parseFloat(sk.wastage) || 0);
+                                                        return <TileChip label="Skirting Tiles" color="#059669" count={req} size={sk.size || ''} purchaseName={sk.purchaseName} uniqueId={sk.uniqueId} />;
+                                                    })()}
                                                 </div>
                                             </div>
                                         )}
