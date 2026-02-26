@@ -73,32 +73,40 @@ const GridPreview: React.FC<{ room: Room }> = ({ room }) => {
     const L = Math.max(Math.round(room.length), 1);
     const entries = Object.entries(room.gridData);
     if (entries.length === 0) return null;
+
+    // Calculate best cell size to fill width but with a sensible minimum
+    const CELL_MIN = 18; // px per cell minimum
+    const cellSize = CELL_MIN;
+
     return (
         <div style={{ background: '#fff', borderRadius: 18, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
             <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
                 {room.surfaceType === 'wall' ? '🧱 Wall Elevation' : '🟦 Floor Layout'}
             </p>
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${W}, 1fr)`,
-                gap: 1.5,
-                background: '#cbd5e1',
-                borderRadius: 8,
-                overflow: 'hidden',
-                marginBottom: 10,
-            }}>
-                {Array.from({ length: L }).flatMap((_, y) =>
-                    Array.from({ length: W }).map((_, x) => {
-                        const ct = room.gridData[`${x}-${y}`];
-                        let bg = '#f1f5f9';
-                        if (ct === 'deduct') bg = 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 5px)';
-                        else if (ct && TILE_COLORS[ct]) bg = TILE_COLORS[ct];
-                        return <div key={`${x}-${y}`} style={{ aspectRatio: '1/1', background: bg }} />;
-                    })
-                )}
+            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '60vh', borderRadius: 8, marginBottom: 10 }}>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${W}, ${cellSize}px)`,
+                    gridTemplateRows: `repeat(${L}, ${cellSize}px)`,
+                    gap: 1.5,
+                    background: '#cbd5e1',
+                    borderRadius: 8,
+                    width: 'fit-content',
+                    minWidth: '100%',
+                }}>
+                    {Array.from({ length: L }).flatMap((_, y) =>
+                        Array.from({ length: W }).map((_, x) => {
+                            const ct = room.gridData[`${x}-${y}`];
+                            let bg = '#f1f5f9';
+                            if (ct === 'deduct') bg = 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 5px)';
+                            else if (ct && TILE_COLORS[ct.split('|')[0]]) bg = TILE_COLORS[ct.split('|')[0]];
+                            return <div key={`${x}-${y}`} style={{ width: cellSize, height: cellSize, background: bg }} />;
+                        })
+                    )}
+                </div>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {Object.entries(TILE_COLORS).filter(([k]) => entries.some(([, v]) => v === k)).map(([k, c]) => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                {Object.entries(TILE_COLORS).filter(([k]) => entries.some(([, v]) => (v as string).split('|')[0] === k)).map(([k, c]) => (
                     <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <div style={{ width: 12, height: 12, borderRadius: 4, background: c }} />
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{TILE_NAMES[k]}</span>
