@@ -1031,8 +1031,8 @@ export const TileCalculator: React.FC = () => {
                     siteId={selectedSiteId}
                     initialSurfaceType={(editingRoom as any).surfaceType || 'floor'}
                     initialDimensions={{
-                        length: parseFloat(editingRoom.length) || 12,
-                        width: parseFloat(editingRoom.width) || 10,
+                        length: String(parseFloat(editingRoom.length) || 12),
+                        width: String(parseFloat(editingRoom.width) || 10),
                     }}
                     initialGrid={(editingRoom as any).gridData || {}}
                     initialTilesConfig={(editingRoom as any).tilesConfig || undefined}
@@ -1131,13 +1131,20 @@ export const TileCalculator: React.FC = () => {
                                                         Array.from({ length: W }).map((_, x) => {
                                                             const cellType = gridData[`${x}-${y}`];
                                                             let bg = '#f8fafc';
+                                                            let icon = null;
                                                             if (cellType === 'deduct') bg = TILE_COLORS['deduct'];
                                                             else if (cellType && TILE_COLORS[cellType]) bg = TILE_COLORS[cellType];
+                                                            else if (cellType === 'door') { bg = '#f1f5f9'; icon = '🚪'; }
+                                                            else if (cellType === 'window') { bg = '#f0f9ff'; icon = '🪟'; }
+                                                            else if (cellType === 'entrance') { bg = '#fffbeb'; icon = '⬇️'; }
+                                                            
                                                             return (
                                                                 <div
                                                                     key={`${x}-${y}`}
-                                                                    style={{ aspectRatio: '1/1', background: bg }}
-                                                                />
+                                                                    style={{ aspectRatio: '1/1', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'min(14px, 1.5vw)' }}
+                                                                >
+                                                                    {icon}
+                                                                </div>
                                                             );
                                                         })
                                                     )}

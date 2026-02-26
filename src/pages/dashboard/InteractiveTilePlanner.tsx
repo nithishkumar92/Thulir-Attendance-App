@@ -17,6 +17,12 @@ const TILE_TYPES = [
     { id: 'tile4', label: 'Hlt 2', name: 'Highlight 2', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
 ];
 
+const MARKER_TYPES = [
+    { id: 'door', label: 'Door', name: 'Door', icon: '🚪', color: '#1e293b', bg: '#f1f5f9', border: '#cbd5e1' },
+    { id: 'window', label: 'Window', name: 'Window', icon: '🪟', color: '#bae6fd', bg: '#f0f9ff', border: '#7dd3fc' },
+    { id: 'entrance', label: 'Entrance', name: 'Entrance', icon: '⬇️', color: '#f59e0b', bg: '#fffbeb', border: '#fcd34d' },
+];
+
 // --- Types ---
 interface TileConfig {
     size: string;
@@ -43,8 +49,8 @@ interface SkirtingConfig {
 export interface PlannerSaveData {
     name: string;
     surfaceType: 'floor' | 'wall';
-    length: number;
-    width: number;
+    length: string;
+    width: string;
     totalArea: number;
     floorArea: number;
     skirtingArea: number;
@@ -60,7 +66,7 @@ interface Props {
     initialName?: string;
     siteId?: string;
     initialSurfaceType?: 'floor' | 'wall';
-    initialDimensions?: { length: number; width: number };
+    initialDimensions?: { length: string; width: string };
     initialGrid?: Record<string, string>;
     initialTilesConfig?: TilesConfig;
     initialSkirting?: SkirtingConfig;
@@ -93,7 +99,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     initialName = '',
     siteId = '',
     initialSurfaceType = 'floor',
-    initialDimensions = { length: 12, width: 10 },
+    initialDimensions = { length: '12', width: '10' },
     initialGrid = {},
     initialTilesConfig,
     initialSkirting,
@@ -162,9 +168,11 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     // --- Auto-fill ---
     const autoFillBorder = () => {
         const newGrid = { ...grid };
-        for (let y = 0; y < dimensions.length; y++) {
-            for (let x = 0; x < dimensions.width; x++) {
-                if (x === 0 || x === dimensions.width - 1 || y === 0 || y === dimensions.length - 1) {
+        const len = Math.max(Math.ceil(parseFloat(dimensions.length)) || 1, 1);
+        const wid = Math.max(Math.ceil(parseFloat(dimensions.width)) || 1, 1);
+        for (let y = 0; y < len; y++) {
+            for (let x = 0; x < wid; x++) {
+                if (x === 0 || x === wid - 1 || y === 0 || y === len - 1) {
                     if (newGrid[`${x}-${y}`] !== 'deduct') newGrid[`${x}-${y}`] = 'tile2';
                 }
             }
@@ -174,8 +182,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 
     const fillRemainingMain = () => {
         const newGrid = { ...grid };
-        for (let y = 0; y < dimensions.length; y++) {
-            for (let x = 0; x < dimensions.width; x++) {
+        const len = Math.max(Math.ceil(parseFloat(dimensions.length)) || 1, 1);
+        const wid = Math.max(Math.ceil(parseFloat(dimensions.width)) || 1, 1);
+        for (let y = 0; y < len; y++) {
+            for (let x = 0; x < wid; x++) {
                 if (!newGrid[`${x}-${y}`]) newGrid[`${x}-${y}`] = 'tile1';
             }
         }
@@ -183,8 +193,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     };
 
     const addDivider = () => {
+        const len = Math.max(Math.ceil(parseFloat(dimensions.length)) || 1, 1);
+        const wid = Math.max(Math.ceil(parseFloat(dimensions.width)) || 1, 1);
         const val = parseInt(dividerInput);
-        if (val > 0 && val < dimensions.width && !dividers.includes(val)) {
+        if (val > 0 && val < wid && !dividers.includes(val)) {
             setDividers([...dividers, val].sort((a, b) => a - b));
         }
         setDividerInput('');
@@ -202,7 +214,9 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 
     let skirtingArea = 0;
     if (skirting.enabled && surfaceType === 'floor') {
-        const perimeter = 2 * (dimensions.length + dimensions.width);
+        const len = parseFloat(dimensions.length) || 0;
+        const wid = parseFloat(dimensions.width) || 0;
+        const perimeter = 2 * (len + wid);
         const doorsDeduct = (parseFloat(skirting.doors) || 0) * (parseFloat(skirting.doorWidth) || 0);
         const netPerimeter = Math.max(0, perimeter - doorsDeduct);
         const heightFt = (parseFloat(skirting.height) || 0) / 12;
@@ -292,11 +306,11 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                 <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
                         <Label style={{ color: 'rgba(255,255,255,0.7)' }}>{surfaceType === 'floor' ? 'Length (ft) - Y' : 'Height (ft) - Y'}</Label>
-                        <Input type="number" value={dimensions.length} onChange={e => setDimensions({ ...dimensions, length: parseInt(e.target.value) || 1 })} style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }} />
+                        <Input type="number" step="0.01" value={dimensions.length} onChange={e => setDimensions({ ...dimensions, length: e.target.value })} style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                         <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Total Width (ft) - X</Label>
-                        <Input type="number" value={dimensions.width} onChange={e => setDimensions({ ...dimensions, width: parseInt(e.target.value) || 1 })} style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }} />
+                        <Input type="number" step="0.01" value={dimensions.width} onChange={e => setDimensions({ ...dimensions, width: e.target.value })} style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }} />
                     </div>
                 </div>
             </div>
@@ -309,6 +323,20 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                         style={{ flex: 1, minWidth: 50, padding: '8px 4px', borderRadius: 10, border: activeTool === tool.id ? `2px solid ${tool.color}` : '2px solid transparent', background: activeTool === tool.id ? tool.bg : 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
                     >
                         <div style={{ width: 20, height: 20, background: tool.color, borderRadius: 6, marginBottom: 4 }} />
+                        <span style={{ fontSize: 9, fontWeight: 800, color: activeTool === tool.id ? tool.color : '#64748b' }}>{tool.label}</span>
+                    </button>
+                ))}
+
+                <div style={{ width: 1, background: '#e2e8f0', margin: '0 4px' }} />
+
+                {MARKER_TYPES.map(tool => (
+                    <button
+                        key={tool.id} onClick={() => setActiveTool(tool.id)}
+                        style={{ flex: 1, minWidth: 50, padding: '8px 4px', borderRadius: 10, border: activeTool === tool.id ? `2px solid ${tool.color}` : '2px solid transparent', background: activeTool === tool.id ? tool.bg : 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                    >
+                        <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, background: tool.color, borderRadius: 6, marginBottom: 4 }}>
+                            {tool.icon}
+                        </div>
                         <span style={{ fontSize: 9, fontWeight: 800, color: activeTool === tool.id ? tool.color : '#64748b' }}>{tool.label}</span>
                     </button>
                 ))}
@@ -368,11 +396,12 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     )}
                     {surfaceType === 'wall' && (
                         <div style={{ position: 'absolute', top: -20, left: 0, right: 0, display: 'flex', height: 16 }}>
-                            {[0, ...dividers, dimensions.width].map((point, idx, arr) => {
+                            {[0, ...dividers, parseFloat(dimensions.width) || 1].map((point, idx, arr) => {
                                 if (idx === arr.length - 1) return null;
                                 const w = arr[idx + 1] - point;
+                                const totalW = parseFloat(dimensions.width) || 1;
                                 return (
-                                    <div key={idx} style={{ width: `${(w / dimensions.width) * 100}%`, textAlign: 'center', fontSize: 10, fontWeight: 800, color: '#6366f1' }}>
+                                    <div key={idx} style={{ width: `${(w / totalW) * 100}%`, textAlign: 'center', fontSize: 10, fontWeight: 800, color: '#6366f1' }}>
                                         Wall {idx + 1}
                                     </div>
                                 );
@@ -381,20 +410,29 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     )}
 
                     <div
-                        style={{ display: 'grid', gridTemplateColumns: `repeat(${dimensions.width}, 1fr)`, gap: 1, background: '#cbd5e1', border: '2px solid #cbd5e1', borderRadius: 4, overflow: 'hidden', touchAction: 'none' }}
+                        style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(Math.ceil(parseFloat(dimensions.width))||1, 1)}, 1fr)`, gap: 1, background: '#cbd5e1', border: '2px solid #cbd5e1', borderRadius: 4, overflow: 'hidden', touchAction: 'none' }}
                         onMouseLeave={() => setIsPainting(false)}
                         onMouseUp={() => setIsPainting(false)}
                         onTouchEnd={() => setIsPainting(false)}
                     >
-                        {Array.from({ length: dimensions.length }).map((_, y) =>
-                            Array.from({ length: dimensions.width }).map((_, x) => {
+                        {Array.from({ length: Math.max(Math.ceil(parseFloat(dimensions.length))||1, 1) }).map((_, y) =>
+                            Array.from({ length: Math.max(Math.ceil(parseFloat(dimensions.width))||1, 1) }).map((_, x) => {
                                 const cellType = grid[`${x}-${y}`];
                                 let bg = '#f8fafc';
+                                let icon = null;
+                                
                                 if (cellType === 'deduct') {
                                     bg = 'repeating-linear-gradient(45deg, #cbd5e1, #cbd5e1 2px, #f8fafc 2px, #f8fafc 6px)';
                                 } else {
                                     const toolMatch = TILE_TYPES.find(t => t.id === cellType);
                                     if (toolMatch) bg = toolMatch.color;
+                                    else {
+                                        const markerMatch = MARKER_TYPES.find(t => t.id === cellType);
+                                        if (markerMatch) {
+                                            bg = markerMatch.color;
+                                            icon = markerMatch.icon;
+                                        }
+                                    }
                                 }
                                 const isDivider = surfaceType === 'wall' && dividers.includes(x + 1);
                                 return (
@@ -405,8 +443,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                                         onMouseEnter={() => { if (isPainting) handlePaint(x, y); }}
                                         onTouchStart={() => { setIsPainting(true); handlePaint(x, y); }}
                                         onTouchMove={handleTouchMove}
-                                        style={{ aspectRatio: '1/1', background: bg, cursor: 'crosshair', transition: 'background 0.1s', borderRight: isDivider ? '3px dashed #0f172a' : 'none', boxSizing: 'border-box' }}
-                                    />
+                                        style={{ aspectRatio: '1/1', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, cursor: 'crosshair', transition: 'background 0.1s', borderRight: isDivider ? '3px dashed #0f172a' : 'none', boxSizing: 'border-box' }}
+                                    >
+                                        {icon}
+                                    </div>
                                 );
                             })
                         )}
