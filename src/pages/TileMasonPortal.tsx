@@ -69,8 +69,8 @@ const TileChip: React.FC<{ label: string; color: string; count: number; size: st
 );
 
 const GridPreview: React.FC<{ room: Room }> = ({ room }) => {
-    const W = Math.max(Math.round(room.width), 1);
-    const L = Math.max(Math.round(room.length), 1);
+    const W = Math.max(Math.ceil(room.width) || 1, 1);
+    const L = Math.max(Math.ceil(room.length) || 1, 1);
     const entries = Object.entries(room.gridData);
     if (entries.length === 0) return null;
 
@@ -82,21 +82,21 @@ const GridPreview: React.FC<{ room: Room }> = ({ room }) => {
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${W}, 1fr)`,
-                gap: 1.5,
+                gap: 1,
                 background: '#cbd5e1',
-                borderRadius: 8,
+                border: '2px solid #cbd5e1',
+                borderRadius: 4,
                 overflow: 'hidden',
                 marginBottom: 10,
-                width: '100%',
             }}>
                 {Array.from({ length: L }).flatMap((_, y) =>
                     Array.from({ length: W }).map((_, x) => {
                         const ct = room.gridData[`${x}-${y}`] || '';
                         const tileKey = ct.split('|')[0];
-                        let bg = '#f1f5f9';
+                        let bg = '#f8fafc';
                         if (tileKey === 'deduct') bg = 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 5px)';
                         else if (tileKey && TILE_COLORS[tileKey]) bg = TILE_COLORS[tileKey];
-                        return <div key={`${x}-${y}`} style={{ aspectRatio: '1/1', background: bg, minWidth: 0 }} />;
+                        return <div key={`${x}-${y}`} style={{ aspectRatio: '1/1', background: bg }} />;
                     })
                 )}
             </div>
