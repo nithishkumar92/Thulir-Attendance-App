@@ -13,7 +13,8 @@ import {
     X,
     LogOut,
     TrendingUp,
-    Bell
+    Bell,
+    Package
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -46,6 +47,7 @@ export const TopNavigation: React.FC = () => {
         { path: '/dashboard/attendance', label: 'Attendance', icon: AlertCircle },
         { path: '/dashboard/payments', label: 'Payments', icon: DollarSign },
         { path: '/dashboard/report', label: 'Reports', icon: ClipboardList },
+        { path: '/dashboard/materials', label: 'Material Req', icon: Package },
         { path: '/dashboard/tiles', label: 'Tiles', icon: Grid },
         { path: '/dashboard/users', label: 'Users', icon: Users },
     ];

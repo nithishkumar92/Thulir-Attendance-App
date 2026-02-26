@@ -14,6 +14,7 @@ import { AdvanceManagement } from './pages/dashboard/AdvanceManagement';
 import { UserManagement } from './pages/dashboard/UserManagement';
 import { OwnerReportPage } from './pages/dashboard/OwnerReportPage';
 import { TileCalculator } from './pages/dashboard/TileCalculator';
+import { MaterialReqPage } from './pages/dashboard/MaterialReqPage';
 import { ClientPortal } from './pages/ClientPortal';
 import { TileMasonPortal } from './pages/TileMasonPortal';
 
@@ -56,6 +57,7 @@ function App() {
                         <Route path="payments" element={<AdvanceManagement />} />
                         <Route path="users" element={<UserManagement />} />
                         <Route path="tiles" element={<TileCalculator />} />
+                        <Route path="materials" element={<MaterialReqPage />} />
                     </Route>
                     <Route
                         path="/team/*"
