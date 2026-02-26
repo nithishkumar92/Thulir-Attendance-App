@@ -588,6 +588,7 @@ export const TileCalculator: React.FC = () => {
                 entrance: data.entrance,
                 gridData: data.grid,
                 tilesConfig: data.tilesConfig,
+                skirting: data.skirting,
             };
 
             console.log('[Planner Save] payload:', JSON.stringify(roomPayload).slice(0, 200));

@@ -44,6 +44,7 @@ async function ensureTable() {
             grid_data   JSONB DEFAULT '{}',
             tiles_config JSONB DEFAULT '{}',
             shortage_reports JSONB DEFAULT '[]',
+            skirting JSONB DEFAULT '{}',
             created_at  TIMESTAMPTZ DEFAULT now(),
             updated_at  TIMESTAMPTZ DEFAULT now()
         )
@@ -54,6 +55,7 @@ async function ensureTable() {
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS tiles_config JSONB DEFAULT '{}'`);
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS shortage_reports JSONB DEFAULT '[]'`);
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS floor TEXT`);
+    await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS skirting JSONB DEFAULT '{}'`);
 }
 
 /** Sign all photo URLs in an array */
@@ -111,6 +113,7 @@ function rowToRoom(r: any) {
         gridData: r.grid_data || {},
         tilesConfig: r.tiles_config || {},
         shortageReports: r.shortage_reports || [],
+        skirting: r.skirting || {},
     };
 }
 
@@ -198,10 +201,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     floor_area, skirting_area, total_area,
                     total_deducted_area, total_added_area,
                     wastage, req_qty, instructions, photos,
-                    surface_type, grid_data, tiles_config, shortage_reports
+                    surface_type, grid_data, tiles_config, shortage_reports, skirting
                 ) VALUES (
                     $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                    $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+                    $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
                 ) RETURNING *`,
                 [
                     siteId, name, body.tileName || '', body.tileSize || '',
@@ -212,12 +215,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     JSON.stringify(body.additions || []),
                     body.floorArea || '0', body.skirtingArea || '0', body.totalArea || '0',
                     body.totalDeductedArea || '0', body.totalAddedArea || '0',
-                    body.wastage || '10', body.reqQty || '', body.instructions || '',
+                    body.wastage || '0', body.reqQty || '', body.instructions || '',
                     JSON.stringify(uploadedPhotos),
                     body.surfaceType || 'floor',
                     JSON.stringify(body.gridData || {}),
                     JSON.stringify(body.tilesConfig || {}),
                     JSON.stringify(body.shortageReports || []),
+                    JSON.stringify(body.skirting || {}),
                 ]
             );
 
@@ -253,8 +257,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     total_deducted_area = $19, total_added_area = $20,
                     wastage = $21, req_qty = $22, instructions = $23, photos = $24,
                     surface_type = $25, grid_data = $26, tiles_config = $27, shortage_reports = $28,
+                    skirting = $29,
                     updated_at = now()
-                WHERE id = $29
+                WHERE id = $30
                 RETURNING *`,
                 [
                     body.name, body.tileName || '', body.tileSize || '',
@@ -265,12 +270,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     JSON.stringify(body.additions || []),
                     body.floorArea || '0', body.skirtingArea || '0', body.totalArea || '0',
                     body.totalDeductedArea || '0', body.totalAddedArea || '0',
-                    body.wastage || '10', body.reqQty || '', body.instructions || '',
+                    body.wastage || '0', body.reqQty || '', body.instructions || '',
                     JSON.stringify(uploadedPhotos),
                     body.surfaceType || 'floor',
                     JSON.stringify(body.gridData || {}),
                     JSON.stringify(body.tilesConfig || {}),
                     JSON.stringify(body.shortageReports !== undefined ? body.shortageReports : (req.body.shortageReports || [])),
+                    JSON.stringify(body.skirting || {}),
                     id,
                 ]
             );
