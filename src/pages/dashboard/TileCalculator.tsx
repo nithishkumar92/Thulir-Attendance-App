@@ -348,6 +348,68 @@ const DEFAULT_NEW_ROOM: Omit<Room, 'id'> = {
     photos: [],
 };
 
+// --- New EdgeBar layout ---
+function EdgeBar({ edge, entrance, cols, rows, cellPx, groutPx }: any) {
+    const isEntrance = entrance === edge;
+    const isHoriz = edge === "top" || edge === "bottom";
+    const count = isHoriz ? cols : rows;
+    const size = cellPx * (count || 1) + groutPx * ((count || 1) - 1);
+
+    if (isHoriz) {
+        return (
+            <div style={{
+                width: size + 4,
+                height: 22,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: edge === "top" ? "8px 8px 0 0" : "0 0 8px 8px",
+                background: isEntrance ? "#eef2ff" : "transparent",
+                border: isEntrance ? "1.5px solid #c7d2fe" : "none",
+                borderBottom: edge === "top" ? "none" : undefined,
+                borderTop: edge === "bottom" ? "none" : undefined,
+                marginBottom: edge === "top" ? 0 : undefined,
+                marginTop: edge === "bottom" ? 0 : undefined,
+            }}>
+                {isEntrance ? (
+                    <span style={{ fontSize: 11, fontWeight: 900, color: "#6366f1", display: "flex", alignItems: "center", gap: 4 }}>
+                        {edge === "top" ? "↑" : "↓"} <span>ENTRANCE</span>
+                    </span>
+                ) : (
+                    <span style={{ fontSize: 10, color: "#d1d5db", fontWeight: 600 }}>
+                        {edge === "top" ? "↑" : "↓"}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div style={{
+            width: 22,
+            height: size + 4,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: edge === "left" ? "8px 0 0 8px" : "0 8px 8px 0",
+            background: isEntrance ? "#eef2ff" : "transparent",
+            border: isEntrance ? "1.5px solid #c7d2fe" : "none",
+            borderRight: edge === "left" ? "none" : undefined,
+            borderLeft: edge === "right" ? "none" : undefined,
+        }}>
+            {isEntrance ? (
+                <span style={{ fontSize: 10, fontWeight: 900, color: "#6366f1", writingMode: "vertical-rl", textOrientation: "mixed", display: "flex", alignItems: "center", gap: 3, letterSpacing: "0.04em" }}>
+                    {edge === "left" ? "←" : "→"} ENTRANCE
+                </span>
+            ) : (
+                <span style={{ fontSize: 10, color: "#d1d5db", fontWeight: 600 }}>
+                    {edge === "left" ? "←" : "→"}
+                </span>
+            )}
+        </div>
+    );
+}
+
 // --- Main Page Component ---
 export const TileCalculator: React.FC = () => {
     const { sites } = useApp();
@@ -1030,6 +1092,7 @@ export const TileCalculator: React.FC = () => {
                     initialName={editingRoom.name || ''}
                     siteId={selectedSiteId}
                     initialSurfaceType={(editingRoom as any).surfaceType || 'floor'}
+                    initialEntrance={(editingRoom as any).entrance || 'bottom'}
                     initialDimensions={{
                         length: String(parseFloat(editingRoom.length) || 12),
                         width: String(parseFloat(editingRoom.width) || 10),
@@ -1115,52 +1178,89 @@ export const TileCalculator: React.FC = () => {
                             return (
                                 <div className="space-y-4">
                                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-50">
-                                            <div>
-                                                <h2 className="text-sm font-extrabold text-gray-800 tracking-wide uppercase">
-                                                    {(r as any).surfaceType === 'wall' ? '🧱 Wall Elevation Layout' : '🪟 Floor Layout Preview'}
-                                                </h2>
-                                                <p className="text-xs font-semibold text-gray-400 mt-1">Room proportions applied</p>
-                                            </div>
-                                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                                                <span className="text-xs font-bold text-gray-600">{W} × {L} ft</span>
+                                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-50 flex-wrap gap-4">
+                                            <div className="flex gap-4 w-full sm:w-auto">
+                                                <div className="bg-white px-4 py-2 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-gray-100/50 text-center flex-1">
+                                                    <p className="text-[13px] font-extrabold text-gray-800 tracking-tight">{(r as any).surfaceType === 'wall' ? 'Wall' : 'Floor'}</p>
+                                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Surface</p>
+                                                </div>
+                                                <div className="bg-white px-4 py-2 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-gray-100/50 text-center flex-1">
+                                                    <p className="text-[13px] font-extrabold text-gray-800 tracking-tight">{parseFloat(String(r.width) || '0')} × {parseFloat(String(r.length) || '0')} ft</p>
+                                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Dimensions</p>
+                                                </div>
+                                                <div className="bg-white px-4 py-2 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-gray-100/50 text-center flex-1">
+                                                    <p className="text-[13px] font-extrabold text-gray-800 tracking-tight capitalize">{(r as any).entrance || 'bottom'} wall</p>
+                                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Entrance</p>
+                                                </div>
                                             </div>
                                         </div>
                                         
-                                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 flex items-center justify-center min-h-[300px]">
-                                            <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, 1fr)`, gap: 1, background: '#cbd5e1', border: '2px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.05)' }}>
-                                                    {Array.from({ length: L }).map((_, y) =>
-                                                        Array.from({ length: W }).map((_, x) => {
-                                                            const cellVal = gridData[`${x}-${y}`] || '';
-                                                            const baseTile = cellVal.split('|')[0];
-                                                            const markerType = cellVal.split('|')[1];
+                                        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 flex items-center justify-center min-h-[400px]">
+                                            {(() => {
+                                                const cw = 400; // max width
+                                                const cellPx = Math.floor((cw - (W + 1) * 2) / W);
+                                                const groutPx = 2;
+                                                const entranceWall = (r as any).entrance || 'bottom';
+                                                
+                                                return (
+                                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                                                        <EdgeBar edge="top" entrance={entranceWall} cols={W} cellPx={cellPx} groutPx={groutPx} />
+                                                        <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+                                                            <EdgeBar edge="left" entrance={entranceWall} rows={L} cellPx={cellPx} groutPx={groutPx} />
                                                             
-                                                            let bg = '#f8fafc';
-                                                            let icon = null;
-                                                            
-                                                            if (baseTile === 'deduct') bg = TILE_COLORS['deduct'];
-                                                            else if (baseTile && TILE_COLORS[baseTile]) bg = TILE_COLORS[baseTile];
-                                                            else if (baseTile === 'door') { bg = '#f8fafc'; icon = '🚪'; }
-                                                            else if (baseTile === 'window') { bg = '#f8fafc'; icon = '🪟'; }
-                                                            else if (baseTile === 'entrance') { bg = '#f8fafc'; icon = '⬇️'; }
-                                                            
-                                                            if (markerType === 'door') icon = '🚪';
-                                                            else if (markerType === 'window') icon = '🪟';
-                                                            else if (markerType === 'entrance') icon = '⬇️';
-                                                            
-                                                            return (
-                                                                <div
-                                                                    key={`${x}-${y}`}
-                                                                    style={{ aspectRatio: '1/1', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'min(14px, 1.5vw)' }}
-                                                                >
-                                                                    {icon}
-                                                                </div>
-                                                            );
-                                                        })
-                                                    )}
-                                                </div>
-                                            </div>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, ${cellPx}px)`, gap: groutPx, background: '#374151', border: `${groutPx}px solid #374151`, borderRadius: 4, overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.1)' }}>
+                                                                {Array.from({ length: L }).map((_, y) =>
+                                                                    Array.from({ length: W }).map((_, x) => {
+                                                                        const cellVal = gridData[`${x}-${y}`] || '';
+                                                                        const baseTile = cellVal.split('|')[0];
+                                                                        const markerType = cellVal.split('|')[1];
+                                                                        
+                                                                        let bg = '#eef2ff';
+                                                                        let icon = null;
+                                                                        
+                                                                        if (baseTile === 'deduct') bg = '#cbd5e1';
+                                                                        else if (baseTile && TILE_COLORS[baseTile]) bg = TILE_COLORS[baseTile];
+                                                                        else if (baseTile === 'door') { bg = '#1e293b'; icon = '🚪'; }
+                                                                        else if (baseTile === 'window') { bg = '#bae6fd'; icon = '🪟'; }
+                                                                        else if (baseTile === 'entrance') { bg = '#fef08a'; icon = '⬇️'; }
+                                                                        
+                                                                        if (markerType === 'door') icon = '🚪';
+                                                                        else if (markerType === 'window') icon = '🪟';
+                                                                        else if (markerType === 'entrance') icon = '⬇️';
+                                                                        
+                                                                        const hasMarker = !!icon || ['door', 'window', 'entrance'].includes(baseTile);
+                                                                        
+                                                                        return (
+                                                                            <div
+                                                                                key={`${x}-${y}`}
+                                                                                style={{ 
+                                                                                    width: cellPx, height: cellPx, 
+                                                                                    background: bg, 
+                                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                                                    fontSize: Math.max(cellPx * 0.55, 12),
+                                                                                    position: "relative",
+                                                                                    boxShadow: hasMarker ? "none" : `inset 0 1px 0 rgba(255,255,255,0.4), inset -1px -1px 0 rgba(0,0,0,0.15)`
+                                                                                }}
+                                                                            >
+                                                                                {!hasMarker && (
+                                                                                    <div style={{ position: "absolute", inset: 1, border: `1px solid rgba(255,255,255,0.2)`, pointerEvents: "none" }} />
+                                                                                )}
+                                                                                {icon && (
+                                                                                     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                                                                                         {icon}
+                                                                                     </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                )}
+                                                            </div>
+                                                            <EdgeBar edge="right" entrance={entranceWall} rows={L} cellPx={cellPx} groutPx={groutPx} />
+                                                        </div>
+                                                        <EdgeBar edge="bottom" entrance={entranceWall} cols={W} cellPx={cellPx} groutPx={groutPx} />
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
 
                                         <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t border-gray-50">
@@ -1182,22 +1282,21 @@ export const TileCalculator: React.FC = () => {
                                     {hasAnyType && (
                                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                                             <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Tile Type Requirements</h2>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-1 gap-4">
                                                 {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => {
                                                     const area = (areas as any)[t.id];
                                                     const config = tc[t.id] || {};
                                                     const req = calcReq(area, config.size || '', parseFloat(config.wastage) || 0);
                                                     return (
-                                                        <div key={t.id} className="flex items-center gap-3 rounded-xl p-3 border" style={{ backgroundColor: t.bg, borderColor: t.color + '22' }}>
-                                                            <div className="w-12 h-12 rounded-lg shadow-sm flex-shrink-0" style={{ background: t.color }} />
+                                                        <div key={t.id} className="flex items-center gap-4 py-2 border-b border-gray-50 last:border-0 last:pb-0">
+                                                            <div className="w-12 h-12 rounded-lg flex-shrink-0" style={{ background: t.color }} />
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-bold truncate" style={{ color: t.color }}>{t.name}</p>
-                                                                {config.purchaseName && <p className="text-xs font-bold truncate" style={{ color: t.color, opacity: 0.8 }}>{config.purchaseName}</p>}
-                                                                <p className="text-[10px] font-bold text-gray-500 truncate">{config.size || 'Size not set'}</p>
+                                                                <p className="text-sm font-bold text-gray-800 tracking-tight truncate">{t.name}</p>
+                                                                {config.purchaseName && <p className="text-[11px] font-semibold text-gray-500 truncate mt-0.5">{config.purchaseName}</p>}
                                                             </div>
-                                                            <div className="text-right flex-shrink-0">
-                                                                <p className="text-xl font-black text-gray-900 leading-none">{req}</p>
-                                                                <p className="text-[10px] font-bold text-gray-500 uppercase">pcs</p>
+                                                            <div className="text-right">
+                                                                <p className="text-lg font-black text-gray-900 leading-none tracking-tight">{req} <span className="text-[10px] uppercase text-gray-400">pcs</span></p>
+                                                                <p className="text-[10px] font-bold text-gray-400 mt-1">{config.size || 'Size not set'}</p>
                                                             </div>
                                                         </div>
                                                     );

@@ -49,6 +49,7 @@ interface SkirtingConfig {
 export interface PlannerSaveData {
     name: string;
     surfaceType: 'floor' | 'wall';
+    entrance: 'top' | 'bottom' | 'left' | 'right';
     length: string;
     width: string;
     totalArea: number;
@@ -66,6 +67,7 @@ interface Props {
     initialName?: string;
     siteId?: string;
     initialSurfaceType?: 'floor' | 'wall';
+    initialEntrance?: 'top' | 'bottom' | 'left' | 'right';
     initialDimensions?: { length: string; width: string };
     initialGrid?: Record<string, string>;
     initialTilesConfig?: TilesConfig;
@@ -99,6 +101,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     initialName = '',
     siteId = '',
     initialSurfaceType = 'floor',
+    initialEntrance = 'bottom',
     initialDimensions = { length: '12', width: '10' },
     initialGrid = {},
     initialTilesConfig,
@@ -109,6 +112,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 }) => {
     const [roomName, setRoomName] = useState(initialName);
     const [surfaceType, setSurfaceType] = useState<'floor' | 'wall'>(initialSurfaceType);
+    const [entrance, setEntrance] = useState<'top' | 'bottom' | 'left' | 'right'>(initialEntrance);
     const [dimensions, setDimensions] = useState(initialDimensions);
     const [grid, setGrid] = useState<Record<string, string>>(initialGrid);
     const [activeTool, setActiveTool] = useState('tile1');
@@ -273,6 +277,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
         onSave({
             name: roomName.trim(),
             surfaceType,
+            entrance,
             length: dimensions.length,
             width: dimensions.width,
             totalArea: totalFloorArea + skirtingArea,
@@ -325,6 +330,30 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     </button>
                 </div>
 
+                {/* Entrances */}
+                {surfaceType === 'floor' && (
+                    <div style={{ marginBottom: 16 }}>
+                        <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Entrance Wall</Label>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            {['top', 'bottom', 'left', 'right'].map(opt => (
+                                <button
+                                    key={opt}
+                                    onClick={() => setEntrance(opt as any)}
+                                    style={{
+                                        flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none',
+                                        background: entrance === opt ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+                                        color: entrance === opt ? '#fff' : '#cbd5e1',
+                                        fontWeight: 700, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s',
+                                        textTransform: 'capitalize'
+                                    }}
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
                 {/* Dimensions */}
                 <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
