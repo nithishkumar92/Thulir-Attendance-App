@@ -1086,8 +1086,8 @@ export const TileCalculator: React.FC = () => {
                         {(r as any).gridData && Object.keys((r as any).gridData).length > 0 && (() => {
                             const gridData: Record<string, string> = (r as any).gridData;
                             const tc: any = (r as any).tilesConfig || {};
-                            const W = parseFloat(r.width) || 10;
-                            const L = parseFloat(r.length) || 12;
+                            const W = Math.max(Math.ceil(parseFloat(String(r.width))) || 1, 1);
+                            const L = Math.max(Math.ceil(parseFloat(String(r.length))) || 1, 1);
                             const TILE_COLORS: Record<string, string> = {
                                 tile1: '#6366f1', tile2: '#9333ea', tile3: '#0d9488', tile4: '#ea580c', deduct: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)',
                             };
@@ -1258,11 +1258,11 @@ export const TileCalculator: React.FC = () => {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
                                             <p className="text-[10px] font-bold text-indigo-200 uppercase">Net Area</p>
-                                            <p className="text-xl font-bold mt-1 text-white">{r.totalArea} <span className="text-xs font-semibold text-indigo-300 normal-case">sq.ft</span></p>
+                                            <p className="text-xl font-bold mt-1 text-white">{parseFloat(String(r.totalArea) || '0').toFixed(2)} <span className="text-xs font-semibold text-indigo-300 normal-case">sq.ft</span></p>
                                         </div>
                                         <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
                                             <p className="text-[10px] font-bold text-indigo-200 uppercase">Floor Only</p>
-                                            <p className="text-xl font-bold mt-1 text-white">{r.floorArea} <span className="text-xs font-semibold text-indigo-300 normal-case">sq.ft</span></p>
+                                            <p className="text-xl font-bold mt-1 text-white">{parseFloat(String(r.floorArea) || '0').toFixed(2)} <span className="text-xs font-semibold text-indigo-300 normal-case">sq.ft</span></p>
                                         </div>
                                     </div>
                                 </div>
