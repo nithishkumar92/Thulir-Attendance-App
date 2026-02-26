@@ -244,6 +244,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         try {
+            // Fast-path: if only shortageReports is being updated (worker shortage report)
+            if (body.shortageReports !== undefined && !body.name) {
+                const result = await query(
+                    `UPDATE tile_rooms SET shortage_reports = $1, updated_at = now() WHERE id = $2 RETURNING *`,
+                    [JSON.stringify(body.shortageReports), id]
+                );
+                if (result.rowCount === 0) {
+                    return res.status(404).json({ error: 'Room not found' });
+                }
+                const room = rowToRoom(result.rows[0]);
+                room.photos = await signPhotos(room.photos);
+                return res.status(200).json(room);
+            }
+
             // Upload any new base64 photos to B2
             const uploadedPhotos = await uploadPhotos(body.photos || []);
 

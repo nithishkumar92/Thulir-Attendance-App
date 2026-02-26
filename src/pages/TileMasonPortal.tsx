@@ -568,7 +568,10 @@ export const TileMasonPortal: React.FC = () => {
                             <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>What is missing?</p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 {[
-                                    ...activeTypes.map(k => ({ v: TILE_NAMES[k], label: `${TILE_NAMES[k]} Tiles`, color: TILE_COLORS[k] })),
+                                    ...activeTypes.map(k => {
+                                        const brandName = (tc as any)[k]?.purchaseName || TILE_NAMES[k];
+                                        return { v: brandName, label: `${brandName} Tiles`, color: TILE_COLORS[k] };
+                                    }),
                                     { v: 'Cement', label: '🪣 Cement', color: '#64748b' },
                                     { v: 'Spacers', label: '🔲 Tile Spacers', color: '#64748b' },
                                     { v: 'Grout', label: '🧴 Grout / Epoxy', color: '#64748b' },
