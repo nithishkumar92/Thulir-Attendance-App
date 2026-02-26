@@ -55,9 +55,9 @@ const TileChip: React.FC<{ label: string; color: string; count: number; size: st
     <div style={{ display: 'flex', alignItems: 'center', background: '#fff', borderRadius: 18, padding: '14px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', gap: 14, border: `2px solid ${color}22` }}>
         <div style={{ width: 48, height: 48, borderRadius: 14, background: color, flexShrink: 0, boxShadow: `0 4px 14px ${color}55` }} />
         <div style={{ flex: 1 }}>
-            <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{label}</p>
-            {purchaseName && <p style={{ margin: '0 0 2px', fontSize: 13, color: color, fontWeight: 700 }}>{purchaseName}</p>}
-            {uniqueId && <p style={{ margin: '0 0 2px', fontSize: 11, color: '#64748b', fontWeight: 700, fontFamily: 'monospace' }}>ID: {uniqueId}</p>}
+            <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{purchaseName || label}</p>
+            {uniqueId && <p style={{ margin: '0 0 2px', fontSize: 12, color: '#64748b', fontWeight: 700, fontFamily: 'monospace' }}>ID: {uniqueId}</p>}
+            {purchaseName && <p style={{ margin: '0 0 2px', fontSize: 13, color: color, fontWeight: 700 }}>{label}</p>}
             <p style={{ margin: 0, fontSize: 12, color: '#64748b', fontWeight: 600 }}>{size || '—'}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
