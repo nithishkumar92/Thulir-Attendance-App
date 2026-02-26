@@ -422,6 +422,7 @@ export const TileCalculator: React.FC = () => {
 
     const [selectedSiteId, setSelectedSiteId] = useState<string>(() => sites[0]?.id || '');
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [selectedFloor, setSelectedFloor] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -441,7 +442,15 @@ export const TileCalculator: React.FC = () => {
         try {
             const data = await api.fetchTileRooms(siteId);
             // Map DB field id (string) to numeric id for local state compatibility
-            setRooms(data.map((r: any) => ({ ...r, id: r.id })));
+            const mappedRooms = data.map((r: any) => ({ ...r, id: r.id }));
+            setRooms(mappedRooms);
+
+            if (mappedRooms.length > 0) {
+                const uniqueFloors = [...new Set(mappedRooms.map((r: Room) => r.floor?.trim() || 'Unassigned'))] as string[];
+                if (!selectedFloor || !uniqueFloors.includes(selectedFloor)) {
+                    setSelectedFloor(uniqueFloors[0]);
+                }
+            }
         } catch (err: any) {
             setError('Failed to load rooms: ' + err.message);
         } finally {
@@ -922,91 +931,78 @@ export const TileCalculator: React.FC = () => {
                             </p>
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-8">
-                            {Object.entries(
-                                rooms.reduce((acc, room) => {
-                                    const fl = room.floor?.trim() || 'Other Rooms';
-                                    if (!acc[fl]) acc[fl] = [];
-                                    acc[fl].push(room);
-                                    return acc;
-                                }, {} as Record<string, typeof rooms>)
-                            ).map(([floorName, floorRooms]) => (
-                                <div key={floorName}>
-                                    <h3 className="text-sm font-extrabold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">
-                                        {floorName}
-                                    </h3>
-                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        {floorRooms.map((room) => (
-                                            <div
-                                                key={room.id}
-                                                onClick={() => handleViewRoom(room)}
-                                                className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all"
-                                            >
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <h3 className="font-bold text-gray-900 text-base">{room.name}</h3>
-                                                        <p className="text-sm text-gray-500 mt-0.5">
-                                                            {room.tileName || 'No tile specified'}
-                                                        </p>
-                                                        <p className="text-xs text-gray-400 mt-0.5">{room.tileSize}</p>
-                                                    </div>
-                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                                        <button
-                                                            onClick={() => handleEditRoom(room)}
-                                                            className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                    </div>
-                                                </div>
+                        <div className="flex flex-col gap-6">
+                            {/* FLOOR TABS */}
+                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                {(() => {
+                                    const rawFloors = rooms.map(r => r.floor?.trim() || 'Unassigned');
+                                    // Use Set to get unique floors but maintain order of appearance or sort them
+                                    const uniqueFloors = Array.from(new Set(rawFloors));
+                                    return uniqueFloors.map(floorName => (
+                                        <button
+                                            key={floorName}
+                                            onClick={() => setSelectedFloor(floorName)}
+                                            className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-extrabold transition-all shadow-sm
+                                                ${selectedFloor === floorName 
+                                                    ? 'bg-[#6366f1] text-white shadow-[#6366f1]/20' 
+                                                    : 'bg-[#e2e8f0] text-gray-600 hover:bg-[#cbd5e1]'
+                                                }`}
+                                        >
+                                            {floorName}
+                                        </button>
+                                    ));
+                                })()}
+                                <button
+                                    onClick={() => handleAddNewRoom()}
+                                    className="whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-extrabold text-[#6366f1] border-2 border-dashed border-[#a5b4fc] hover:bg-indigo-50 transition-colors"
+                                >
+                                    + Floor
+                                </button>
+                            </div>
 
-                                                <div className="flex gap-3 bg-gray-50 rounded-lg p-3">
-                                                    <div className="flex-1">
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Net Area</p>
-                                                        <p className="text-sm font-bold text-gray-800 mt-0.5">
-                                                            {room.totalArea || 0} sq.ft
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex-1 border-l border-gray-200 pl-3">
-                                                        <p className="text-[10px] font-bold text-indigo-500 uppercase">Required</p>
-                                                        <p className="text-sm font-extrabold text-indigo-700 mt-0.5">
-                                                            {room.reqQty || 0} nos
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {((room.deductions && room.deductions.length > 0) ||
-                                                    (room.additions && room.additions.length > 0)) && (
-                                                    <div className="flex gap-2 flex-wrap">
-                                                        {room.deductions?.length > 0 && (
-                                                            <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-md">
-                                                                ⚠️ {room.deductions.length} Deductions
-                                                            </span>
-                                                        )}
-                                                        {room.additions?.length > 0 && (
-                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                                                                ➕ {room.additions.length} Additions
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                <div className="flex justify-between items-center pt-1 border-t border-gray-100">
-                                                    <span className="text-xs text-gray-400">
-                                                        📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸 tap to view photos
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
-                                                        className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors"
-                                                    >
-                                                        Delete
-                                                    </button>
+                            {/* ROOM CARDS LIST */}
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                {rooms
+                                    .filter(r => (r.floor?.trim() || 'Unassigned') === selectedFloor)
+                                    .map((room) => (
+                                        <div
+                                            key={room.id}
+                                            onClick={() => handleViewRoom(room)}
+                                            className="bg-white rounded-[20px] shadow-sm border border-gray-100 p-5 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow min-h-[140px]"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <h3 className="font-black text-gray-900 text-lg leading-tight">{room.name}</h3>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">MAPPED AREA</p>
+                                                    <p className="text-sm font-black text-[#6366f1]">
+                                                        <span className="text-lg">{room.totalArea || 0}</span> sq.ft
+                                                    </p>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
+
+                                            <div className="flex items-center justify-between mt-auto pt-4">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="bg-[#f3e8ff] text-[#9333ea] px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wide">
+                                                        {(room as any).surfaceType === 'wall' ? 'WALL ELEVATION' : 'FLOOR LAYOUT'}
+                                                    </span>
+                                                    <span className="text-sm font-medium text-gray-500">
+                                                        {room.length}x{room.width} ft
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+
+                            {/* BOTTOM ADD NEW ROOM BUTTON */}
+                            <div className="mt-8">
+                                <button
+                                    onClick={handleAddNewRoom}
+                                    className="w-full bg-[#0f172a] hover:bg-[#1e293b] text-white py-4 rounded-xl text-lg font-black transition-colors flex items-center justify-center gap-2 shadow-lg"
+                                >
+                                    + Plot New Room
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
