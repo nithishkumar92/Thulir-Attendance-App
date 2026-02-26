@@ -42,6 +42,7 @@ async function ensureTable() {
             surface_type TEXT DEFAULT 'floor',
             grid_data   JSONB DEFAULT '{}',
             tiles_config JSONB DEFAULT '{}',
+            shortage_reports JSONB DEFAULT '[]',
             created_at  TIMESTAMPTZ DEFAULT now(),
             updated_at  TIMESTAMPTZ DEFAULT now()
         )
@@ -50,6 +51,7 @@ async function ensureTable() {
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS surface_type TEXT DEFAULT 'floor'`);
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS grid_data JSONB DEFAULT '{}'`);
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS tiles_config JSONB DEFAULT '{}'`);
+    await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS shortage_reports JSONB DEFAULT '[]'`);
 }
 
 /** Sign all photo URLs in an array */
@@ -105,6 +107,7 @@ function rowToRoom(r: any) {
         surfaceType: r.surface_type || 'floor',
         gridData: r.grid_data || {},
         tilesConfig: r.tiles_config || {},
+        shortageReports: r.shortage_reports || [],
     };
 }
 
@@ -192,10 +195,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     floor_area, skirting_area, total_area,
                     total_deducted_area, total_added_area,
                     wastage, req_qty, instructions, photos,
-                    surface_type, grid_data, tiles_config
+                    surface_type, grid_data, tiles_config, shortage_reports
                 ) VALUES (
                     $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                    $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27
+                    $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
                 ) RETURNING *`,
                 [
                     siteId, name, body.tileName || '', body.tileSize || '',
@@ -211,6 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     body.surfaceType || 'floor',
                     JSON.stringify(body.gridData || {}),
                     JSON.stringify(body.tilesConfig || {}),
+                    JSON.stringify(body.shortageReports || []),
                 ]
             );
 
@@ -245,9 +249,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     floor_area = $15, skirting_area = $16, total_area = $17,
                     total_deducted_area = $18, total_added_area = $19,
                     wastage = $20, req_qty = $21, instructions = $22, photos = $23,
-                    surface_type = $24, grid_data = $25, tiles_config = $26,
+                    surface_type = $24, grid_data = $25, tiles_config = $26, shortage_reports = $27,
                     updated_at = now()
-                WHERE id = $27
+                WHERE id = $28
                 RETURNING *`,
                 [
                     body.name, body.tileName || '', body.tileSize || '',
@@ -263,6 +267,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     body.surfaceType || 'floor',
                     JSON.stringify(body.gridData || {}),
                     JSON.stringify(body.tilesConfig || {}),
+                    JSON.stringify(body.shortageReports !== undefined ? body.shortageReports : (req.body.shortageReports || [])),
                     id,
                 ]
             );

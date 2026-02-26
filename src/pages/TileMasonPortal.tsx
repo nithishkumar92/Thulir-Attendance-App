@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { fetchTileRooms, fetchAdvances } from '../services/apiService';
+import { fetchTileRooms, fetchAdvances, updateTileRoom } from '../services/apiService';
 import { useNavigate } from 'react-router-dom';
 
 /* ─────── constants ─────── */
@@ -39,21 +39,23 @@ function mapDbRoom(raw: any) {
             return p.map((ph: any) => typeof ph === 'string' ? ph : ph?.url || '').filter(Boolean);
         })(),
         gridData: raw.gridData || raw.grid_data || {} as Record<string, string>,
-        tilesConfig: raw.tilesConfig || raw.tiles_config || {} as Record<string, { size?: string; wastage?: number }>,
+        tilesConfig: raw.tilesConfig || raw.tiles_config || {} as Record<string, { size?: string; wastage?: number, purchaseName?: string }>,
         surfaceType: (raw.surfaceType || raw.surface_type || 'floor') as string,
         tileName: raw.tileName || '',
         tileSize: raw.tileSize || '',
         wastage: parseFloat(raw.wastage ?? '0') || 0,
+        shortageReports: raw.shortageReports || raw.shortage_reports || [],
     };
 }
 type Room = ReturnType<typeof mapDbRoom>;
 
 /* ─────── sub-components ─────── */
-const TileChip: React.FC<{ label: string; color: string; count: number; size: string }> = ({ label, color, count, size }) => (
+const TileChip: React.FC<{ label: string; color: string; count: number; size: string; purchaseName?: string }> = ({ label, color, count, size, purchaseName }) => (
     <div style={{ display: 'flex', alignItems: 'center', background: '#fff', borderRadius: 18, padding: '14px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', gap: 14, border: `2px solid ${color}22` }}>
         <div style={{ width: 48, height: 48, borderRadius: 14, background: color, flexShrink: 0, boxShadow: `0 4px 14px ${color}55` }} />
         <div style={{ flex: 1 }}>
             <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{label}</p>
+            {purchaseName && <p style={{ margin: '0 0 2px', fontSize: 13, color: color, fontWeight: 700 }}>{purchaseName}</p>}
             <p style={{ margin: 0, fontSize: 12, color: '#64748b', fontWeight: 600 }}>{size || '—'}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -129,6 +131,7 @@ export const TileMasonPortal: React.FC = () => {
     const [shortageMat, setShortageMat] = useState('');
     const [shortageQty, setShortageQty] = useState('');
     const [shortageNote, setShortageNote] = useState('');
+    const [shortageSubmitting, setShortageSubmitting] = useState(false);
 
     const assignedTeam = teams.find(t => t.id === currentUser?.teamId);
     const siteId = currentUser?.siteId || assignedTeam?.permittedSiteIds?.[0] || '';
@@ -172,10 +175,38 @@ export const TileMasonPortal: React.FC = () => {
     const totalPaid = myAdvances.reduce((s, p) => s + (parseFloat(String(p.amount)) || 0), 0);
     const balance = totalEarned - totalPaid;
 
-    const handleShortageSubmit = () => {
-        if (!shortageMat || !shortageQty) return;
-        alert(`Shortage reported for ${activeRoom?.name}:\n${shortageQty} of ${shortageMat}${shortageNote ? `\nNote: ${shortageNote}` : ''}\n\nEngineer has been notified.`);
-        setShortageOpen(false); setShortageMat(''); setShortageQty(''); setShortageNote('');
+    const handleShortageSubmit = async () => {
+        if (!shortageMat || !shortageQty || !activeRoom) return;
+        setShortageSubmitting(true);
+        try {
+            const newReport = {
+                id: Date.now().toString(),
+                material: shortageMat,
+                quantity: shortageQty,
+                note: shortageNote,
+                date: new Date().toISOString(),
+                status: 'pending' // pending or resolved
+            };
+            
+            const updatedReports = [...(activeRoom.shortageReports || []), newReport];
+            
+            await updateTileRoom(activeRoom.id, {
+                shortageReports: updatedReports
+            });
+            
+            // update local state so they see immediate feedback
+            const updatedRooms = [...rooms];
+            updatedRooms[activeRoomIdx] = { ...activeRoom, shortageReports: updatedReports };
+            setRooms(updatedRooms);
+
+            alert(`Shortage reported for ${activeRoom.name}:\n${shortageQty} of ${shortageMat}${shortageNote ? `\nNote: ${shortageNote}` : ''}\n\nEngineer has been notified.`);
+            setShortageOpen(false); setShortageMat(''); setShortageQty(''); setShortageNote('');
+        } catch (e) {
+            console.error(e);
+            alert('Failed to submit shortage report. Please check your connection and try again.');
+        } finally {
+            setShortageSubmitting(false);
+        }
     };
 
     /* ───────── render ───────── */
@@ -289,10 +320,10 @@ export const TileMasonPortal: React.FC = () => {
                                                         activeTypes.map(k => {
                                                             const cfg = (tc as any)[k] || {};
                                                             const req = calcReq(tileAreas[k], cfg.size || '', parseFloat(cfg.wastage) || 0);
-                                                            return <TileChip key={k} label={TILE_NAMES[k]} color={TILE_COLORS[k]} count={req} size={cfg.size || ''} />;
+                                                            return <TileChip key={k} label={TILE_NAMES[k]} color={TILE_COLORS[k]} count={req} size={cfg.size || ''} purchaseName={cfg.purchaseName} />;
                                                         })
                                                     ) : (
-                                                        <TileChip label={activeRoom.tileName || 'Main Tile'} color="#6366f1" count={activeRoom.reqQty} size={activeRoom.tileSize} />
+                                                        <TileChip label={activeRoom.tileName || 'Main Tile'} color="#6366f1" count={activeRoom.reqQty} size={activeRoom.tileSize} purchaseName={activeRoom.tileName} />
                                                     )}
                                                 </div>
                                             </div>
@@ -502,10 +533,10 @@ export const TileMasonPortal: React.FC = () => {
 
                         <button
                             onClick={handleShortageSubmit}
-                            disabled={!shortageMat || !shortageQty}
-                            style={{ width: '100%', padding: '18px 0', background: (!shortageMat || !shortageQty) ? '#fca5a5' : '#ef4444', color: '#fff', border: 'none', borderRadius: 16, fontSize: 17, fontWeight: 900, cursor: (!shortageMat || !shortageQty) ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+                            disabled={!shortageMat || !shortageQty || shortageSubmitting}
+                            style={{ width: '100%', padding: '18px 0', background: (!shortageMat || !shortageQty || shortageSubmitting) ? '#fca5a5' : '#ef4444', color: '#fff', border: 'none', borderRadius: 16, fontSize: 17, fontWeight: 900, cursor: (!shortageMat || !shortageQty || shortageSubmitting) ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
                         >
-                            🚀 Send to Engineer
+                            {shortageSubmitting ? '⏳ Sending...' : '🚀 Send to Engineer'}
                         </button>
                     </div>
                 </div>

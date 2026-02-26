@@ -21,6 +21,7 @@ const TILE_TYPES = [
 interface TileConfig {
     size: string;
     wastage: number | string;
+    purchaseName?: string;
 }
 
 interface TilesConfig {
@@ -113,10 +114,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 
     // Tile Configurations
     const [tilesConfig, setTilesConfig] = useState<TilesConfig>(initialTilesConfig || {
-        tile1: { size: '600x1200 mm (2x4 ft)', wastage: 10 },
-        tile2: { size: '600x600 mm (2x2 ft)', wastage: 15 },
-        tile3: { size: 'Select Tile Size...', wastage: 10 },
-        tile4: { size: 'Select Tile Size...', wastage: 10 },
+        tile1: { size: '600x1200 mm (2x4 ft)', wastage: 10, purchaseName: '' },
+        tile2: { size: '600x600 mm (2x2 ft)', wastage: 15, purchaseName: '' },
+        tile3: { size: 'Select Tile Size...', wastage: 10, purchaseName: '' },
+        tile4: { size: 'Select Tile Size...', wastage: 10, purchaseName: '' },
     });
 
     // Skirting
@@ -442,6 +443,14 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                                         onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, wastage: e.target.value } })}
                                         placeholder="Waste %"
                                         style={{ flex: 1, padding: '8px', fontSize: 12 }}
+                                    />
+                                </div>
+                                <div style={{ marginBottom: 8 }}>
+                                    <Input
+                                        value={config.purchaseName || ''}
+                                        onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, purchaseName: e.target.value } })}
+                                        placeholder="Original Brand / Box Name"
+                                        style={{ padding: '8px 10px', fontSize: 12 }}
                                     />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

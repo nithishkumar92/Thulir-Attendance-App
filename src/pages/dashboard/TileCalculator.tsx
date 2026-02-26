@@ -55,6 +55,10 @@ interface Room {
     reqQty: string;
     instructions: string;
     photos: PhotoItem[];
+    surfaceType?: string;
+    gridData?: any;
+    tilesConfig?: any;
+    shortageReports?: any[];
 }
 
 // --- Constants ---
@@ -772,6 +776,41 @@ export const TileCalculator: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Shortage Alerts */}
+                {rooms.map(room => (room.shortageReports || []).map((report: any) => (
+                    <div key={report.id} className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex items-start gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <div>
+                                <h3 className="text-sm font-bold text-red-900">
+                                    Shortage Reported: {room.name}
+                                </h3>
+                                <p className="text-sm text-red-800 mt-0.5">
+                                    <span className="font-bold">{report.quantity}</span> of <span className="font-bold">{report.material}</span>
+                                    {report.note ? ` — Note: ${report.note}` : ''}
+                                </p>
+                                <p className="text-xs text-red-500 mt-1 font-semibold uppercase tracking-wide">
+                                    {new Date(report.date).toLocaleDateString()} at {new Date(report.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                const updatedReports = (room.shortageReports || []).filter((r: any) => r.id !== report.id);
+                                try {
+                                    const updatedRoom = await api.updateTileRoom(String(room.id), { shortageReports: updatedReports });
+                                    setRooms(prev => prev.map(r => r.id === room.id ? updatedRoom : r));
+                                } catch (e) {
+                                    alert('Failed to acknowledge report.');
+                                }
+                            }}
+                            className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap"
+                        >
+                            ✓ Acknowledge
+                        </button>
+                    </div>
+                )))}
+
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -1135,6 +1174,7 @@ export const TileCalculator: React.FC = () => {
                                                             <div className="w-12 h-12 rounded-lg shadow-sm flex-shrink-0" style={{ background: t.color }} />
                                                             <div className="flex-1 min-w-0">
                                                                 <p className="text-sm font-bold truncate" style={{ color: t.color }}>{t.name}</p>
+                                                                {config.purchaseName && <p className="text-xs font-bold truncate" style={{ color: t.color, opacity: 0.8 }}>{config.purchaseName}</p>}
                                                                 <p className="text-[10px] font-bold text-gray-500 truncate">{config.size || 'Size not set'}</p>
                                                             </div>
                                                             <div className="text-right flex-shrink-0">
