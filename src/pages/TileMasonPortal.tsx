@@ -39,7 +39,7 @@ function mapDbRoom(raw: any) {
             return p.map((ph: any) => typeof ph === 'string' ? ph : ph?.url || '').filter(Boolean);
         })(),
         gridData: raw.gridData || raw.grid_data || {} as Record<string, string>,
-        tilesConfig: raw.tilesConfig || raw.tiles_config || {} as Record<string, { size?: string; wastage?: number, purchaseName?: string }>,
+        tilesConfig: raw.tilesConfig || raw.tiles_config || {} as Record<string, { size?: string; wastage?: number, purchaseName?: string, uniqueId?: string }>,
         surfaceType: (raw.surfaceType || raw.surface_type || 'floor') as string,
         tileName: raw.tileName || '',
         tileSize: raw.tileSize || '',
@@ -51,12 +51,13 @@ function mapDbRoom(raw: any) {
 type Room = ReturnType<typeof mapDbRoom>;
 
 /* ─────── sub-components ─────── */
-const TileChip: React.FC<{ label: string; color: string; count: number; size: string; purchaseName?: string }> = ({ label, color, count, size, purchaseName }) => (
+const TileChip: React.FC<{ label: string; color: string; count: number; size: string; purchaseName?: string; uniqueId?: string }> = ({ label, color, count, size, purchaseName, uniqueId }) => (
     <div style={{ display: 'flex', alignItems: 'center', background: '#fff', borderRadius: 18, padding: '14px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', gap: 14, border: `2px solid ${color}22` }}>
         <div style={{ width: 48, height: 48, borderRadius: 14, background: color, flexShrink: 0, boxShadow: `0 4px 14px ${color}55` }} />
         <div style={{ flex: 1 }}>
             <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{label}</p>
             {purchaseName && <p style={{ margin: '0 0 2px', fontSize: 13, color: color, fontWeight: 700 }}>{purchaseName}</p>}
+            {uniqueId && <p style={{ margin: '0 0 2px', fontSize: 11, color: '#64748b', fontWeight: 700, fontFamily: 'monospace' }}>ID: {uniqueId}</p>}
             <p style={{ margin: 0, fontSize: 12, color: '#64748b', fontWeight: 600 }}>{size || '—'}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -371,10 +372,10 @@ export const TileMasonPortal: React.FC = () => {
                                                         activeTypes.map(k => {
                                                             const cfg = (tc as any)[k] || {};
                                                             const req = calcReq(tileAreas[k], cfg.size || '', parseFloat(cfg.wastage) || 0);
-                                                            return <TileChip key={k} label={TILE_NAMES[k]} color={TILE_COLORS[k]} count={req} size={cfg.size || ''} purchaseName={cfg.purchaseName} />;
+                                                            return <TileChip key={k} label={TILE_NAMES[k]} color={TILE_COLORS[k]} count={req} size={cfg.size || ''} purchaseName={cfg.purchaseName} uniqueId={cfg.uniqueId} />;
                                                         })
                                                     ) : (
-                                                        <TileChip label={activeRoom.tileName || 'Main Tile'} color="#6366f1" count={activeRoom.reqQty} size={activeRoom.tileSize} purchaseName={activeRoom.tileName} />
+                                                        <TileChip label={activeRoom.tileName || 'Main Tile'} color="#6366f1" count={activeRoom.reqQty} size={activeRoom.tileSize} purchaseName={activeRoom.tileName} uniqueId={tc?.tile1?.uniqueId} />
                                                     )}
                                                 </div>
                                             </div>

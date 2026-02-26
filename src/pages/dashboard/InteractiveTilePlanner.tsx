@@ -8,6 +8,7 @@ const TILE_SIZES = [
     { label: '800x800 mm (32x32 in)', sqft: 7.11 },
     { label: '800x1600 mm (32x64 in)', sqft: 14.22 },
     { label: '1200x1200 mm (4x4 ft)', sqft: 16 },
+    { label: 'Custom Size', sqft: 0 },
 ];
 
 const TILE_TYPES = [
@@ -28,6 +29,9 @@ interface TileConfig {
     size: string;
     wastage: number | string;
     purchaseName?: string;
+    uniqueId?: string;
+    customLength?: string;
+    customWidth?: string;
 }
 
 interface TilesConfig {
@@ -254,18 +258,27 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
         skirtingArea = netPerimeter * heightFt;
     }
 
-    const calcReq = (area: number, sizeLabel: string, wastagePct: number | string): number => {
-        if (!sizeLabel || sizeLabel === 'Select Tile Size...') return 0;
-        const selectedTile = TILE_SIZES.find(t => t.label === sizeLabel);
-        const sqftPerPiece = selectedTile && selectedTile.sqft > 0 ? selectedTile.sqft : 1;
-        return Math.ceil((area / sqftPerPiece) * (1 + ((parseFloat(String(wastagePct)) || 0) / 100)));
+    const calcReq = (area: number, config: Pick<TileConfig, 'size' | 'wastage' | 'customLength' | 'customWidth'>): number => {
+        if (!config.size || config.size === 'Select Tile Size...') return 0;
+        
+        let sqftPerPiece = TILE_SIZES.find(t => t.label === config.size)?.sqft || 1;
+        
+        if (config.size === 'Custom Size') {
+            const l = parseFloat(config.customLength || '0');
+            const w = parseFloat(config.customWidth || '0');
+            sqftPerPiece = (l * w) / 92903.04;
+        }
+        
+        if (sqftPerPiece <= 0) sqftPerPiece = 1; // fallback
+        
+        return Math.ceil((area / sqftPerPiece) * (1 + ((parseFloat(String(config.wastage)) || 0) / 100)));
     };
 
     const totalFloorArea = areas.tile1 + areas.tile2 + areas.tile3 + areas.tile4;
     const totalReqTiles = (Object.keys(areas) as (keyof typeof areas)[]).reduce(
-        (sum, key) => sum + calcReq(areas[key], tilesConfig[key as keyof TilesConfig].size, tilesConfig[key as keyof TilesConfig].wastage), 0
+        (sum, key) => sum + calcReq(areas[key], tilesConfig[key as keyof TilesConfig] as TileConfig), 0
     );
-    const skirtingReq = calcReq(skirtingArea, skirting.size, skirting.wastage);
+    const skirtingReq = calcReq(skirtingArea, skirting as Pick<TileConfig, 'size' | 'wastage'>);
 
     // --- Save handler ---
     const handleSave = () => {
@@ -536,7 +549,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     const sqft = areas[tool.id as keyof typeof areas];
                     if (sqft === 0) return null;
                     const config = tilesConfig[tool.id as keyof TilesConfig];
-                    const required = calcReq(sqft, config.size, config.wastage);
+                    const required = calcReq(sqft, config as TileConfig);
                     return (
                         <div key={tool.id} style={{ background: '#fff', border: `1px solid ${tool.border}`, borderRadius: 16, padding: 16, display: 'flex', alignItems: 'center', gap: 16, boxShadow: `0 4px 10px ${tool.color}15` }}>
                             <div style={{ width: 40, height: 40, background: tool.color, borderRadius: 10, flexShrink: 0 }} />
@@ -561,11 +574,40 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                                         style={{ flex: 1, padding: '8px', fontSize: 12 }}
                                     />
                                 </div>
+                                
+                                {/* Custom Size Modals */}
+                                {config.size === 'Custom Size' && (
+                                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                                        <Input
+                                            type="number"
+                                            value={config.customLength || ''}
+                                            onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, customLength: e.target.value } })}
+                                            placeholder="Length (mm)"
+                                            style={{ flex: 1, padding: '8px', fontSize: 12 }}
+                                        />
+                                        <Input
+                                            type="number"
+                                            value={config.customWidth || ''}
+                                            onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, customWidth: e.target.value } })}
+                                            placeholder="Width (mm)"
+                                            style={{ flex: 1, padding: '8px', fontSize: 12 }}
+                                        />
+                                    </div>
+                                )}
+
                                 <div style={{ marginBottom: 8 }}>
                                     <Input
                                         value={config.purchaseName || ''}
                                         onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, purchaseName: e.target.value } })}
                                         placeholder="Original Brand / Box Name"
+                                        style={{ padding: '8px 10px', fontSize: 12 }}
+                                    />
+                                </div>
+                                <div style={{ marginBottom: 8 }}>
+                                    <Input
+                                        value={config.uniqueId || ''}
+                                        onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, uniqueId: e.target.value } })}
+                                        placeholder="Shop's Unique ID (Optional)"
                                         style={{ padding: '8px 10px', fontSize: 12 }}
                                     />
                                 </div>
@@ -603,7 +645,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                                     <p style={{ margin: '0 0 2px', fontSize: 11, color: '#059669', fontWeight: 700 }}>SKIRTING TILES</p>
                                     <p style={{ margin: 0, fontSize: 11, color: '#10b981' }}>Net Area: {skirtingArea.toFixed(1)} sq.ft</p>
                                 </div>
-                                <span style={{ fontSize: 24, fontWeight: 900, color: '#059669' }}>{calcReq(skirtingArea, skirting.size, skirting.wastage)} <span style={{ fontSize: 12, fontWeight: 600 }}>nos</span></span>
+                                <span style={{ fontSize: 24, fontWeight: 900, color: '#059669' }}>{calcReq(skirtingArea, skirting as Pick<TileConfig, 'size' | 'wastage'>)} <span style={{ fontSize: 12, fontWeight: 600 }}>nos</span></span>
                             </div>
                         </div>
                     )}
