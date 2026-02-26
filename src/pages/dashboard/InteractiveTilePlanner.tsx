@@ -152,7 +152,23 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                 delete next[`${x}-${y}`];
                 return next;
             }
-            return { ...prev, [`${x}-${y}`]: activeTool };
+            const currentVal = prev[`${x}-${y}`] || '';
+            const isMarkerTool = MARKER_TYPES.find(m => m.id === activeTool);
+            if (isMarkerTool) {
+                if (currentVal === 'deduct') return prev;
+                const baseTile = currentVal ? currentVal.split('|')[0] : 'tile1';
+                return { ...prev, [`${x}-${y}`]: `${baseTile}|${activeTool}` };
+            } else {
+                if (activeTool === 'deduct') {
+                     return { ...prev, [`${x}-${y}`]: 'deduct'};
+                }
+                const existingMarker = currentVal.includes('|') ? currentVal.split('|')[1] : null;
+                if (existingMarker) {
+                    return { ...prev, [`${x}-${y}`]: `${activeTool}|${existingMarker}` };
+                } else {
+                    return { ...prev, [`${x}-${y}`]: activeTool };
+                }
+            }
         });
     };
 
@@ -173,7 +189,11 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
         for (let y = 0; y < len; y++) {
             for (let x = 0; x < wid; x++) {
                 if (x === 0 || x === wid - 1 || y === 0 || y === len - 1) {
-                    if (newGrid[`${x}-${y}`] !== 'deduct') newGrid[`${x}-${y}`] = 'tile2';
+                    const current = newGrid[`${x}-${y}`] || '';
+                    if (current.split('|')[0] !== 'deduct') {
+                        const marker = current.includes('|') ? current.split('|')[1] : null;
+                        newGrid[`${x}-${y}`] = marker ? `tile2|${marker}` : 'tile2';
+                    }
                 }
             }
         }
@@ -186,7 +206,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
         const wid = Math.max(Math.ceil(parseFloat(dimensions.width)) || 1, 1);
         for (let y = 0; y < len; y++) {
             for (let x = 0; x < wid; x++) {
-                if (!newGrid[`${x}-${y}`]) newGrid[`${x}-${y}`] = 'tile1';
+                const current = newGrid[`${x}-${y}`] || '';
+                if (!current) {
+                    newGrid[`${x}-${y}`] = 'tile1';
+                }
             }
         }
         setGrid(newGrid);
@@ -206,10 +229,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 
     // --- Calculations ---
     const areas = {
-        tile1: Object.values(grid).filter(v => v === 'tile1').length,
-        tile2: Object.values(grid).filter(v => v === 'tile2').length,
-        tile3: Object.values(grid).filter(v => v === 'tile3').length,
-        tile4: Object.values(grid).filter(v => v === 'tile4').length,
+        tile1: Object.values(grid).filter(v => v.split('|')[0] === 'tile1').length,
+        tile2: Object.values(grid).filter(v => v.split('|')[0] === 'tile2').length,
+        tile3: Object.values(grid).filter(v => v.split('|')[0] === 'tile3').length,
+        tile4: Object.values(grid).filter(v => v.split('|')[0] === 'tile4').length,
     };
 
     let skirtingArea = 0;
@@ -417,22 +440,30 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     >
                         {Array.from({ length: Math.max(Math.ceil(parseFloat(dimensions.length))||1, 1) }).map((_, y) =>
                             Array.from({ length: Math.max(Math.ceil(parseFloat(dimensions.width))||1, 1) }).map((_, x) => {
-                                const cellType = grid[`${x}-${y}`];
+                                const cellType = grid[`${x}-${y}`] || '';
+                                const baseTile = cellType.split('|')[0];
+                                const markerType = cellType.split('|')[1];
+                                
                                 let bg = '#f8fafc';
                                 let icon = null;
                                 
-                                if (cellType === 'deduct') {
+                                if (baseTile === 'deduct') {
                                     bg = 'repeating-linear-gradient(45deg, #cbd5e1, #cbd5e1 2px, #f8fafc 2px, #f8fafc 6px)';
                                 } else {
-                                    const toolMatch = TILE_TYPES.find(t => t.id === cellType);
+                                    const toolMatch = TILE_TYPES.find(t => t.id === baseTile);
                                     if (toolMatch) bg = toolMatch.color;
                                     else {
-                                        const markerMatch = MARKER_TYPES.find(t => t.id === cellType);
+                                        const markerMatch = MARKER_TYPES.find(t => t.id === baseTile);
                                         if (markerMatch) {
-                                            bg = markerMatch.color;
+                                            bg = '#f8fafc';
                                             icon = markerMatch.icon;
                                         }
                                     }
+                                }
+                                
+                                if (markerType) {
+                                    const markerMatch = MARKER_TYPES.find(t => t.id === markerType);
+                                    if (markerMatch) icon = markerMatch.icon;
                                 }
                                 const isDivider = surfaceType === 'wall' && dividers.includes(x + 1);
                                 return (

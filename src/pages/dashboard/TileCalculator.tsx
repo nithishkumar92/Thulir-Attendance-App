@@ -1107,7 +1107,10 @@ export const TileCalculator: React.FC = () => {
                                 return Math.ceil((area / sqft) * (1 + (wastage || 0) / 100));
                             };
                             const areas = { tile1: 0, tile2: 0, tile3: 0, tile4: 0 };
-                            Object.values(gridData).forEach(v => { if (v in areas) (areas as any)[v]++; });
+                            Object.values(gridData).forEach(v => { 
+                                const baseTile = (v as string).split('|')[0];
+                                if (baseTile in areas) (areas as any)[baseTile]++; 
+                            });
                             const hasAnyType = Object.values(areas).some(v => v > 0);
                             return (
                                 <div className="space-y-4">
@@ -1129,14 +1132,22 @@ export const TileCalculator: React.FC = () => {
                                                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, 1fr)`, gap: 1, background: '#cbd5e1', border: '2px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.05)' }}>
                                                     {Array.from({ length: L }).map((_, y) =>
                                                         Array.from({ length: W }).map((_, x) => {
-                                                            const cellType = gridData[`${x}-${y}`];
+                                                            const cellVal = gridData[`${x}-${y}`] || '';
+                                                            const baseTile = cellVal.split('|')[0];
+                                                            const markerType = cellVal.split('|')[1];
+                                                            
                                                             let bg = '#f8fafc';
                                                             let icon = null;
-                                                            if (cellType === 'deduct') bg = TILE_COLORS['deduct'];
-                                                            else if (cellType && TILE_COLORS[cellType]) bg = TILE_COLORS[cellType];
-                                                            else if (cellType === 'door') { bg = '#f1f5f9'; icon = '🚪'; }
-                                                            else if (cellType === 'window') { bg = '#f0f9ff'; icon = '🪟'; }
-                                                            else if (cellType === 'entrance') { bg = '#fffbeb'; icon = '⬇️'; }
+                                                            
+                                                            if (baseTile === 'deduct') bg = TILE_COLORS['deduct'];
+                                                            else if (baseTile && TILE_COLORS[baseTile]) bg = TILE_COLORS[baseTile];
+                                                            else if (baseTile === 'door') { bg = '#f8fafc'; icon = '🚪'; }
+                                                            else if (baseTile === 'window') { bg = '#f8fafc'; icon = '🪟'; }
+                                                            else if (baseTile === 'entrance') { bg = '#f8fafc'; icon = '⬇️'; }
+                                                            
+                                                            if (markerType === 'door') icon = '🚪';
+                                                            else if (markerType === 'window') icon = '🪟';
+                                                            else if (markerType === 'entrance') icon = '⬇️';
                                                             
                                                             return (
                                                                 <div
