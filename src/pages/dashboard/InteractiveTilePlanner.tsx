@@ -48,6 +48,7 @@ interface SkirtingConfig {
 
 export interface PlannerSaveData {
     name: string;
+    floor: string;
     surfaceType: 'floor' | 'wall';
     entrance: 'top' | 'bottom' | 'left' | 'right';
     length: string;
@@ -65,6 +66,7 @@ export interface PlannerSaveData {
 
 interface Props {
     initialName?: string;
+    initialFloor?: string;
     siteId?: string;
     initialSurfaceType?: 'floor' | 'wall';
     initialEntrance?: 'top' | 'bottom' | 'left' | 'right';
@@ -99,6 +101,7 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ type = '
 // --- Main Component ---
 export const InteractiveTilePlanner: React.FC<Props> = ({
     initialName = '',
+    initialFloor = '',
     siteId = '',
     initialSurfaceType = 'floor',
     initialEntrance = 'bottom',
@@ -111,6 +114,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     saving = false,
 }) => {
     const [roomName, setRoomName] = useState(initialName);
+    const [floorName, setFloorName] = useState(initialFloor);
     const [surfaceType, setSurfaceType] = useState<'floor' | 'wall'>(initialSurfaceType);
     const [entrance, setEntrance] = useState<'top' | 'bottom' | 'left' | 'right'>(initialEntrance);
     const [dimensions, setDimensions] = useState(initialDimensions);
@@ -276,6 +280,7 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
         }
         onSave({
             name: roomName.trim(),
+            floor: floorName.trim(),
             surfaceType,
             entrance,
             length: dimensions.length,
@@ -309,15 +314,26 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                     </button>
                 </div>
 
-                {/* Room Name */}
-                <div style={{ marginBottom: 14 }}>
-                    <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Room Name</Label>
-                    <Input
-                        value={roomName}
-                        onChange={e => setRoomName(e.target.value)}
-                        placeholder="e.g. Master Bedroom"
-                        style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}
-                    />
+                {/* Room Name & Floor */}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                    <div style={{ flex: 1 }}>
+                        <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Room Name</Label>
+                        <Input
+                            value={roomName}
+                            onChange={e => setRoomName(e.target.value)}
+                            placeholder="e.g. Master Bedroom"
+                            style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}
+                        />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Floor</Label>
+                        <Input
+                            value={floorName}
+                            onChange={e => setFloorName(e.target.value)}
+                            placeholder="e.g. Ground Floor"
+                            style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}
+                        />
+                    </div>
                 </div>
 
                 {/* Surface Type Toggle */}

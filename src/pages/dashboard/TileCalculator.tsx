@@ -56,6 +56,8 @@ interface Room {
     instructions: string;
     photos: PhotoItem[];
     surfaceType?: string;
+    entrance?: 'top' | 'bottom' | 'left' | 'right';
+    floor?: string;
     gridData?: any;
     tilesConfig?: any;
     shortageReports?: any[];
@@ -344,6 +346,7 @@ const DEFAULT_NEW_ROOM: Omit<Room, 'id'> = {
     totalAddedArea: '0',
     wastage: '10',
     reqQty: '',
+    floor: '',
     instructions: '',
     photos: [],
 };
@@ -571,7 +574,9 @@ export const TileCalculator: React.FC = () => {
                 instructions: '',
                 photos: [],
                 // New planner-specific fields
+                floor: data.floor,
                 surfaceType: data.surfaceType,
+                entrance: data.entrance,
                 gridData: data.grid,
                 tilesConfig: data.tilesConfig,
             };
@@ -917,72 +922,88 @@ export const TileCalculator: React.FC = () => {
                             </p>
                         </div>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {rooms.map((room) => (
-                                <div
-                                    key={room.id}
-                                    onClick={() => handleViewRoom(room)}
-                                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all"
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-bold text-gray-900 text-base">{room.name}</h3>
-                                            <p className="text-sm text-gray-500 mt-0.5">
-                                                {room.tileName || 'No tile specified'}
-                                            </p>
-                                            <p className="text-xs text-gray-400 mt-0.5">{room.tileSize}</p>
-                                        </div>
-                                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                            <button
-                                                onClick={() => handleEditRoom(room)}
-                                                className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+                        <div className="flex flex-col gap-8">
+                            {Object.entries(
+                                rooms.reduce((acc, room) => {
+                                    const fl = room.floor?.trim() || 'Other Rooms';
+                                    if (!acc[fl]) acc[fl] = [];
+                                    acc[fl].push(room);
+                                    return acc;
+                                }, {} as Record<string, typeof rooms>)
+                            ).map(([floorName, floorRooms]) => (
+                                <div key={floorName}>
+                                    <h3 className="text-sm font-extrabold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">
+                                        {floorName}
+                                    </h3>
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {floorRooms.map((room) => (
+                                            <div
+                                                key={room.id}
+                                                onClick={() => handleViewRoom(room)}
+                                                className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all"
                                             >
-                                                Edit
-                                            </button>
-                                        </div>
-                                    </div>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-900 text-base">{room.name}</h3>
+                                                        <p className="text-sm text-gray-500 mt-0.5">
+                                                            {room.tileName || 'No tile specified'}
+                                                        </p>
+                                                        <p className="text-xs text-gray-400 mt-0.5">{room.tileSize}</p>
+                                                    </div>
+                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                                        <button
+                                                            onClick={() => handleEditRoom(room)}
+                                                            className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    </div>
+                                                </div>
 
-                                    <div className="flex gap-3 bg-gray-50 rounded-lg p-3">
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Net Area</p>
-                                            <p className="text-sm font-bold text-gray-800 mt-0.5">
-                                                {room.totalArea || 0} sq.ft
-                                            </p>
-                                        </div>
-                                        <div className="flex-1 border-l border-gray-200 pl-3">
-                                            <p className="text-[10px] font-bold text-indigo-500 uppercase">Required</p>
-                                            <p className="text-sm font-extrabold text-indigo-700 mt-0.5">
-                                                {room.reqQty || 0} nos
-                                            </p>
-                                        </div>
-                                    </div>
+                                                <div className="flex gap-3 bg-gray-50 rounded-lg p-3">
+                                                    <div className="flex-1">
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Net Area</p>
+                                                        <p className="text-sm font-bold text-gray-800 mt-0.5">
+                                                            {room.totalArea || 0} sq.ft
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex-1 border-l border-gray-200 pl-3">
+                                                        <p className="text-[10px] font-bold text-indigo-500 uppercase">Required</p>
+                                                        <p className="text-sm font-extrabold text-indigo-700 mt-0.5">
+                                                            {room.reqQty || 0} nos
+                                                        </p>
+                                                    </div>
+                                                </div>
 
-                                    {((room.deductions && room.deductions.length > 0) ||
-                                        (room.additions && room.additions.length > 0)) && (
-                                        <div className="flex gap-2 flex-wrap">
-                                            {room.deductions?.length > 0 && (
-                                                <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-md">
-                                                    ⚠️ {room.deductions.length} Deductions
-                                                </span>
-                                            )}
-                                            {room.additions?.length > 0 && (
-                                                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                                                    ➕ {room.additions.length} Additions
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+                                                {((room.deductions && room.deductions.length > 0) ||
+                                                    (room.additions && room.additions.length > 0)) && (
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        {room.deductions?.length > 0 && (
+                                                            <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-md">
+                                                                ⚠️ {room.deductions.length} Deductions
+                                                            </span>
+                                                        )}
+                                                        {room.additions?.length > 0 && (
+                                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                                                                ➕ {room.additions.length} Additions
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
 
-                                    <div className="flex justify-between items-center pt-1 border-t border-gray-100">
-                                        <span className="text-xs text-gray-400">
-                                            📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸 tap to view photos
-                                        </span>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
-                                            className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors"
-                                        >
-                                            Delete
-                                        </button>
+                                                <div className="flex justify-between items-center pt-1 border-t border-gray-100">
+                                                    <span className="text-xs text-gray-400">
+                                                        📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸 tap to view photos
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
+                                                        className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             ))}
@@ -1090,6 +1111,7 @@ export const TileCalculator: React.FC = () => {
                 )}
                 <InteractiveTilePlanner
                     initialName={editingRoom.name || ''}
+                    initialFloor={(editingRoom as any).floor || ''}
                     siteId={selectedSiteId}
                     initialSurfaceType={(editingRoom as any).surfaceType || 'floor'}
                     initialEntrance={(editingRoom as any).entrance || 'bottom'}
