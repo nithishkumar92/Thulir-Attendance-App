@@ -323,7 +323,6 @@ export const TileMasonPortal: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {/* ── Photos ── */}
                                         {activeRoom.photos.length > 0 && (
                                             <div>
                                                 <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>📸 Reference Photos</p>
@@ -339,6 +338,13 @@ export const TileMasonPortal: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
+
+                                        <button
+                                            onClick={() => { setShortageOpen(true); setShortageMat(''); setShortageQty(''); setShortageNote(''); }}
+                                            style={{ width: '100%', padding: '16px 0', background: 'linear-gradient(90deg,#ef4444,#dc2626)', color: '#fff', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12 }}
+                                        >
+                                            ⚠️ Report Material Shortage
+                                        </button>
 
                                     </div>
                                 )}
@@ -409,17 +415,7 @@ export const TileMasonPortal: React.FC = () => {
                 )}
             </div>
 
-            {/* ══ FLOATING SHORTAGE BUTTON — only on work tab ══ */}
-            {tab === 'work' && rooms.length > 0 && (
-                <div style={{ position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 28px)', maxWidth: 400, zIndex: 40 }}>
-                    <button
-                        onClick={() => { setShortageOpen(true); setShortageMat(''); setShortageQty(''); setShortageNote(''); }}
-                        style={{ width: '100%', padding: '16px 0', background: 'linear-gradient(90deg,#ef4444,#dc2626)', color: '#fff', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 900, cursor: 'pointer', boxShadow: '0 6px 22px rgba(239,68,68,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                    >
-                        ⚠️ Report Material Shortage
-                    </button>
-                </div>
-            )}
+            {/* ══ MASON BOTTOM NAV ══ */}
 
             {/* ══ BOTTOM NAV ══ */}
             <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: '#fff', borderTop: '1px solid #f1f5f9', display: 'flex', zIndex: 50, boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}>

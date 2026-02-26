@@ -210,7 +210,7 @@ const MockupPhotos: React.FC<{
                                 justifyContent: 'center',
                             }}
                         >
-                            âœ•
+                            ✕
                         </button>
                     </div>
                 ))}
@@ -727,7 +727,7 @@ export const TileCalculator: React.FC = () => {
                 {/* Page Header */}
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">ðŸªŸ Tile Calculator</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">Tile Calculator</h1>
                         <p className="text-sm text-gray-500 mt-1">Room-wise tile requirement setup & PDF report</p>
                     </div>
                     <div className="flex flex-wrap gap-3 items-center">
@@ -759,7 +759,7 @@ export const TileCalculator: React.FC = () => {
                                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
                                 disabled={rooms.length === 0}
                             >
-                                ðŸ“„ Report
+                                Report
                             </button>
                             <button
                                 onClick={handleAddNewRoom}
@@ -775,7 +775,7 @@ export const TileCalculator: React.FC = () => {
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Rooms â€” {selectedSite?.name || 'â€”'}</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Rooms - {selectedSite?.name || '-'}</p>
                         <p className="text-3xl font-bold text-gray-800">{rooms.length}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -793,13 +793,13 @@ export const TileCalculator: React.FC = () => {
 
                     {!selectedSiteId ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                            <p className="text-5xl mb-3">ðŸ—ï¸</p>
+                            <p className="text-5xl mb-3">🏢</p>
                             <p className="text-sm font-medium">Please select a site above to view or add rooms.</p>
                         </div>
                     ) : loading ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                            <p className="text-4xl mb-3 animate-spin">â³</p>
-                            <p className="text-sm font-medium">Loading roomsâ€¦</p>
+                            <p className="text-4xl mb-3 animate-spin">⏳</p>
+                            <p className="text-sm font-medium">Loading rooms…</p>
                         </div>
                     ) : error ? (
                         <div className="bg-red-50 rounded-xl border border-red-200 p-6 text-center text-red-600">
@@ -808,7 +808,7 @@ export const TileCalculator: React.FC = () => {
                         </div>
                     ) : rooms.length === 0 ? (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                            <p className="text-5xl mb-3">ðŸ“­</p>
+                            <p className="text-5xl mb-3">📭</p>
                             <p className="text-sm font-medium">
                                 No rooms for <strong>{selectedSite?.name}</strong> yet.
                                 <br />
@@ -861,12 +861,12 @@ export const TileCalculator: React.FC = () => {
                                         <div className="flex gap-2 flex-wrap">
                                             {room.deductions?.length > 0 && (
                                                 <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-md">
-                                                    âš ï¸ {room.deductions.length} Deductions
+                                                    ⚠️ {room.deductions.length} Deductions
                                                 </span>
                                             )}
                                             {room.additions?.length > 0 && (
                                                 <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                                                    âž• {room.additions.length} Additions
+                                                    ➕ {room.additions.length} Additions
                                                 </span>
                                             )}
                                         </div>
@@ -874,7 +874,7 @@ export const TileCalculator: React.FC = () => {
 
                                     <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                                         <span className="text-xs text-gray-400">
-                                            ðŸ“ {room.instructions ? 'Has notes' : 'No notes'} &nbsp;â€¢&nbsp; ðŸ“¸ tap to view photos
+                                            📝 {room.instructions ? 'Has notes' : 'No notes'} &nbsp;•&nbsp; 📸 tap to view photos
                                         </span>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
@@ -899,7 +899,7 @@ export const TileCalculator: React.FC = () => {
                                     onClick={() => setDownloadModalVisible(false)}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
                                 >
-                                    âœ•
+                                    ✕
                                 </button>
                             </div>
                             <p className="text-sm text-gray-500 mb-4">
@@ -952,7 +952,7 @@ export const TileCalculator: React.FC = () => {
                                 disabled={selectedRoomsToDownload.length === 0}
                                 className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors"
                             >
-                                ðŸ–¨ï¸ Print / Save as PDF
+                                🖨️ Print / Save as PDF
                             </button>
                         </div>
                     </div>
@@ -962,7 +962,7 @@ export const TileCalculator: React.FC = () => {
     }
 
     // =====================================================================
-    // EDIT / CREATE ROOM VIEW  â€” Pro Layout Planner
+    // EDIT / CREATE ROOM VIEW  — Pro Layout Planner
     // =====================================================================
     if (view === 'editRoom' && editingRoom) {
         // Build skirting config from room fields if editing an existing room
@@ -1012,253 +1012,285 @@ export const TileCalculator: React.FC = () => {
     if (view === 'roomDetail' && viewingRoom) {
         const r = viewingRoom;
         return (
-            <div className="space-y-5">
+            <div className="space-y-5 flex flex-col">
                 {/* Header */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2">
                     <button
                         onClick={() => setView('dashboard')}
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600"
+                        className="p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-gray-600 font-bold text-lg leading-none"
                     >
-                        â†
+                        ←
                     </button>
                     <div className="flex-1">
-                        <h1 className="text-xl font-bold text-gray-900">{r.name}</h1>
-                        <p className="text-sm text-gray-500">{selectedSite?.name}</p>
+                        <h1 className="text-xl font-extrabold text-gray-900 leading-tight">{r.name}</h1>
+                        <p className="text-sm font-medium text-gray-500">{selectedSite?.name}</p>
                     </div>
                     <button
                         onClick={() => { handleEditRoom(r); }}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                        className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
                     >
-                        âœï¸ Edit
+                        ✏️ Edit
                     </button>
                     <button
                         onClick={() => { handleDeleteRoom(r.id); setView('dashboard'); }}
-                        className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-colors"
+                        className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
                     >
-                        ðŸ—‘ï¸
+                        🗑️ Delete
                     </button>
                 </div>
 
-                {/* Tile Info */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Tile Information</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Tile Name</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileName || 'â€”'}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Tile Size</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.tileSize || 'â€”'}</p>
-                        </div>
-                    </div>
-                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* LEFT COLUMN: Visuals */}
+                    <div className="lg:col-span-7 flex flex-col gap-6">
+                        
+                        {/* Grid Layout Preview */}
+                        {(r as any).gridData && Object.keys((r as any).gridData).length > 0 && (() => {
+                            const gridData: Record<string, string> = (r as any).gridData;
+                            const tc: any = (r as any).tilesConfig || {};
+                            const W = parseFloat(r.width) || 10;
+                            const L = parseFloat(r.length) || 12;
+                            const TILE_COLORS: Record<string, string> = {
+                                tile1: '#6366f1', tile2: '#9333ea', tile3: '#0d9488', tile4: '#ea580c', deduct: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)',
+                            };
+                            const TILE_META = [
+                                { id: 'tile1', name: 'Main Field', color: '#6366f1', bg: '#eef2ff' },
+                                { id: 'tile2', name: 'Border', color: '#9333ea', bg: '#faf5ff' },
+                                { id: 'tile3', name: 'Highlight 1', color: '#0d9488', bg: '#f0fdfa' },
+                                { id: 'tile4', name: 'Highlight 2', color: '#ea580c', bg: '#fff7ed' },
+                            ];
+                            const TILE_SIZES_MAP: Record<string, number> = {
+                                '600x600 mm (2x2 ft)': 4, '600x1200 mm (2x4 ft)': 8,
+                                '800x800 mm (32x32 in)': 7.11, '800x1600 mm (32x64 in)': 14.22,
+                                '1200x1200 mm (4x4 ft)': 16,
+                            };
+                            const calcReq = (area: number, size: string, wastage: number) => {
+                                const sqft = TILE_SIZES_MAP[size] || 1;
+                                return Math.ceil((area / sqft) * (1 + (wastage || 0) / 100));
+                            };
+                            const areas = { tile1: 0, tile2: 0, tile3: 0, tile4: 0 };
+                            Object.values(gridData).forEach(v => { if (v in areas) (areas as any)[v]++; });
+                            const hasAnyType = Object.values(areas).some(v => v > 0);
+                            return (
+                                <div className="space-y-4">
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-50">
+                                            <div>
+                                                <h2 className="text-sm font-extrabold text-gray-800 tracking-wide uppercase">
+                                                    {(r as any).surfaceType === 'wall' ? '🧱 Wall Elevation Layout' : '🪟 Floor Layout Preview'}
+                                                </h2>
+                                                <p className="text-xs font-semibold text-gray-400 mt-1">Room proportions applied</p>
+                                            </div>
+                                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                                                <span className="text-xs font-bold text-gray-600">{W} × {L} ft</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 flex items-center justify-center min-h-[300px]">
+                                            <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, 1fr)`, gap: 1, background: '#cbd5e1', border: '2px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 14px rgba(0,0,0,0.05)' }}>
+                                                    {Array.from({ length: L }).map((_, y) =>
+                                                        Array.from({ length: W }).map((_, x) => {
+                                                            const cellType = gridData[`${x}-${y}`];
+                                                            let bg = '#f8fafc';
+                                                            if (cellType === 'deduct') bg = TILE_COLORS['deduct'];
+                                                            else if (cellType && TILE_COLORS[cellType]) bg = TILE_COLORS[cellType];
+                                                            return (
+                                                                <div
+                                                                    key={`${x}-${y}`}
+                                                                    style={{ aspectRatio: '1/1', background: bg }}
+                                                                />
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
 
-                {/* Dimensions */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Room Dimensions</h2>
-                    <div className="grid grid-cols-3 gap-4">
-                        <div>
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Length</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.length || 'â€”'} ft</p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Width</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">{r.width || 'â€”'} ft</p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Skirting</p>
-                            <p className="text-sm font-bold text-gray-800 mt-1">
-                                {r.hasSkirting ? `${r.skirtingHeight}"` : 'None'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                                        <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t border-gray-50">
+                                            {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => (
+                                                <div key={t.id} className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                                                    <div className="w-3.5 h-3.5 rounded-md shadow-sm" style={{ background: t.color }} />
+                                                    <span className="text-xs font-bold text-gray-700">{t.name}</span>
+                                                </div>
+                                            ))}
+                                            {Object.values(gridData).includes('deduct') && (
+                                                <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                                                    <div className="w-3.5 h-3.5 rounded-md border border-gray-300" style={{ background: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)' }} />
+                                                    <span className="text-xs font-bold text-gray-700">Void/Deduct</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
 
-                {/* Calculated Results */}
-                <div className="bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm p-5">
-                    <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wide mb-4">Calculated Results</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white rounded-lg p-3">
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Floor Area</p>
-                            <p className="text-lg font-extrabold text-gray-800 mt-1">{r.floorArea} <span className="text-xs font-medium text-gray-500">sq.ft</span></p>
-                        </div>
-                        <div className="bg-white rounded-lg p-3">
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Skirting Area</p>
-                            <p className="text-lg font-extrabold text-gray-800 mt-1">{r.skirtingArea} <span className="text-xs font-medium text-gray-500">sq.ft</span></p>
-                        </div>
-                        <div className="bg-white rounded-lg p-3">
-                            <p className="text-xs text-gray-400 font-semibold uppercase">Net Total Area</p>
-                            <p className="text-lg font-extrabold text-indigo-700 mt-1">{r.totalArea} <span className="text-xs font-medium text-indigo-400">sq.ft</span></p>
-                        </div>
-                        <div className="bg-indigo-600 rounded-lg p-3">
-                            <p className="text-xs text-indigo-200 font-semibold uppercase">Tiles Required</p>
-                            <p className="text-lg font-extrabold text-white mt-1">{r.reqQty} <span className="text-xs font-medium text-indigo-200">nos (+{r.wastage}%)</span></p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Grid Layout Preview */}
-                {(r as any).gridData && Object.keys((r as any).gridData).length > 0 && (() => {
-                    const gridData: Record<string, string> = (r as any).gridData;
-                    const tc: any = (r as any).tilesConfig || {};
-                    const W = parseFloat(r.width) || 10;
-                    const L = parseFloat(r.length) || 12;
-                    const TILE_COLORS: Record<string, string> = {
-                        tile1: '#6366f1', tile2: '#9333ea', tile3: '#0d9488', tile4: '#ea580c', deduct: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)',
-                    };
-                    const TILE_META = [
-                        { id: 'tile1', name: 'Main Field', color: '#6366f1', bg: '#eef2ff' },
-                        { id: 'tile2', name: 'Border', color: '#9333ea', bg: '#faf5ff' },
-                        { id: 'tile3', name: 'Highlight 1', color: '#0d9488', bg: '#f0fdfa' },
-                        { id: 'tile4', name: 'Highlight 2', color: '#ea580c', bg: '#fff7ed' },
-                    ];
-                    const TILE_SIZES_MAP: Record<string, number> = {
-                        '600x600 mm (2x2 ft)': 4, '600x1200 mm (2x4 ft)': 8,
-                        '800x800 mm (32x32 in)': 7.11, '800x1600 mm (32x64 in)': 14.22,
-                        '1200x1200 mm (4x4 ft)': 16,
-                    };
-                    const calcReq = (area: number, size: string, wastage: number) => {
-                        const sqft = TILE_SIZES_MAP[size] || 1;
-                        return Math.ceil((area / sqft) * (1 + (wastage || 0) / 100));
-                    };
-                    const areas = { tile1: 0, tile2: 0, tile3: 0, tile4: 0 };
-                    Object.values(gridData).forEach(v => { if (v in areas) (areas as any)[v]++; });
-                    const hasAnyType = Object.values(areas).some(v => v > 0);
-                    return (
-                        <>
-                            {/* Read-only grid */}
-                            <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        {(r as any).surfaceType === 'wall' ? '🧱 Wall Elevation Layout' : '🪟 Floor Layout Preview'}
-                                    </p>
-                                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{W} × {L} ft</span>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${W}, 1fr)`, gap: 1, background: '#e2e8f0', border: '2px solid #e2e8f0', borderRadius: 6, overflow: 'hidden' }}>
-                                    {Array.from({ length: L }).map((_, y) =>
-                                        Array.from({ length: W }).map((_, x) => {
-                                            const cellType = gridData[`${x}-${y}`];
-                                            let bg = '#f8fafc';
-                                            if (cellType === 'deduct') bg = TILE_COLORS['deduct'];
-                                            else if (cellType && TILE_COLORS[cellType]) bg = TILE_COLORS[cellType];
-                                            return (
-                                                <div
-                                                    key={`${x}-${y}`}
-                                                    style={{ aspectRatio: '1/1', background: bg }}
-                                                />
-                                            );
-                                        })
+                                    {hasAnyType && (
+                                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                            <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Tile Type Requirements</h2>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => {
+                                                    const area = (areas as any)[t.id];
+                                                    const config = tc[t.id] || {};
+                                                    const req = calcReq(area, config.size || '', parseFloat(config.wastage) || 0);
+                                                    return (
+                                                        <div key={t.id} className="flex items-center gap-3 rounded-xl p-3 border" style={{ backgroundColor: t.bg, borderColor: t.color + '22' }}>
+                                                            <div className="w-12 h-12 rounded-lg shadow-sm flex-shrink-0" style={{ background: t.color }} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-bold truncate" style={{ color: t.color }}>{t.name}</p>
+                                                                <p className="text-[10px] font-bold text-gray-500 truncate">{config.size || 'Size not set'}</p>
+                                                            </div>
+                                                            <div className="text-right flex-shrink-0">
+                                                                <p className="text-xl font-black text-gray-900 leading-none">{req}</p>
+                                                                <p className="text-[10px] font-bold text-gray-500 uppercase">pcs</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
-                                {/* Legend */}
-                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-                                    {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => (
-                                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                            <div style={{ width: 12, height: 12, background: t.color, borderRadius: 3 }} />
-                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{t.name}</span>
+                            );
+                        })()}
+
+                        {/* Photos */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                            <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">
+                                📸 Reference Photos {loadingDetail && <span className="text-indigo-400 normal-case font-normal">(loading…)</span>}
+                            </h2>
+                            {loadingDetail ? (
+                                <div className="bg-gray-50 rounded-xl p-8 text-center border-2 border-dashed border-gray-200">
+                                    <p className="text-sm font-medium text-gray-400">Fetching photos from cloud…</p>
+                                </div>
+                            ) : (!r.photos || r.photos.length === 0) ? (
+                                <div className="bg-gray-50 rounded-xl p-8 text-center border-2 border-dashed border-gray-200">
+                                    <p className="text-sm font-bold text-gray-400">No photos attached to this room.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {r.photos.map((p) => (
+                                        <div key={p.id} className="group relative aspect-square rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                                            <img
+                                                src={p.url}
+                                                alt="Room mockup"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
+                                                onClick={() => window.open(p.url, '_blank')}
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                         </div>
                                     ))}
-                                    {Object.values(gridData).includes('deduct') && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                            <div style={{ width: 12, height: 12, background: 'repeating-linear-gradient(45deg,#cbd5e1,#cbd5e1 2px,#f8fafc 2px,#f8fafc 6px)', border: '1px solid #cbd5e1', borderRadius: 3 }} />
-                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Void/Deduct</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notes */}
+                        {r.instructions && (
+                            <div className="bg-amber-50 rounded-2xl border border-amber-100 shadow-sm p-6">
+                                <h2 className="text-xs font-extrabold text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    📝 Laying Instructions
+                                </h2>
+                                <p className="text-sm text-amber-900 leading-relaxed font-medium whitespace-pre-wrap">{r.instructions}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* RIGHT COLUMN: Data */}
+                    <div className="lg:col-span-5 flex flex-col gap-6">
+                        {/* Calculated Results (Priority) */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl shadow-md p-6 text-white relative overflow-hidden">
+                            <div className="absolute inset-0 bg-white/5 opacity-50 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+                            <div className="relative">
+                                <h2 className="text-xs font-extrabold text-indigo-200 uppercase tracking-widest mb-5">Final Requirements</h2>
+                                
+                                <div className="flex flex-col gap-4">
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                                        <p className="text-xs font-bold text-indigo-200 uppercase">Tiles Needed</p>
+                                        <p className="text-3xl font-black mt-1">
+                                            {r.reqQty} <span className="text-sm font-bold text-indigo-300 normal-case">+ {r.wastage}% waste</span>
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+                                            <p className="text-[10px] font-bold text-indigo-200 uppercase">Net Area</p>
+                                            <p className="text-xl font-bold mt-1 text-white">{r.totalArea} <span className="text-xs font-semibold text-indigo-300 normal-case">sq.ft</span></p>
+                                        </div>
+                                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+                                            <p className="text-[10px] font-bold text-indigo-200 uppercase">Floor Only</p>
+                                            <p className="text-xl font-bold mt-1 text-white">{r.floorArea} <span className="text-xs font-semibold text-indigo-300 normal-case">sq.ft</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Dimensions & Structure */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                            <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Dimensions & Tile Info</h2>
+                            
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-end pb-3 border-b border-gray-50">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Room Size</p>
+                                        <p className="text-base font-bold text-gray-800 mt-0.5">{r.width} × {r.length} <span className="text-xs text-gray-500 font-semibold">ft</span></p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Skirting</p>
+                                        <p className="text-sm font-bold text-gray-800 mt-0.5">{r.hasSkirting ? `${r.skirtingHeight}" High` : 'None'}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Tile Selected</p>
+                                    <div className="mt-1 bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                        <p className="text-sm font-bold text-gray-800">{r.tileName || 'Multi-type (Planner)'}</p>
+                                        <p className="text-xs font-semibold text-gray-500 mt-0.5">{r.tileSize || 'Configured in layout'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Deductions & Additions */}
+                        {((r.deductions && r.deductions.length > 0) || (r.additions && r.additions.length > 0)) && (
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <h2 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Adjustments</h2>
+                                
+                                <div className="space-y-4">
+                                    {r.deductions && r.deductions.length > 0 && (
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <p className="text-[10px] font-bold text-red-500 uppercase bg-red-50 px-2 py-0.5 rounded">Deductions</p>
+                                                <p className="text-xs font-bold text-red-600">-{r.totalDeductedArea} sq.ft</p>
+                                            </div>
+                                            <div className="divide-y divide-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                                                {r.deductions.map(d => (
+                                                    <div key={d.id} className="flex justify-between items-center px-3 py-2 bg-gray-50 flex-wrap gap-2">
+                                                        <span className="text-xs font-bold text-gray-700">{d.name || 'Unnamed'}</span>
+                                                        <span className="text-xs font-bold text-red-500">-{((parseFloat(d.length)||0)*(parseFloat(d.width)||0)).toFixed(1)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {r.additions && r.additions.length > 0 && (
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <p className="text-[10px] font-bold text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded">Additions</p>
+                                                <p className="text-xs font-bold text-emerald-600">+{r.totalAddedArea} sq.ft</p>
+                                            </div>
+                                            <div className="divide-y divide-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                                                {r.additions.map(a => (
+                                                    <div key={a.id} className="flex justify-between items-center px-3 py-2 bg-gray-50 flex-wrap gap-2">
+                                                        <span className="text-xs font-bold text-gray-700">{a.name || 'Unnamed'}</span>
+                                                        <span className="text-xs font-bold text-emerald-600">+{((parseFloat(a.length)||0)*(parseFloat(a.width)||0)).toFixed(1)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
-
-                            {/* Per-tile-type breakdown */}
-                            {hasAnyType && (
-                                <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                                    <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tile Type Breakdown</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                        {TILE_META.filter(t => (areas as any)[t.id] > 0).map(t => {
-                                            const area = (areas as any)[t.id];
-                                            const config = tc[t.id] || {};
-                                            const req = calcReq(area, config.size || '', parseFloat(config.wastage) || 0);
-                                            return (
-                                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: t.bg, borderRadius: 12, padding: '10px 14px' }}>
-                                                    <div style={{ width: 32, height: 32, background: t.color, borderRadius: 8, flexShrink: 0 }} />
-                                                    <div style={{ flex: 1 }}>
-                                                        <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 800, color: t.color }}>{t.name}</p>
-                                                        <p style={{ margin: 0, fontSize: 11, color: '#64748b', fontWeight: 600 }}>{config.size || 'Size not set'} · {config.wastage || 0}% wastage</p>
-                                                    </div>
-                                                    <div style={{ textAlign: 'right' }}>
-                                                        <p style={{ margin: '0 0 1px', fontSize: 18, fontWeight: 900, color: '#0f172a' }}>{req} <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>nos</span></p>
-                                                        <p style={{ margin: 0, fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{area} sq.ft</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    );
-                })()}
-
-                {/* Deductions */}
-                {r.deductions && r.deductions.length > 0 && (
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                        <h2 className="text-xs font-bold text-red-400 uppercase tracking-wide mb-3">Deductions ({r.totalDeductedArea} sq.ft total)</h2>
-                        <div className="divide-y divide-gray-100">
-                            {r.deductions.map((d) => (
-                                <div key={d.id} className="py-2.5 flex justify-between items-center">
-                                    <span className="text-sm font-semibold text-gray-700">{d.name || 'Unnamed'}</span>
-                                    <span className="text-sm text-red-500 font-bold">{((parseFloat(d.length)||0)*(parseFloat(d.width)||0)).toFixed(2)} sq.ft</span>
-                                </div>
-                            ))}
-                        </div>
+                        )}
                     </div>
-                )}
-
-                {/* Additions */}
-                {r.additions && r.additions.length > 0 && (
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                        <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-wide mb-3">Additions ({r.totalAddedArea} sq.ft total)</h2>
-                        <div className="divide-y divide-gray-100">
-                            {r.additions.map((a) => (
-                                <div key={a.id} className="py-2.5 flex justify-between items-center">
-                                    <span className="text-sm font-semibold text-gray-700">{a.name || 'Unnamed'}</span>
-                                    <span className="text-sm text-emerald-600 font-bold">+{((parseFloat(a.length)||0)*(parseFloat(a.width)||0)).toFixed(2)} sq.ft</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Notes */}
-                {r.instructions && (
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Laying Instructions</h2>
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{r.instructions}</p>
-                    </div>
-                )}
-
-                {/* Photos â€” lazy loaded */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                    <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
-                        ðŸ“¸ Photos {loadingDetail && <span className="text-indigo-400 normal-case font-normal">(loadingâ€¦)</span>}
-                    </h2>
-                    {loadingDetail ? (
-                        <p className="text-sm text-gray-400 text-center py-6">Fetching photos from cloudâ€¦</p>
-                    ) : (!r.photos || r.photos.length === 0) ? (
-                        <p className="text-sm text-gray-400 text-center py-6">No photos attached to this room.</p>
-                    ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {r.photos.map((p) => (
-                                <img
-                                    key={p.id}
-                                    src={p.url}
-                                    alt="Room photo"
-                                    className="w-full aspect-square object-cover rounded-xl border border-gray-100 shadow-sm"
-                                    onClick={() => window.open(p.url, '_blank')}
-                                    style={{ cursor: 'pointer' }}
-                                />
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
         );
