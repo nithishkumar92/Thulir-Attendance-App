@@ -1085,14 +1085,17 @@ export const TileCalculator: React.FC = () => {
     // =====================================================================
     if (view === 'editRoom' && editingRoom) {
         // Build skirting config from room fields if editing an existing room
-        const plannerSkirting = (editingRoom as any).skirtingConfig || {
-            enabled: editingRoom.hasSkirting || false,
-            height: editingRoom.skirtingHeight || '4',
-            doors: editingRoom.doors || '1',
-            doorWidth: editingRoom.doorWidth || '3',
-            size: (editingRoom as any).skirtingTileSize || '600x600 mm (2x2 ft)',
-            wastage: (editingRoom as any).skirtingWastage || '0',
-        };
+        // Prefer the full skirting JSON saved by the planner (has purchaseName, uniqueId, etc.)
+        const plannerSkirting = (editingRoom as any).skirting?.hasOwnProperty?.('enabled')
+            ? (editingRoom as any).skirting
+            : (editingRoom as any).skirtingConfig || {
+                enabled: editingRoom.hasSkirting || false,
+                height: editingRoom.skirtingHeight || '4',
+                doors: editingRoom.doors || '1',
+                doorWidth: editingRoom.doorWidth || '3',
+                size: (editingRoom as any).skirtingTileSize || '600x600 mm (2x2 ft)',
+                wastage: (editingRoom as any).skirtingWastage || '0',
+            };
 
         return (
             <div>
