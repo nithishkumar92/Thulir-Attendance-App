@@ -344,7 +344,7 @@ const DEFAULT_NEW_ROOM: Omit<Room, 'id'> = {
     skirtingArea: '0',
     totalDeductedArea: '0',
     totalAddedArea: '0',
-    wastage: '10',
+    wastage: '0',
     reqQty: '',
     floor: '',
     instructions: '',
@@ -1090,7 +1090,7 @@ export const TileCalculator: React.FC = () => {
             doors: editingRoom.doors || '1',
             doorWidth: editingRoom.doorWidth || '3',
             size: (editingRoom as any).skirtingTileSize || '600x600 mm (2x2 ft)',
-            wastage: (editingRoom as any).skirtingWastage || '15',
+            wastage: (editingRoom as any).skirtingWastage || '0',
         };
 
         return (

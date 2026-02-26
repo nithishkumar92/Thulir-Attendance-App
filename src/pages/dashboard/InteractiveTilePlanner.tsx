@@ -48,6 +48,10 @@ interface SkirtingConfig {
     doorWidth: string;
     size: string;
     wastage: string;
+    purchaseName?: string;
+    uniqueId?: string;
+    customLength?: string;
+    customWidth?: string;
 }
 
 export interface PlannerSaveData {
@@ -132,15 +136,15 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 
     // Tile Configurations
     const [tilesConfig, setTilesConfig] = useState<TilesConfig>(initialTilesConfig || {
-        tile1: { size: '600x1200 mm (2x4 ft)', wastage: 10, purchaseName: '' },
-        tile2: { size: '600x600 mm (2x2 ft)', wastage: 15, purchaseName: '' },
-        tile3: { size: 'Select Tile Size...', wastage: 10, purchaseName: '' },
-        tile4: { size: 'Select Tile Size...', wastage: 10, purchaseName: '' },
+        tile1: { size: '600x1200 mm (2x4 ft)', wastage: 0, purchaseName: '' },
+        tile2: { size: '600x600 mm (2x2 ft)', wastage: 0, purchaseName: '' },
+        tile3: { size: 'Select Tile Size...', wastage: 0, purchaseName: '' },
+        tile4: { size: 'Select Tile Size...', wastage: 0, purchaseName: '' },
     });
 
     // Skirting
     const [skirting, setSkirting] = useState<SkirtingConfig>(initialSkirting || {
-        enabled: false, height: '4', doors: '1', doorWidth: '3', size: '600x600 mm (2x2 ft)', wastage: '15',
+        enabled: false, height: '4', doors: '1', doorWidth: '3', size: '600x600 mm (2x2 ft)', wastage: '0',
     });
     const [saveError, setSaveError] = useState('');
 
@@ -640,12 +644,48 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                             <select value={skirting.size} onChange={e => setSkirting({ ...skirting, size: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13, background: '#f8fafc', outline: 'none', marginBottom: 16 }}>
                                 {TILE_SIZES.map(t => <option key={t.label} value={t.label}>{t.label}</option>)}
                             </select>
+
+                            {/* Custom Size Modals */}
+                            {skirting.size === 'Custom Size' && (
+                                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                                    <Input
+                                        type="number"
+                                        value={skirting.customLength || ''}
+                                        onChange={e => setSkirting({ ...skirting, customLength: e.target.value })}
+                                        placeholder="Length (mm)"
+                                    />
+                                    <Input
+                                        type="number"
+                                        value={skirting.customWidth || ''}
+                                        onChange={e => setSkirting({ ...skirting, customWidth: e.target.value })}
+                                        placeholder="Width (mm)"
+                                    />
+                                </div>
+                            )}
+
+                            <div style={{ marginBottom: 12 }}>
+                                <Input
+                                    value={skirting.purchaseName || ''}
+                                    onChange={e => setSkirting({ ...skirting, purchaseName: e.target.value })}
+                                    placeholder="Original Brand / Box Name"
+                                    style={{ padding: '10px 12px' }}
+                                />
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                                <Input
+                                    value={skirting.uniqueId || ''}
+                                    onChange={e => setSkirting({ ...skirting, uniqueId: e.target.value })}
+                                    placeholder="Shop's Unique ID (Optional)"
+                                    style={{ padding: '10px 12px' }}
+                                />
+                            </div>
+
                             <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
                                     <p style={{ margin: '0 0 2px', fontSize: 11, color: '#059669', fontWeight: 700 }}>SKIRTING TILES</p>
                                     <p style={{ margin: 0, fontSize: 11, color: '#10b981' }}>Net Area: {skirtingArea.toFixed(1)} sq.ft</p>
                                 </div>
-                                <span style={{ fontSize: 24, fontWeight: 900, color: '#059669' }}>{calcReq(skirtingArea, skirting as Pick<TileConfig, 'size' | 'wastage'>)} <span style={{ fontSize: 12, fontWeight: 600 }}>nos</span></span>
+                                <span style={{ fontSize: 24, fontWeight: 900, color: '#059669' }}>{calcReq(skirtingArea, skirting as Pick<TileConfig, 'size' | 'wastage' | 'customLength' | 'customWidth'>)} <span style={{ fontSize: 12, fontWeight: 600 }}>nos</span></span>
                             </div>
                         </div>
                     )}
