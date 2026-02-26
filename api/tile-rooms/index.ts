@@ -24,6 +24,7 @@ async function ensureTable() {
             custom_tile_unit   TEXT DEFAULT 'feet',
             length      TEXT,
             width       TEXT,
+            floor       TEXT,
             has_skirting BOOLEAN DEFAULT false,
             skirting_height TEXT,
             doors       TEXT,
@@ -52,6 +53,7 @@ async function ensureTable() {
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS grid_data JSONB DEFAULT '{}'`);
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS tiles_config JSONB DEFAULT '{}'`);
     await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS shortage_reports JSONB DEFAULT '[]'`);
+    await query(`ALTER TABLE tile_rooms ADD COLUMN IF NOT EXISTS floor TEXT`);
 }
 
 /** Sign all photo URLs in an array */
@@ -89,6 +91,7 @@ function rowToRoom(r: any) {
         customTileUnit: r.custom_tile_unit || 'feet',
         length: r.length || '',
         width: r.width || '',
+        floor: r.floor || '',
         hasSkirting: r.has_skirting || false,
         skirtingHeight: r.skirting_height || '',
         doors: r.doors || '',
@@ -190,7 +193,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `INSERT INTO tile_rooms (
                     site_id, name, tile_name, tile_size,
                     custom_tile_length, custom_tile_width, custom_tile_unit,
-                    length, width, has_skirting, skirting_height,
+                    length, width, floor, has_skirting, skirting_height,
                     doors, door_width, deductions, additions,
                     floor_area, skirting_area, total_area,
                     total_deducted_area, total_added_area,
@@ -198,12 +201,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     surface_type, grid_data, tiles_config, shortage_reports
                 ) VALUES (
                     $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                    $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
+                    $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
                 ) RETURNING *`,
                 [
                     siteId, name, body.tileName || '', body.tileSize || '',
                     body.customTileLength || '', body.customTileWidth || '', body.customTileUnit || 'feet',
-                    body.length || '', body.width || '', body.hasSkirting || false, body.skirtingHeight || '',
+                    body.length || '', body.width || '', body.floor || '', body.hasSkirting || false, body.skirtingHeight || '',
                     body.doors || '', body.doorWidth || '',
                     JSON.stringify(body.deductions || []),
                     JSON.stringify(body.additions || []),
@@ -244,19 +247,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `UPDATE tile_rooms SET
                     name = $1, tile_name = $2, tile_size = $3,
                     custom_tile_length = $4, custom_tile_width = $5, custom_tile_unit = $6,
-                    length = $7, width = $8, has_skirting = $9, skirting_height = $10,
-                    doors = $11, door_width = $12, deductions = $13, additions = $14,
-                    floor_area = $15, skirting_area = $16, total_area = $17,
-                    total_deducted_area = $18, total_added_area = $19,
-                    wastage = $20, req_qty = $21, instructions = $22, photos = $23,
-                    surface_type = $24, grid_data = $25, tiles_config = $26, shortage_reports = $27,
+                    length = $7, width = $8, floor = $9, has_skirting = $10, skirting_height = $11,
+                    doors = $12, door_width = $13, deductions = $14, additions = $15,
+                    floor_area = $16, skirting_area = $17, total_area = $18,
+                    total_deducted_area = $19, total_added_area = $20,
+                    wastage = $21, req_qty = $22, instructions = $23, photos = $24,
+                    surface_type = $25, grid_data = $26, tiles_config = $27, shortage_reports = $28,
                     updated_at = now()
-                WHERE id = $28
+                WHERE id = $29
                 RETURNING *`,
                 [
                     body.name, body.tileName || '', body.tileSize || '',
                     body.customTileLength || '', body.customTileWidth || '', body.customTileUnit || 'feet',
-                    body.length || '', body.width || '', body.hasSkirting || false, body.skirtingHeight || '',
+                    body.length || '', body.width || '', body.floor || '', body.hasSkirting || false, body.skirtingHeight || '',
                     body.doors || '', body.doorWidth || '',
                     JSON.stringify(body.deductions || []),
                     JSON.stringify(body.additions || []),
