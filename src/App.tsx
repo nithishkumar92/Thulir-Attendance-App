@@ -15,9 +15,13 @@ import { UserManagement } from './pages/dashboard/UserManagement';
 import { OwnerReportPage } from './pages/dashboard/OwnerReportPage';
 import { TileCalculator } from './pages/dashboard/TileCalculator';
 import { MaterialReqPage } from './pages/dashboard/MaterialReqPage';
+import { Vendors } from './pages/dashboard/accounts/vendors';
+import { Materials } from './pages/dashboard/accounts/materials';
+import { Tiles } from './pages/dashboard/accounts/tiles';
+
 import { ClientPortal } from './pages/ClientPortal';
 import { TileMasonPortal } from './pages/TileMasonPortal';
-
+import { ExpensesAccount } from './pages/dashboard/accounts/expenses/index';
 const ProtectedRoute: React.FC<{ children: React.ReactNode, roles?: string[] }> = ({ children, roles }) => {
     const { currentUser } = useApp();
 
@@ -54,10 +58,17 @@ function App() {
                         <Route path="sites" element={<SiteManagement />} />
                         <Route path="report" element={<OwnerReportPage />} />
                         <Route path="attendance" element={<AttendanceCorrections />} />
-                        <Route path="payments" element={<AdvanceManagement />} />
+                        <Route path="payments" element={<ExpensesAccount />} />
                         <Route path="users" element={<UserManagement />} />
-                        <Route path="tiles" element={<TileCalculator />} />
-                        <Route path="materials" element={<MaterialReqPage />} />
+                        
+                        {/* Phase 1 Replacements */}
+                        <Route path="vendors" element={<Vendors />} />
+                        <Route path="materials" element={<Materials />} />
+                        <Route path="tiles" element={<Tiles />} />
+                        
+                        {/* Old placeholders */}
+                        <Route path="old-tiles" element={<TileCalculator />} />
+                        <Route path="old-materials" element={<MaterialReqPage />} />
                     </Route>
                     <Route
                         path="/team/*"

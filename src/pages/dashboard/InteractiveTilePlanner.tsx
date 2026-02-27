@@ -54,6 +54,14 @@ interface SkirtingConfig {
     customWidth?: string;
 }
 
+export interface TileMaster {
+    id: string;
+    brand: string;
+    size_label: string;
+    sqft_per_box: number;
+    pcs_per_box: number;
+}
+
 export interface PlannerSaveData {
     name: string;
     floor: string;
@@ -129,6 +137,16 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
     const [grid, setGrid] = useState<Record<string, string>>(initialGrid);
     const [activeTool, setActiveTool] = useState('tile1');
     const [isPainting, setIsPainting] = useState(false);
+    
+    // Available Tiles from Master DB
+    const [dbTiles, setDbTiles] = useState<TileMaster[]>([]);
+
+    useEffect(() => {
+        fetch('/api/accounts?resource=tiles')
+            .then(res => res.json())
+            .then(data => setDbTiles(data))
+            .catch(console.error);
+    }, []);
 
     // Wall Dividers
     const [dividers, setDividers] = useState<number[]>([]);
@@ -136,10 +154,10 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
 
     // Tile Configurations
     const [tilesConfig, setTilesConfig] = useState<TilesConfig>(initialTilesConfig || {
-        tile1: { size: '600x1200 mm (2x4 ft)', wastage: 0, purchaseName: '' },
-        tile2: { size: '600x600 mm (2x2 ft)', wastage: 0, purchaseName: '' },
-        tile3: { size: 'Select Tile Size...', wastage: 0, purchaseName: '' },
-        tile4: { size: 'Select Tile Size...', wastage: 0, purchaseName: '' },
+        tile1: { size: '', wastage: 10, uniqueId: '' }, // uniqueId maps to tile_master_id
+        tile2: { size: '', wastage: 10, uniqueId: '' },
+        tile3: { size: '', wastage: 10, uniqueId: '' },
+        tile4: { size: '', wastage: 10, uniqueId: '' },
     });
 
     // Skirting
@@ -262,18 +280,18 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
         skirtingArea = netPerimeter * heightFt;
     }
 
-    const calcReq = (area: number, config: Pick<TileConfig, 'size' | 'wastage' | 'customLength' | 'customWidth'>): number => {
-        if (!config.size || config.size === 'Select Tile Size...') return 0;
+    const calcReq = (area: number, config: Pick<TileConfig, 'size' | 'wastage' | 'customLength' | 'customWidth' | 'uniqueId'>): number => {
+        if (!config.uniqueId) return 0;
         
-        let sqftPerPiece = TILE_SIZES.find(t => t.label === config.size)?.sqft || 1;
+        const dbTile = dbTiles.find(t => t.id === config.uniqueId);
+        if (!dbTile) return 0;
         
-        if (config.size === 'Custom Size') {
-            const l = parseFloat(config.customLength || '0');
-            const w = parseFloat(config.customWidth || '0');
-            sqftPerPiece = (l * w) / 92903.04;
-        }
+        // Math: Area / sqft_per_box = boxes needed. boxes * pcs_per_box = total pieces.
+        // Assuming the area is in sqft.
+        const sqftPerBox = dbTile.sqft_per_box || 1;
+        const pcsPerBox = dbTile.pcs_per_box || 1;
         
-        if (sqftPerPiece <= 0) sqftPerPiece = 1; // fallback
+        const sqftPerPiece = sqftPerBox / pcsPerBox;
         
         return Math.ceil((area / sqftPerPiece) * (1 + ((parseFloat(String(config.wastage)) || 0) / 100)));
     };
@@ -564,55 +582,20 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                                     <select
-                                        value={config.size}
-                                        onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, size: e.target.value } })}
-                                        style={{ flex: 2, padding: '8px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, background: '#f8fafc', outline: 'none' }}
+                                        value={config.uniqueId || ''}
+                                        onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, uniqueId: e.target.value } })}
+                                        style={{ flex: 2, padding: '8px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, background: '#f8fafc', outline: 'none', fontWeight: 700, color: '#0f172a' }}
                                     >
-                                        {TILE_SIZES.map(t => <option key={t.label} value={t.label}>{t.label}</option>)}
+                                        <option value="">Select Tile from Master...</option>
+                                        {dbTiles.map(t => <option key={t.id} value={t.id}>{t.brand} — {t.size_label}</option>)}
                                     </select>
                                     <Input
                                         type="number"
                                         value={String(config.wastage)}
                                         onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, wastage: e.target.value } })}
+                                        title="Wastage %"
                                         placeholder="Waste %"
-                                        style={{ flex: 1, padding: '8px', fontSize: 12 }}
-                                    />
-                                </div>
-                                
-                                {/* Custom Size Modals */}
-                                {config.size === 'Custom Size' && (
-                                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                                        <Input
-                                            type="number"
-                                            value={config.customLength || ''}
-                                            onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, customLength: e.target.value } })}
-                                            placeholder="Length (mm)"
-                                            style={{ flex: 1, padding: '8px', fontSize: 12 }}
-                                        />
-                                        <Input
-                                            type="number"
-                                            value={config.customWidth || ''}
-                                            onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, customWidth: e.target.value } })}
-                                            placeholder="Width (mm)"
-                                            style={{ flex: 1, padding: '8px', fontSize: 12 }}
-                                        />
-                                    </div>
-                                )}
-
-                                <div style={{ marginBottom: 8 }}>
-                                    <Input
-                                        value={config.purchaseName || ''}
-                                        onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, purchaseName: e.target.value } })}
-                                        placeholder="Original Brand / Box Name"
-                                        style={{ padding: '8px 10px', fontSize: 12 }}
-                                    />
-                                </div>
-                                <div style={{ marginBottom: 8 }}>
-                                    <Input
-                                        value={config.uniqueId || ''}
-                                        onChange={e => setTilesConfig({ ...tilesConfig, [tool.id]: { ...config, uniqueId: e.target.value } })}
-                                        placeholder="Shop's Unique ID (Optional)"
-                                        style={{ padding: '8px 10px', fontSize: 12 }}
+                                        style={{ flex: 1, padding: '8px', fontSize: 13, fontWeight: 700 }}
                                     />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -640,45 +623,11 @@ export const InteractiveTilePlanner: React.FC<Props> = ({
                                 <div><Label>No. of Doors</Label><Input type="number" value={skirting.doors} onChange={e => setSkirting({ ...skirting, doors: e.target.value })} placeholder="1" /></div>
                                 <div><Label>Door W (ft)</Label><Input type="number" value={skirting.doorWidth} onChange={e => setSkirting({ ...skirting, doorWidth: e.target.value })} placeholder="3" /></div>
                             </div>
-                            <Label>Skirting Tile Size</Label>
-                            <select value={skirting.size} onChange={e => setSkirting({ ...skirting, size: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13, background: '#f8fafc', outline: 'none', marginBottom: 16 }}>
-                                {TILE_SIZES.map(t => <option key={t.label} value={t.label}>{t.label}</option>)}
+                            <Label>Skirting Tile (From Master)</Label>
+                            <select value={skirting.uniqueId || ''} onChange={e => setSkirting({ ...skirting, uniqueId: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 14, background: '#f8fafc', outline: 'none', marginBottom: 16, fontWeight: 700 }}>
+                                <option value="">Select Tile...</option>
+                                {dbTiles.map(t => <option key={t.id} value={t.id}>{t.brand} — {t.size_label}</option>)}
                             </select>
-
-                            {/* Custom Size Modals */}
-                            {skirting.size === 'Custom Size' && (
-                                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                                    <Input
-                                        type="number"
-                                        value={skirting.customLength || ''}
-                                        onChange={e => setSkirting({ ...skirting, customLength: e.target.value })}
-                                        placeholder="Length (mm)"
-                                    />
-                                    <Input
-                                        type="number"
-                                        value={skirting.customWidth || ''}
-                                        onChange={e => setSkirting({ ...skirting, customWidth: e.target.value })}
-                                        placeholder="Width (mm)"
-                                    />
-                                </div>
-                            )}
-
-                            <div style={{ marginBottom: 12 }}>
-                                <Input
-                                    value={skirting.purchaseName || ''}
-                                    onChange={e => setSkirting({ ...skirting, purchaseName: e.target.value })}
-                                    placeholder="Original Brand / Box Name"
-                                    style={{ padding: '10px 12px' }}
-                                />
-                            </div>
-                            <div style={{ marginBottom: 16 }}>
-                                <Input
-                                    value={skirting.uniqueId || ''}
-                                    onChange={e => setSkirting({ ...skirting, uniqueId: e.target.value })}
-                                    placeholder="Shop's Unique ID (Optional)"
-                                    style={{ padding: '10px 12px' }}
-                                />
-                            </div>
 
                             <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>

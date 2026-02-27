@@ -45,13 +45,14 @@ export const TopNavigation: React.FC = () => {
         { path: '/dashboard/workers', label: 'Workers', icon: Users },
         { path: '/dashboard/sites', label: 'Sites', icon: MapPin },
         { path: '/dashboard/attendance', label: 'Attendance', icon: AlertCircle },
-        { path: '/dashboard/payments', label: 'Payments', icon: DollarSign },
+        { path: '/dashboard/vendors', label: 'Vendors', icon: DollarSign },
+        { path: '/dashboard/materials', label: 'Material Master', icon: Package },
+        { path: '/dashboard/tiles', label: 'Tile Master', icon: Grid },
+        // other tabs remaining, we will consolidate payments and reports later 
+        { path: '/dashboard/payments', label: 'Cash / Advances', icon: DollarSign },
         { path: '/dashboard/report', label: 'Reports', icon: ClipboardList },
-        { path: '/dashboard/materials', label: 'Material Req', icon: Package },
-        { path: '/dashboard/tiles', label: 'Tiles', icon: Grid },
         { path: '/dashboard/users', label: 'Users', icon: Users },
     ];
-
     const isActive = (item: { path: string, exact?: boolean }) => {
         return item.exact
             ? location.pathname === item.path

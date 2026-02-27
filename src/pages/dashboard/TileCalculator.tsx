@@ -3,6 +3,8 @@ import { useApp } from '../../context/AppContext';
 import * as api from '../../services/apiService';
 import { InteractiveTilePlanner, PlannerSaveData } from './InteractiveTilePlanner';
 
+const API_BASE = '/api'; // Vercel routes /api -> api/ folder
+
 // --- Types ---
 interface TileSize {
     label: string;
@@ -589,19 +591,63 @@ export const TileCalculator: React.FC = () => {
                 gridData: data.grid,
                 tilesConfig: data.tilesConfig,
                 skirting: data.skirting,
+                areas: data.areas,
             };
 
             console.log('[Planner Save] payload:', JSON.stringify(roomPayload).slice(0, 200));
 
+            let savedRoomId;
             if (isNew) {
                 const saved = await api.createTileRoom(roomPayload);
                 console.log('[Planner Save] created:', saved);
                 setRooms((prev) => [...prev, saved]);
+                savedRoomId = saved.id;
             } else {
                 const saved = await api.updateTileRoom(String(editingRoom.id), roomPayload);
                 console.log('[Planner Save] updated:', saved);
                 setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? saved : r)));
+                savedRoomId = saved.id;
             }
+
+            // --- SAVE ZONES (Phase 4 Schema) ---
+            if (savedRoomId && data.tilesConfig) {
+                // Determine zone requirements
+                for (const tool of ['tile1', 'tile2', 'tile3', 'tile4'] as const) {
+                    const config = data.tilesConfig[tool];
+                    const area = data.areas[tool];
+                    if (area > 0 && config.uniqueId) {
+                         // We have to calculate the req qty again here or pass it from planner
+                         await fetch(`${API_BASE}/planner?resource=zones&id=${savedRoomId}`, {
+                             method: 'POST',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({
+                                 zone_name: tool === 'tile1' ? 'Main Field' : tool === 'tile2' ? 'Border' : tool === 'tile3' ? 'Highlight 1' : 'Highlight 2',
+                                 tile_master_id: config.uniqueId,
+                                 area_sqft: area,
+                                 wastage_pct: config.wastage,
+                                 required_qty: 0, // Backend will recalculate if missing, but let's pass loosely
+                                 sort_order: tool === 'tile1' ? 1 : tool === 'tile2' ? 2 : tool === 'tile3' ? 3 : 4
+                             })
+                         });
+                    }
+                }
+                
+                if (data.skirting.enabled && data.skirting.uniqueId && data.skirtingArea > 0) {
+                     await fetch(`${API_BASE}/planner?resource=zones&id=${savedRoomId}`, {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             zone_name: 'Skirting',
+                             tile_master_id: data.skirting.uniqueId,
+                             area_sqft: data.skirtingArea,
+                             wastage_pct: data.skirting.wastage,
+                             required_qty: 0,
+                             sort_order: 5
+                         })
+                     });
+                }
+            }
+
             setView('dashboard');
         } catch (err: any) {
             console.error('[Planner Save] FAILED:', err);

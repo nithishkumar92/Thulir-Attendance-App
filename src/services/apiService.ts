@@ -475,20 +475,20 @@ export const updateClientPayment = async (paymentId: string, updates: Partial<Cl
 // --- TILE ROOMS ---
 
 export const fetchTileRooms = async (siteId: string): Promise<any[]> => {
-    const response = await fetch(`${API_BASE}/tile-rooms?siteId=${siteId}`);
+    const response = await fetch(`${API_BASE}/planner?resource=rooms&siteId=${siteId}`);
     if (!response.ok) throw new Error('Failed to fetch tile rooms');
     return response.json();
-};
+    };
 
 export const fetchTileRoom = async (id: string): Promise<any> => {
-    const response = await fetch(`${API_BASE}/tile-rooms?id=${id}`);
+    const response = await fetch(`${API_BASE}/planner?resource=rooms&id=${id}`);
     if (!response.ok) throw new Error('Failed to fetch tile room');
     return response.json();
 };
 
 
 export const createTileRoom = async (room: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/tile-rooms`, {
+    const response = await fetch(`${API_BASE}/planner?resource=rooms`, {
         method: 'POST',
         headers,
         body: JSON.stringify(room)
@@ -498,7 +498,7 @@ export const createTileRoom = async (room: any): Promise<any> => {
 };
 
 export const updateTileRoom = async (id: string, room: any): Promise<any> => {
-    const response = await fetch(`${API_BASE}/tile-rooms`, {
+    const response = await fetch(`${API_BASE}/planner?resource=rooms`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ id, ...room })
@@ -508,7 +508,7 @@ export const updateTileRoom = async (id: string, room: any): Promise<any> => {
 };
 
 export const deleteTileRoom = async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/tile-rooms?id=${id}`, {
+    const response = await fetch(`${API_BASE}/planner?resource=rooms&id=${id}`, {
         method: 'DELETE',
         headers
     });
